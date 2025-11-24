@@ -6,6 +6,17 @@ const API_BASE = 'http://localhost:8001';
 
 export const api = {
   /**
+   * Get the current council configuration.
+   */
+  async getConfig() {
+    const response = await fetch(`${API_BASE}/api/config`);
+    if (!response.ok) {
+      throw new Error('Failed to get config');
+    }
+    return response.json();
+  },
+
+  /**
    * List all conversations.
    */
   async listConversations() {
@@ -18,14 +29,18 @@ export const api = {
 
   /**
    * Create a new conversation.
+   * @param {Object} councilConfig - Optional council configuration
+   * @param {Array<string>} councilConfig.council_models - List of model identifiers
+   * @param {string} councilConfig.chairman_model - Chairman model identifier
    */
-  async createConversation() {
+  async createConversation(councilConfig = null) {
+    const body = councilConfig ? { council_config: councilConfig } : {};
     const response = await fetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       throw new Error('Failed to create conversation');

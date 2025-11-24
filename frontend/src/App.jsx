@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import ConfigModal from './components/ConfigModal';
 import { api } from './api';
 import './App.css';
 
@@ -9,11 +10,23 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [availableConfig, setAvailableConfig] = useState(null);
 
-  // Load conversations on mount
+  // Load conversations and config on mount
   useEffect(() => {
     loadConversations();
+    loadConfig();
   }, []);
+
+  const loadConfig = async () => {
+    try {
+      const config = await api.getConfig();
+      setAvailableConfig(config);
+    } catch (error) {
+      console.error('Failed to load config:', error);
+    }
+  };
 
   // Load conversation details when selected
   useEffect(() => {
@@ -40,14 +53,19 @@ function App() {
     }
   };
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = () => {
+    setShowConfigModal(true);
+  };
+
+  const handleConfigSubmit = async (config) => {
     try {
-      const newConv = await api.createConversation();
+      const newConv = await api.createConversation(config);
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0 },
+        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
+      setShowConfigModal(false);
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
@@ -193,6 +211,13 @@ function App() {
         conversation={currentConversation}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
+      />
+      <ConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onSubmit={handleConfigSubmit}
+        availableModels={availableConfig?.council_models}
+        defaultChairman={availableConfig?.chairman_model}
       />
     </div>
   );

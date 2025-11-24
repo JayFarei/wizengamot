@@ -48,8 +48,28 @@ export default function ChatInterface({
     );
   }
 
+  const getModelShortName = (model) => {
+    return model?.split('/')[1] || model;
+  };
+
   return (
     <div className="chat-interface">
+      {conversation.council_config && (
+        <div className="council-config-bar">
+          <div className="config-info">
+            <span className="config-label">Council:</span>
+            <span className="config-value">
+              {conversation.council_config.council_models.map(getModelShortName).join(', ')}
+            </span>
+          </div>
+          <div className="config-info">
+            <span className="config-label">Chairman:</span>
+            <span className="config-value">
+              {getModelShortName(conversation.council_config.chairman_model)}
+            </span>
+          </div>
+        </div>
+      )}
       <div className="messages-container">
         {conversation.messages.length === 0 ? (
           <div className="empty-state">

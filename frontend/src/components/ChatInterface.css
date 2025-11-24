@@ -6,6 +6,30 @@
   background: #ffffff;
 }
 
+.council-config-bar {
+  display: flex;
+  gap: 20px;
+  padding: 12px 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 13px;
+}
+
+.config-info {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.config-label {
+  font-weight: 600;
+  color: #666;
+}
+
+.config-value {
+  color: #333;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
