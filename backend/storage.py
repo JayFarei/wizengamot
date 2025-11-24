@@ -8,6 +8,27 @@ from pathlib import Path
 from .config import DATA_DIR
 
 
+def extract_prompt_title(system_prompt: Optional[str]) -> Optional[str]:
+    """
+    Extract the title from a system prompt (first # heading).
+
+    Args:
+        system_prompt: The system prompt content
+
+    Returns:
+        The title or None if no prompt or no title found
+    """
+    if not system_prompt:
+        return None
+
+    for line in system_prompt.strip().split('\n'):
+        line = line.strip()
+        if line.startswith('# '):
+            return line[2:].strip()
+
+    return None
+
+
 def ensure_data_dir():
     """Ensure the data directory exists."""
     Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
@@ -18,7 +39,7 @@ def get_conversation_path(conversation_id: str) -> str:
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
-def create_conversation(conversation_id: str, council_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def create_conversation(conversation_id: str, council_config: Optional[Dict[str, Any]] = None, system_prompt: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a new conversation.
 
@@ -27,6 +48,7 @@ def create_conversation(conversation_id: str, council_config: Optional[Dict[str,
         council_config: Optional custom council configuration with:
             - council_models: List of model identifiers to include
             - chairman_model: Model identifier for the chairman
+        system_prompt: Optional system prompt to use for this conversation
 
     Returns:
         New conversation dict
@@ -38,7 +60,8 @@ def create_conversation(conversation_id: str, council_config: Optional[Dict[str,
         "created_at": datetime.utcnow().isoformat(),
         "title": "New Conversation",
         "messages": [],
-        "council_config": council_config  # Store custom config if provided
+        "council_config": council_config,  # Store custom config if provided
+        "system_prompt": system_prompt  # Store system prompt if provided
     }
 
     # Save to file

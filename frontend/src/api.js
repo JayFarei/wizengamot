@@ -32,9 +32,13 @@ export const api = {
    * @param {Object} councilConfig - Optional council configuration
    * @param {Array<string>} councilConfig.council_models - List of model identifiers
    * @param {string} councilConfig.chairman_model - Chairman model identifier
+   * @param {string} systemPrompt - Optional system prompt content
    */
-  async createConversation(councilConfig = null) {
-    const body = councilConfig ? { council_config: councilConfig } : {};
+  async createConversation(councilConfig = null, systemPrompt = null) {
+    const body = {};
+    if (councilConfig) body.council_config = councilConfig;
+    if (systemPrompt) body.system_prompt = systemPrompt;
+
     const response = await fetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
       headers: {
@@ -126,5 +130,74 @@ export const api = {
         }
       }
     }
+  },
+
+  /**
+   * List all available prompts.
+   */
+  async listPrompts() {
+    const response = await fetch(`${API_BASE}/api/prompts`);
+    if (!response.ok) {
+      throw new Error('Failed to list prompts');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific prompt by filename.
+   */
+  async getPrompt(filename) {
+    const response = await fetch(`${API_BASE}/api/prompts/${filename}`);
+    if (!response.ok) {
+      throw new Error('Failed to get prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new prompt.
+   */
+  async createPrompt(title, content) {
+    const response = await fetch(`${API_BASE}/api/prompts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, content }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an existing prompt.
+   */
+  async updatePrompt(filename, content) {
+    const response = await fetch(`${API_BASE}/api/prompts/${filename}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a prompt.
+   */
+  async deletePrompt(filename) {
+    const response = await fetch(`${API_BASE}/api/prompts/${filename}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete prompt');
+    }
+    return response.json();
   },
 };

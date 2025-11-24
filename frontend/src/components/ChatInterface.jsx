@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import SystemPromptBadge from './SystemPromptBadge';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -71,6 +72,12 @@ export default function ChatInterface({
         </div>
       )}
       <div className="messages-container">
+        {(conversation.system_prompt || conversation.prompt_title) && (
+          <SystemPromptBadge
+            promptTitle={conversation.prompt_title}
+            promptContent={conversation.system_prompt}
+          />
+        )}
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
             <h2>Start a conversation</h2>

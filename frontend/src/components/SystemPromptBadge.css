@@ -1,0 +1,55 @@
+.system-prompt-badge {
+  background-color: #f0f7ff;
+  border: 1px solid #b8d4f1;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.system-prompt-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 8px;
+}
+
+.system-prompt-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.system-prompt-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c5282;
+}
+
+.system-prompt-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #4a90e2;
+  font-size: 12px;
+  transition: opacity 0.2s;
+}
+
+.system-prompt-toggle:hover {
+  opacity: 0.7;
+}
+
+.system-prompt-content {
+  border-top: 1px solid #b8d4f1;
+  padding: 12px 14px;
+  background-color: #f8fbff;
+}
+
+.system-prompt-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #2d3748;
+}

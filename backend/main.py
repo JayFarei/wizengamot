@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config
+from . import storage, config, prompts
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -33,6 +33,7 @@ class CouncilConfig(BaseModel):
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
     council_config: Optional[CouncilConfig] = None
+    system_prompt: Optional[str] = None
 
 
 class SendMessageRequest(BaseModel):
@@ -54,6 +55,8 @@ class Conversation(BaseModel):
     created_at: str
     title: str
     messages: List[Dict[str, Any]]
+    system_prompt: Optional[str] = None
+    prompt_title: Optional[str] = None
 
 
 @app.get("/")
@@ -79,7 +82,7 @@ async def list_conversations():
 
 @app.post("/api/conversations", response_model=Conversation)
 async def create_conversation(request: CreateConversationRequest):
-    """Create a new conversation with optional custom council configuration."""
+    """Create a new conversation with optional custom council configuration and system prompt."""
     conversation_id = str(uuid.uuid4())
 
     # Convert CouncilConfig to dict if provided
@@ -90,7 +93,7 @@ async def create_conversation(request: CreateConversationRequest):
             "chairman_model": request.council_config.chairman_model
         }
 
-    conversation = storage.create_conversation(conversation_id, council_config)
+    conversation = storage.create_conversation(conversation_id, council_config, request.system_prompt)
     return conversation
 
 
@@ -100,6 +103,11 @@ async def get_conversation(conversation_id: str):
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Add prompt_title for display if system_prompt exists
+    if conversation.get("system_prompt"):
+        conversation["prompt_title"] = storage.extract_prompt_title(conversation["system_prompt"])
+
     return conversation
 
 
@@ -132,11 +140,15 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         council_models = conversation["council_config"].get("council_models")
         chairman_model = conversation["council_config"].get("chairman_model")
 
+    # Get system prompt if available
+    system_prompt = conversation.get("system_prompt")
+
     # Run the 3-stage council process
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
         request.content,
         council_models,
-        chairman_model
+        chairman_model,
+        system_prompt
     )
 
     # Add assistant message with all stages
@@ -187,9 +199,12 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 council_models = conversation["council_config"].get("council_models")
                 chairman_model = conversation["council_config"].get("chairman_model")
 
+            # Get system prompt if available
+            system_prompt = conversation.get("system_prompt")
+
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(request.content, council_models)
+            stage1_results = await stage1_collect_responses(request.content, council_models, system_prompt)
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings
@@ -232,6 +247,62 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             "Connection": "keep-alive",
         }
     )
+
+
+# Prompt Management Endpoints
+
+@app.get("/api/prompts")
+async def list_prompts():
+    """List all available system prompts."""
+    return prompts.list_prompts()
+
+
+@app.get("/api/prompts/{filename}")
+async def get_prompt(filename: str):
+    """Get a specific prompt by filename."""
+    prompt = prompts.get_prompt(filename)
+    if prompt is None:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    return prompt
+
+
+class CreatePromptRequest(BaseModel):
+    """Request to create a new prompt."""
+    title: str
+    content: str
+
+
+@app.post("/api/prompts")
+async def create_prompt(request: CreatePromptRequest):
+    """Create a new prompt file."""
+    try:
+        return prompts.create_prompt(request.title, request.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class UpdatePromptRequest(BaseModel):
+    """Request to update an existing prompt."""
+    content: str
+
+
+@app.put("/api/prompts/{filename}")
+async def update_prompt(filename: str, request: UpdatePromptRequest):
+    """Update an existing prompt file."""
+    try:
+        return prompts.update_prompt(filename, request.content)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/prompts/{filename}")
+async def delete_prompt(filename: str):
+    """Delete a prompt file."""
+    try:
+        prompts.delete_prompt(filename)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 if __name__ == "__main__":

@@ -5,13 +5,14 @@ from .openrouter import query_models_parallel, query_model
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 
 
-async def stage1_collect_responses(user_query: str, council_models: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+async def stage1_collect_responses(user_query: str, council_models: Optional[List[str]] = None, system_prompt: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
         council_models: Optional list of models to use (defaults to COUNCIL_MODELS from config)
+        system_prompt: Optional system prompt to prepend to the conversation
 
     Returns:
         List of dicts with 'model' and 'response' keys
@@ -19,7 +20,11 @@ async def stage1_collect_responses(user_query: str, council_models: Optional[Lis
     if council_models is None:
         council_models = COUNCIL_MODELS
 
-    messages = [{"role": "user", "content": user_query}]
+    # Build messages with optional system prompt
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_query})
 
     # Query all models in parallel
     responses = await query_models_parallel(council_models, messages)
@@ -308,7 +313,8 @@ Title:"""
 async def run_full_council(
     user_query: str,
     council_models: Optional[List[str]] = None,
-    chairman_model: Optional[str] = None
+    chairman_model: Optional[str] = None,
+    system_prompt: Optional[str] = None
 ) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
@@ -317,12 +323,13 @@ async def run_full_council(
         user_query: The user's question
         council_models: Optional list of models to use (defaults to COUNCIL_MODELS from config)
         chairman_model: Optional chairman model (defaults to CHAIRMAN_MODEL from config)
+        system_prompt: Optional system prompt to guide the council models
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query, council_models)
+    stage1_results = await stage1_collect_responses(user_query, council_models, system_prompt)
 
     # If no models responded successfully, return error
     if not stage1_results:

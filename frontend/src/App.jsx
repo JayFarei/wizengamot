@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import ConfigModal from './components/ConfigModal';
+import PromptManager from './components/PromptManager';
 import { api } from './api';
 import './App.css';
 
@@ -11,7 +12,9 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showPromptManager, setShowPromptManager] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
+  const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
 
   // Load conversations and config on mount
   useEffect(() => {
@@ -58,14 +61,22 @@ function App() {
   };
 
   const handleConfigSubmit = async (config) => {
+    // Store the config and proceed to prompt selection
+    setPendingCouncilConfig(config);
+    setShowConfigModal(false);
+    setShowPromptManager(true);
+  };
+
+  const handlePromptSelect = async (systemPrompt) => {
     try {
-      const newConv = await api.createConversation(config);
+      const newConv = await api.createConversation(pendingCouncilConfig, systemPrompt);
       setConversations([
         { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
-      setShowConfigModal(false);
+      setShowPromptManager(false);
+      setPendingCouncilConfig(null);
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
@@ -219,6 +230,15 @@ function App() {
         availableModels={availableConfig?.council_models}
         defaultChairman={availableConfig?.chairman_model}
       />
+      {showPromptManager && (
+        <PromptManager
+          onSelect={handlePromptSelect}
+          onClose={() => {
+            setShowPromptManager(false);
+            setPendingCouncilConfig(null);
+          }}
+        />
+      )}
     </div>
   );
 }
