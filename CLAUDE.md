@@ -59,7 +59,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`components/Stage1.jsx`**
 - Tab view of individual model responses
-- ReactMarkdown rendering with markdown-content wrapper
+- Uses ResponseWithComments for inline highlights and popups
 
 **`components/Stage2.jsx`**
 - **Critical Feature**: Tab view showing RAW evaluation text from each model
@@ -67,10 +67,20 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Shows "Extracted Ranking" below each evaluation so users can validate parsing
 - Aggregate rankings shown with average position and vote count
 - Explanatory text clarifies that boldface model names are for readability only
+- Uses ResponseWithComments for inline highlights and popups
 
 **`components/Stage3.jsx`**
 - Final synthesized answer from chairman
 - Green-tinted background (#f0fff0) to highlight conclusion
+- Uses ResponseWithComments for inline highlights and popups
+
+**Comment System Components**
+- **`ResponseWithComments.jsx`**: Wrapper that applies inline highlights and manages hover popups
+- **`HighlightPopup.jsx`**: Responsive popup that appears next to highlighted text, shows comment content and delete button
+- **`CommentModal.jsx`**: Modal for adding new comments to selected text
+- **`CommitModal.jsx`**: Enhanced modal showing full context (highlighted text + comments + metadata) when starting follow-up threads
+- **`ThreadView.jsx`**: Component for continuing follow-up conversations with individual models
+- **`SelectionHandler.js`**: Utility for text selection, highlighting, and popup positioning
 
 **Styling (`*.css`)**
 - Light mode theme (not dark mode)
@@ -164,3 +174,108 @@ Frontend: Display with tabs + validation UI
 ```
 
 The entire flow is async/parallel where possible to minimize latency.
+
+## Comment & Annotation System
+
+### Overview
+Users can highlight text in any stage response, add comments, and use those comments to start follow-up threads with individual council members. Comments are stored locally and displayed as inline highlights with hover popups.
+
+### Key Features
+
+**1. Inline Highlighting**
+- Text selection creates persistent yellow highlights in the response
+- Highlights use `<mark>` elements with `data-comment-id` attributes
+- Hover over highlights shows responsive popup with comment details
+- Active highlights get visual feedback (darker background)
+
+**2. Responsive Hover Popups**
+- Position intelligently (right, left, below based on viewport)
+- Show comment content, stage info, timestamp
+- Delete button for removing comments
+- Smooth fade-in animation
+- Smart positioning avoids viewport edges
+
+**3. Comment Modal**
+- Triggered by text selection
+- Shows selected text, stage, and model context
+- Keyboard shortcuts: Ctrl+Enter to save, Esc to cancel
+- Creates comment with unique ID and timestamp
+
+**4. Enhanced Commit Modal**
+- Shows ALL comment context before starting follow-up
+- Each comment displayed as card with:
+  - Comment number badge
+  - Stage and model badges
+  - Highlighted text excerpt
+  - Full comment content
+  - Context inclusion note
+- Allows selecting target model for follow-up
+- User provides follow-up question
+
+**5. Thread View**
+- Direct conversation with selected model
+- Comment context automatically included in first message
+- Back-and-forth interaction maintained
+- Thread history persisted
+
+### Technical Implementation
+
+**SelectionHandler.js**
+- `getSelection()`: Captures text selection with position data
+- `createHighlight()`: Creates `<mark>` elements for persistent highlights
+- `removeHighlight()`: Cleanly removes highlights by comment ID
+- `calculatePopupPosition()`: Smart positioning algorithm for popups
+- `_getTextNodes()`: Traverses DOM to find text nodes for highlighting
+
+**ResponseWithComments.jsx**
+- Manages highlight lifecycle (creation, event listeners, cleanup)
+- Handles hover and click interactions
+- Shows/hides HighlightPopup based on interaction
+- Coordinates with SelectionHandler for DOM manipulation
+
+**HighlightPopup.jsx**
+- Positioned absolutely based on highlight rect
+- Arrow pointing to highlighted text
+- Delete functionality triggers cascade: popup close → highlight remove → storage update
+
+**CommitModal.jsx**
+- Enhanced to show rich context cards
+- Each card includes all metadata (stage, model, selection, comment)
+- Visual hierarchy with badges and structured layout
+- Clear indication that context will be included
+
+### Storage
+Comments stored in App.jsx state as array of objects:
+```javascript
+{
+  id: string,           // Unique identifier
+  selection: string,    // Highlighted text
+  content: string,      // User's comment
+  stage: number,        // 1, 2, or 3
+  model: string,        // Model identifier
+  message_index: number,// Which message in conversation
+  created_at: string    // ISO timestamp
+}
+```
+
+### Delete Workflow
+1. User clicks delete in popup or annotation
+2. Component calls `onDeleteComment(commentId)`
+3. App.jsx removes from state
+4. SelectionHandler.removeHighlight() cleans DOM
+5. UI updates to remove both highlight and popup
+
+### Styling
+- Yellow highlight: `#fff3cd` background, `#ffc107` border
+- Hover state: `#ffe69c` background
+- Active state: `#ff9800` border
+- Popup: white with subtle shadow, 300px max width
+- Global styles in `index.css` for consistency
+
+### Future Enhancements
+- Multiple comments per selection (comment threads)
+- Comment replies/discussions
+- Export comments with highlighted context
+- Search/filter comments
+- Comment analytics (most commented sections)
+- Shareable comment links

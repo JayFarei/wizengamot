@@ -1,0 +1,161 @@
+.thread-view {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  background-color: white;
+  border-top: 2px solid #4a90e2;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 1500;
+}
+
+.thread-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background-color: #f8f9fa;
+}
+
+.thread-title h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.thread-context-info {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.thread-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.thread-close:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.thread-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  min-height: 200px;
+  max-height: calc(60vh - 180px);
+}
+
+.thread-message {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.thread-message-user {
+  background-color: #e3f2fd;
+  margin-left: 20%;
+}
+
+.thread-message-assistant {
+  background-color: #f5f5f5;
+  margin-right: 20%;
+}
+
+.thread-message-role {
+  font-weight: 600;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.thread-message-content {
+  color: #333;
+  line-height: 1.6;
+}
+
+.thread-message-content p:first-child {
+  margin-top: 0;
+}
+
+.thread-message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.thread-message-time {
+  font-size: 11px;
+  color: #999;
+  margin-top: 6px;
+}
+
+.thread-loading {
+  color: #666;
+  font-style: italic;
+}
+
+.thread-input-form {
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 12px;
+  background-color: white;
+}
+
+.thread-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+}
+
+.thread-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.thread-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.thread-submit {
+  padding: 10px 24px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.thread-submit:hover:not(:disabled) {
+  background-color: #3a7bc8;
+}
+
+.thread-submit:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

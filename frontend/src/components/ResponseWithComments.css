@@ -1,0 +1,57 @@
+.response-with-comments {
+  position: relative;
+}
+
+.response-content {
+  position: relative;
+}
+
+/* Text highlight styles */
+.response-content .text-highlight {
+  background: rgba(255, 235, 153, 0.6);
+  border-bottom: 1px solid #e6c84c;
+  cursor: pointer;
+  user-select: text;
+  padding: 0 1px;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+
+.response-content .text-highlight:hover,
+.response-content .text-highlight.hover {
+  background: rgba(255, 223, 102, 0.7);
+  border-bottom-color: #d4a84c;
+}
+
+.response-content .text-highlight.active {
+  background: rgba(255, 204, 51, 0.8);
+  border-bottom-color: #c9922c;
+}
+
+/* Animation for highlight appearance */
+@keyframes highlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(230, 200, 76, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(230, 200, 76, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(230, 200, 76, 0);
+  }
+}
+
+.response-content .text-highlight.pulse {
+  animation: highlightPulse 0.8s ease-out;
+}
+
+/* Ensure markdown content doesn't interfere with highlights */
+.response-content .markdown-content {
+  position: relative;
+}
+
+.response-content .markdown-content p,
+.response-content .markdown-content li,
+.response-content .markdown-content span {
+  position: relative;
+}

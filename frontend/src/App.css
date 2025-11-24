@@ -13,3 +13,37 @@
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
 }
+
+/* Floating Action Button for Review Context */
+.commit-button-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 18px;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  z-index: 1500;
+  transition: all 0.2s ease;
+}
+
+.commit-button-fab:hover {
+  background: #eee;
+  border-color: #bbb;
+}
+
+.commit-button-fab.has-comments {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.commit-button-fab.has-comments:hover {
+  background: #357abd;
+  border-color: #357abd;
+}

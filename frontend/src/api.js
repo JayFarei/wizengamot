@@ -200,4 +200,140 @@ export const api = {
     }
     return response.json();
   },
+
+  /**
+   * Create a comment on a response.
+   */
+  async createComment(conversationId, messageIndex, stage, model, selection, content, sourceContent = null) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message_index: messageIndex,
+          stage,
+          model,
+          selection,
+          content,
+          source_content: sourceContent,
+        }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to create comment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get comments for a conversation.
+   */
+  async getComments(conversationId, messageIndex = null) {
+    const url = messageIndex !== null
+      ? `${API_BASE}/api/conversations/${conversationId}/comments?message_index=${messageIndex}`
+      : `${API_BASE}/api/conversations/${conversationId}/comments`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to get comments');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a comment.
+   */
+  async updateComment(conversationId, commentId, content) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/comments/${commentId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to update comment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a comment.
+   */
+  async deleteComment(conversationId, commentId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/comments/${commentId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete comment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a follow-up thread with a specific model.
+   */
+  async createThread(conversationId, model, commentIds, question, messageIndex) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/threads`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          comment_ids: commentIds,
+          question,
+          message_index: messageIndex,
+        }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to create thread');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific thread.
+   */
+  async getThread(conversationId, threadId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/threads/${threadId}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get thread');
+    }
+    return response.json();
+  },
+
+  /**
+   * Continue a thread with a new question.
+   */
+  async continueThread(conversationId, threadId, question) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/threads/${threadId}/message`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to continue thread');
+    }
+    return response.json();
+  },
 };

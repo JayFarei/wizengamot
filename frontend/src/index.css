@@ -96,3 +96,22 @@ body {
   border-left: 4px solid #ddd;
   color: #666;
 }
+
+/* Global highlight styles for comments */
+mark.text-highlight {
+  background-color: #fff3cd;
+  border-bottom: 2px solid #ffc107;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s;
+  padding: 0 2px;
+}
+
+mark.text-highlight:hover {
+  background-color: #ffe69c;
+}
+
+mark.text-highlight.active {
+  background-color: #ffe69c;
+  border-bottom-color: #ff9800;
+}

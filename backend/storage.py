@@ -60,6 +60,8 @@ def create_conversation(conversation_id: str, council_config: Optional[Dict[str,
         "created_at": datetime.utcnow().isoformat(),
         "title": "New Conversation",
         "messages": [],
+        "comments": [],  # Store inline comments
+        "threads": [],  # Store follow-up threads
         "council_config": council_config,  # Store custom config if provided
         "system_prompt": system_prompt  # Store system prompt if provided
     }
@@ -197,3 +199,223 @@ def update_conversation_title(conversation_id: str, title: str):
 
     conversation["title"] = title
     save_conversation(conversation)
+
+
+def add_comment(
+    conversation_id: str,
+    comment_id: str,
+    message_index: int,
+    stage: int,
+    model: str,
+    selection: str,
+    content: str,
+    source_content: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Add a comment to a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        comment_id: Unique identifier for the comment
+        message_index: Index of the message being commented on
+        stage: Stage number (1, 2, or 3)
+        model: Model identifier for the response being commented on
+        selection: Highlighted text snippet
+        content: Comment content
+        source_content: Full content of the response the selection came from
+
+    Returns:
+        The created comment
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    comment = {
+        "id": comment_id,
+        "message_index": message_index,
+        "stage": stage,
+        "model": model,
+        "selection": selection,
+        "content": content,
+        "source_content": source_content,
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    if "comments" not in conversation:
+        conversation["comments"] = []
+
+    conversation["comments"].append(comment)
+    save_conversation(conversation)
+
+    return comment
+
+
+def get_comments(conversation_id: str, message_index: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Get comments for a conversation, optionally filtered by message index.
+
+    Args:
+        conversation_id: Conversation identifier
+        message_index: Optional message index to filter by
+
+    Returns:
+        List of comments
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    comments = conversation.get("comments", [])
+
+    if message_index is not None:
+        comments = [c for c in comments if c["message_index"] == message_index]
+
+    return comments
+
+
+def update_comment(conversation_id: str, comment_id: str, content: str) -> Dict[str, Any]:
+    """
+    Update a comment's content.
+
+    Args:
+        conversation_id: Conversation identifier
+        comment_id: Comment identifier
+        content: New comment content
+
+    Returns:
+        The updated comment
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "comments" not in conversation:
+        raise ValueError(f"Comment {comment_id} not found")
+
+    for comment in conversation["comments"]:
+        if comment["id"] == comment_id:
+            comment["content"] = content
+            comment["updated_at"] = datetime.utcnow().isoformat()
+            save_conversation(conversation)
+            return comment
+
+    raise ValueError(f"Comment {comment_id} not found")
+
+
+def delete_comment(conversation_id: str, comment_id: str):
+    """
+    Delete a comment from a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        comment_id: Comment identifier
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "comments" in conversation:
+        conversation["comments"] = [c for c in conversation["comments"] if c["id"] != comment_id]
+        save_conversation(conversation)
+
+
+def create_thread(
+    conversation_id: str,
+    thread_id: str,
+    model: str,
+    context: Dict[str, Any],
+    initial_question: str
+) -> Dict[str, Any]:
+    """
+    Create a new follow-up thread.
+
+    Args:
+        conversation_id: Conversation identifier
+        thread_id: Unique identifier for the thread
+        model: Model identifier to query
+        context: Context dict with message_index and relevant comment IDs
+        initial_question: The follow-up question
+
+    Returns:
+        The created thread
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    thread = {
+        "id": thread_id,
+        "model": model,
+        "context": context,
+        "messages": [
+            {
+                "role": "user",
+                "content": initial_question,
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ],
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    if "threads" not in conversation:
+        conversation["threads"] = []
+
+    conversation["threads"].append(thread)
+    save_conversation(conversation)
+
+    return thread
+
+
+def add_thread_message(
+    conversation_id: str,
+    thread_id: str,
+    role: str,
+    content: str
+):
+    """
+    Add a message to an existing thread.
+
+    Args:
+        conversation_id: Conversation identifier
+        thread_id: Thread identifier
+        role: Message role (user or assistant)
+        content: Message content
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "threads" not in conversation:
+        raise ValueError(f"No threads found in conversation {conversation_id}")
+
+    thread = next((t for t in conversation["threads"] if t["id"] == thread_id), None)
+    if thread is None:
+        raise ValueError(f"Thread {thread_id} not found")
+
+    thread["messages"].append({
+        "role": role,
+        "content": content,
+        "created_at": datetime.utcnow().isoformat()
+    })
+
+    save_conversation(conversation)
+
+
+def get_thread(conversation_id: str, thread_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get a specific thread.
+
+    Args:
+        conversation_id: Conversation identifier
+        thread_id: Thread identifier
+
+    Returns:
+        Thread dict or None if not found
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        return None
+
+    threads = conversation.get("threads", [])
+    return next((t for t in threads if t["id"] == thread_id), None)

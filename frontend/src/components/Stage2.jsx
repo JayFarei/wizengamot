@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import ResponseWithComments from './ResponseWithComments';
+import { SelectionHandler } from '../utils/SelectionHandler';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -14,12 +16,60 @@ function deAnonymizeText(text, labelToModel) {
   return result;
 }
 
-export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
+export default function Stage2({
+  rankings,
+  labelToModel,
+  aggregateRankings,
+  messageIndex,
+  comments,
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment
+}) {
   const [activeTab, setActiveTab] = useState(0);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const selection = SelectionHandler.getSelection();
+      if (selection && selection.stage === 2) {
+        onSelectionChange(selection);
+      }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [onSelectionChange]);
+
+  // Listen for tab switch events from sidebar
+  useEffect(() => {
+    const handleSwitchToComment = (e) => {
+      if (e.detail.stage === 2 && rankings) {
+        const tabIndex = rankings.findIndex(r => r.model === e.detail.model);
+        if (tabIndex !== -1) {
+          setActiveTab(tabIndex);
+        }
+      }
+    };
+    
+    window.addEventListener('switchToComment', handleSwitchToComment);
+    return () => window.removeEventListener('switchToComment', handleSwitchToComment);
+  }, [rankings]);
 
   if (!rankings || rankings.length === 0) {
     return null;
   }
+
+  const activeRanking = rankings[activeTab];
+  const rankingComments = comments?.filter(
+    c => c.stage === 2 && c.model === activeRanking.model && c.message_index === messageIndex
+  ) || [];
+
+  // Check if active comment belongs to this response
+  const activeCommentForThisResponse = activeCommentId && rankingComments.some(c => c.id === activeCommentId)
+    ? activeCommentId
+    : null;
 
   return (
     <div className="stage stage2">
@@ -45,20 +95,27 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
 
       <div className="tab-content">
         <div className="ranking-model">
-          {rankings[activeTab].model}
+          {activeRanking.model}
         </div>
-        <div className="ranking-content markdown-content">
-          <ReactMarkdown>
-            {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
-          </ReactMarkdown>
-        </div>
+        <ResponseWithComments
+          content={deAnonymizeText(activeRanking.ranking, labelToModel)}
+          comments={rankingComments}
+          messageIndex={messageIndex}
+          stage={2}
+          model={activeRanking.model}
+          onEditComment={onEditComment}
+          onDeleteComment={onDeleteComment}
+          activeCommentId={activeCommentForThisResponse}
+          onSetActiveComment={onSetActiveComment}
+          className="ranking-content"
+        />
 
-        {rankings[activeTab].parsed_ranking &&
-         rankings[activeTab].parsed_ranking.length > 0 && (
+        {activeRanking.parsed_ranking &&
+         activeRanking.parsed_ranking.length > 0 && (
           <div className="parsed-ranking">
             <strong>Extracted Ranking:</strong>
             <ol>
-              {rankings[activeTab].parsed_ranking.map((label, i) => (
+              {activeRanking.parsed_ranking.map((label, i) => (
                 <li key={i}>
                   {labelToModel && labelToModel[label]
                     ? labelToModel[label].split('/')[1] || labelToModel[label]

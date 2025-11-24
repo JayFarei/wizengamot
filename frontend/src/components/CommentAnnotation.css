@@ -1,0 +1,68 @@
+.comment-annotations {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #fef9e7;
+  border-left: 4px solid #f39c12;
+  border-radius: 4px;
+}
+
+.comment-annotations-header {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #666;
+}
+
+.comment-annotation {
+  background-color: white;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid #f0e5d8;
+}
+
+.comment-annotation:last-child {
+  margin-bottom: 0;
+}
+
+.comment-annotation-selection {
+  font-style: italic;
+  color: #555;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.comment-annotation-content {
+  color: #333;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.comment-annotation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.comment-annotation-time {
+  color: #999;
+}
+
+.comment-annotation-delete {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.comment-annotation-delete:hover {
+  background-color: #ffebee;
+}

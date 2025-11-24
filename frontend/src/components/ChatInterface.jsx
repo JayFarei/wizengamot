@@ -10,6 +10,12 @@ export default function ChatInterface({
   conversation,
   onSendMessage,
   isLoading,
+  comments,
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -95,6 +101,48 @@ export default function ChatInterface({
                     </div>
                   </div>
                 </div>
+              ) : msg.role === 'follow-up-user' ? (
+                <div className="user-message follow-up-message">
+                  <div className="message-label">
+                    You <span className="follow-up-badge">Follow-up to {getModelShortName(msg.model)}</span>
+                  </div>
+                  <div className="message-content">
+                    {msg.comments && msg.comments.length > 0 && (
+                      <div className="follow-up-context">
+                        <div className="context-header">Annotations ({msg.comments.length}):</div>
+                        {msg.comments.map((comment, idx) => (
+                          <div key={comment.id} className="context-comment">
+                            <div className="context-comment-header">
+                              <span className="context-num">{idx + 1}.</span>
+                              <span className="context-source">[{getModelShortName(comment.model)}, Stage {comment.stage}]</span>
+                            </div>
+                            <div className="context-selection">"{comment.selection}"</div>
+                            <div className="context-annotation">→ {comment.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="follow-up-question">
+                      <div className="markdown-content">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : msg.role === 'follow-up-assistant' ? (
+                <div className="assistant-message follow-up-response">
+                  <div className="message-label">{getModelShortName(msg.model)}</div>
+                  {msg.loading ? (
+                    <div className="stage-loading">
+                      <div className="spinner"></div>
+                      <span>Thinking...</span>
+                    </div>
+                  ) : (
+                    <div className="follow-up-content markdown-content">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="assistant-message">
                   <div className="message-label">LLM Council</div>
@@ -106,7 +154,18 @@ export default function ChatInterface({
                       <span>Running Stage 1: Collecting individual responses...</span>
                     </div>
                   )}
-                  {msg.stage1 && <Stage1 responses={msg.stage1} />}
+                  {msg.stage1 && (
+                    <Stage1
+                      responses={msg.stage1}
+                      messageIndex={index}
+                      comments={comments}
+                      onSelectionChange={onSelectionChange}
+                      onEditComment={onEditComment}
+                      onDeleteComment={onDeleteComment}
+                      activeCommentId={activeCommentId}
+                      onSetActiveComment={onSetActiveComment}
+                    />
+                  )}
 
                   {/* Stage 2 */}
                   {msg.loading?.stage2 && (
@@ -120,6 +179,13 @@ export default function ChatInterface({
                       rankings={msg.stage2}
                       labelToModel={msg.metadata?.label_to_model}
                       aggregateRankings={msg.metadata?.aggregate_rankings}
+                      messageIndex={index}
+                      comments={comments}
+                      onSelectionChange={onSelectionChange}
+                      onEditComment={onEditComment}
+                      onDeleteComment={onDeleteComment}
+                      activeCommentId={activeCommentId}
+                      onSetActiveComment={onSetActiveComment}
                     />
                   )}
 
@@ -130,7 +196,18 @@ export default function ChatInterface({
                       <span>Running Stage 3: Final synthesis...</span>
                     </div>
                   )}
-                  {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
+                  {msg.stage3 && (
+                    <Stage3
+                      finalResponse={msg.stage3}
+                      messageIndex={index}
+                      comments={comments}
+                      onSelectionChange={onSelectionChange}
+                      onEditComment={onEditComment}
+                      onDeleteComment={onDeleteComment}
+                      activeCommentId={activeCommentId}
+                      onSetActiveComment={onSetActiveComment}
+                    />
+                  )}
                 </div>
               )}
             </div>

@@ -1,10 +1,47 @@
 .sidebar {
   width: 260px;
+  min-width: 260px;
   background: #f8f8f8;
   border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  position: relative;
+  transition: width 0.2s ease, min-width 0.2s ease;
+}
+
+.sidebar.collapsed {
+  width: 40px;
+  min-width: 40px;
+}
+
+.sidebar-collapse-btn {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #666;
+  z-index: 10;
+  transition: all 0.15s ease;
+}
+
+.sidebar.collapsed .sidebar-collapse-btn {
+  right: 8px;
+  left: 8px;
+}
+
+.sidebar-collapse-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
 .sidebar-header {

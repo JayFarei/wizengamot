@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts
+from . import storage, config, prompts, threads
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -247,6 +247,208 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             "Connection": "keep-alive",
         }
     )
+
+
+# Comment Management Endpoints
+
+class CreateCommentRequest(BaseModel):
+    """Request to create a comment."""
+    message_index: int
+    stage: int
+    model: str
+    selection: str
+    content: str
+    source_content: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/comments")
+async def create_comment(conversation_id: str, request: CreateCommentRequest):
+    """Create a new comment on a specific part of a response."""
+    try:
+        comment_id = str(uuid.uuid4())
+        comment = storage.add_comment(
+            conversation_id,
+            comment_id,
+            request.message_index,
+            request.stage,
+            request.model,
+            request.selection,
+            request.content,
+            request.source_content
+        )
+        return comment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/comments")
+async def get_comments(conversation_id: str, message_index: Optional[int] = None):
+    """Get all comments for a conversation, optionally filtered by message index."""
+    try:
+        comments = storage.get_comments(conversation_id, message_index)
+        return comments
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.put("/api/conversations/{conversation_id}/comments/{comment_id}")
+async def update_comment(conversation_id: str, comment_id: str, data: dict):
+    """Update a specific comment's content."""
+    try:
+        content = data.get("content")
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+
+        updated_comment = storage.update_comment(conversation_id, comment_id, content)
+        return updated_comment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/conversations/{conversation_id}/comments/{comment_id}")
+async def delete_comment(conversation_id: str, comment_id: str):
+    """Delete a specific comment."""
+    try:
+        storage.delete_comment(conversation_id, comment_id)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# Thread Management Endpoints
+
+class CreateThreadRequest(BaseModel):
+    """Request to create a follow-up thread."""
+    model: str
+    comment_ids: List[str]
+    question: str
+    message_index: int
+
+
+@app.post("/api/conversations/{conversation_id}/threads")
+async def create_thread(conversation_id: str, request: CreateThreadRequest):
+    """Create a new follow-up thread with a specific model."""
+    try:
+        # Get the conversation
+        conversation = storage.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Get system prompt if available
+        system_prompt = conversation.get("system_prompt")
+
+        # Query the model with context
+        response = await threads.query_with_context(
+            request.model,
+            request.question,
+            conversation,
+            request.comment_ids,
+            system_prompt
+        )
+
+        if response is None:
+            raise HTTPException(status_code=500, detail="Failed to query model")
+
+        # Create the thread
+        thread_id = str(uuid.uuid4())
+        context = {
+            "message_index": request.message_index,
+            "comment_ids": request.comment_ids
+        }
+        thread = storage.create_thread(
+            conversation_id,
+            thread_id,
+            request.model,
+            context,
+            request.question
+        )
+
+        # Add the assistant's response
+        storage.add_thread_message(
+            conversation_id,
+            thread_id,
+            "assistant",
+            response["content"]
+        )
+
+        # Return the thread with the response
+        return storage.get_thread(conversation_id, thread_id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/threads/{thread_id}")
+async def get_thread(conversation_id: str, thread_id: str):
+    """Get a specific thread."""
+    thread = storage.get_thread(conversation_id, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    return thread
+
+
+class ContinueThreadRequest(BaseModel):
+    """Request to continue a thread."""
+    question: str
+
+
+@app.post("/api/conversations/{conversation_id}/threads/{thread_id}/message")
+async def continue_thread(conversation_id: str, thread_id: str, request: ContinueThreadRequest):
+    """Continue an existing thread with a new question."""
+    try:
+        # Get the conversation and thread
+        conversation = storage.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        thread = storage.get_thread(conversation_id, thread_id)
+        if thread is None:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        # Get system prompt if available
+        system_prompt = conversation.get("system_prompt")
+
+        # Compile context from comments (only for first message, so pass None here)
+        context = None
+        if len(thread["messages"]) == 1:  # First response only
+            context = threads.compile_context_from_comments(
+                conversation,
+                thread["context"]["comment_ids"]
+            )
+
+        # Continue the thread
+        response = await threads.continue_thread(
+            thread["model"],
+            thread["messages"],
+            request.question,
+            system_prompt,
+            context
+        )
+
+        if response is None:
+            raise HTTPException(status_code=500, detail="Failed to query model")
+
+        # Add user message
+        storage.add_thread_message(
+            conversation_id,
+            thread_id,
+            "user",
+            request.question
+        )
+
+        # Add assistant response
+        storage.add_thread_message(
+            conversation_id,
+            thread_id,
+            "assistant",
+            response["content"]
+        )
+
+        # Return the updated thread
+        return storage.get_thread(conversation_id, thread_id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # Prompt Management Endpoints
