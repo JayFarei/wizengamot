@@ -1,0 +1,30 @@
+services:
+  llm-council:
+    build: .
+    container_name: llm-council
+    ports:
+      - "8080:80"
+    volumes:
+      - llm-council-data:/app/data/conversations
+      - llm-council-prompts:/app/prompts
+      - llm-council-config:/app/data/config
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DATA_DIR=/app/data/conversations
+      - PROMPTS_DIR=/app/prompts
+      - CONFIG_DIR=/app/data/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  llm-council-data:
+    name: llm-council-data
+  llm-council-prompts:
+    name: llm-council-prompts
+  llm-council-config:
+    name: llm-council-config

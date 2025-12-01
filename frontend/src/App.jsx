@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import ConfigModal from './components/ConfigModal';
+import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
 import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
@@ -16,6 +17,7 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPromptManager, setShowPromptManager] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
   const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
@@ -554,6 +556,7 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onOpenSettings={() => setShowSettingsModal(true)}
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
       />
@@ -577,6 +580,10 @@ function App() {
         onSubmit={handleConfigSubmit}
         availableModels={availableConfig?.council_models}
         defaultChairman={availableConfig?.chairman_model}
+      />
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
       />
       {showPromptManager && (
         <PromptManager

@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+
+# Node
+frontend/node_modules
+
+# Environment and secrets
+.env
+.env.*
+
+# Data (mounted as volume)
+data/
+backups/
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+
+# OS files
+.DS_Store
+Thumbs.db

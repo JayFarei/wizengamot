@@ -7,6 +7,7 @@ export default function Sidebar({
   currentConversationId,
   onSelectConversation,
   onNewConversation,
+  onOpenSettings,
   collapsed,
   onToggleCollapse,
 }) {
@@ -95,6 +96,12 @@ export default function Sidebar({
                 </div>
               ))
             )}
+          </div>
+
+          <div className="sidebar-footer">
+            <button className="settings-btn" onClick={onOpenSettings}>
+              Settings
+            </button>
           </div>
         </>
       )}

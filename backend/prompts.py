@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 from typing import List, Dict, Optional
 
-PROMPTS_DIR = Path("prompts")
+# Prompts directory - configurable for Docker
+PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", "prompts"))
 
 def ensure_prompts_dir():
     """Ensure the prompts directory exists."""

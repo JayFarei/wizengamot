@@ -2,7 +2,8 @@
  * API client for the LLM Council backend.
  */
 
-const API_BASE = 'http://localhost:8001';
+// Use relative URLs in production (Docker), full URL in development
+const API_BASE = import.meta.env.DEV ? 'http://localhost:8001' : '';
 
 export const api = {
   /**
@@ -335,6 +336,47 @@ export const api = {
     );
     if (!response.ok) {
       throw new Error('Failed to continue thread');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get current settings status.
+   */
+  async getSettings() {
+    const response = await fetch(`${API_BASE}/api/settings`);
+    if (!response.ok) {
+      throw new Error('Failed to get settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the OpenRouter API key.
+   */
+  async updateApiKey(apiKey) {
+    const response = await fetch(`${API_BASE}/api/settings/api-key`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear the API key from settings.
+   */
+  async clearApiKey() {
+    const response = await fetch(`${API_BASE}/api/settings/api-key`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear API key');
     }
     return response.json();
   },

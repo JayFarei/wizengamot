@@ -1,0 +1,83 @@
+.settings-modal {
+  max-width: 450px;
+}
+
+.api-key-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8f8f8;
+  border-radius: 4px;
+}
+
+.status-indicator {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.status-indicator.configured {
+  color: #2e7d32;
+}
+
+.status-indicator.not-configured {
+  color: #d32f2f;
+}
+
+.status-source {
+  font-size: 12px;
+  color: #666;
+}
+
+.api-key-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.api-key-input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.api-key-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+.btn-clear {
+  margin-top: 8px;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+.settings-error {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.settings-success {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.section-description a {
+  color: #4a90e2;
+  text-decoration: none;
+}
+
+.section-description a:hover {
+  text-decoration: underline;
+}

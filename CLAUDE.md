@@ -18,6 +18,12 @@ cd frontend && npm run dev       # Frontend on port 5173
 # Frontend commands
 cd frontend && npm run build     # Production build
 cd frontend && npm run lint      # ESLint
+
+# Docker deployment
+docker compose build             # Build image
+docker compose up -d             # Run container on port 8080
+./scripts/deploy.sh              # Full deployment (pull, backup, migrate, rebuild)
+./scripts/backup.sh              # Backup conversation data
 ```
 
 ## Project Overview
@@ -32,7 +38,24 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
 - Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
 - Uses environment variable `OPENROUTER_API_KEY` from `.env`
-- Backend runs on **port 8001** (NOT 8000 - user had another app on 8000)
+- Backend runs on **port 8001** in development (Docker uses nginx on port 80/8080)
+
+**`settings.py`**
+- Runtime settings management (allows API key updates without restart)
+- Settings stored in `data/config/settings.json`
+- Priority: settings file > environment variable
+- Used primarily for Docker deployments where env vars are baked in
+
+**`prompts.py`**
+- System prompts stored as markdown files in `prompts/` directory
+- Title extracted from first `# heading` in markdown
+- CRUD operations: `list_prompts()`, `get_prompt()`, `create_prompt()`, `update_prompt()`, `delete_prompt()`
+
+**`threads.py`**
+- Follow-up conversations with specific council members
+- `compile_context_from_comments()`: Builds context from highlighted comments and pinned segments
+- `query_with_context()`: Single query with comment context
+- `continue_thread()`: Continue existing thread conversation
 
 **`openrouter.py`**
 - `query_model()`: Single async model query
@@ -61,7 +84,9 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - POST `/api/conversations/{id}/message` returns metadata in addition to stages
+- POST `/api/conversations/{id}/message/stream` for SSE streaming responses
 - Metadata includes: label_to_model mapping and aggregate_rankings
+- Additional endpoints: `/api/prompts`, `/api/settings`, `/api/conversations/{id}/comments`, `/api/conversations/{id}/threads`
 
 ### Frontend Structure (`frontend/src/`)
 
@@ -69,6 +94,12 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Main orchestration: manages conversations list and current conversation
 - Handles message sending and metadata storage
 - Important: metadata is stored in the UI state for display but not persisted to backend JSON
+- Manages context stack (pinned segments) for follow-up threads
+
+**`api.js`**
+- API client with automatic base URL switching (localhost:8001 in dev, relative URLs in Docker)
+- Includes `sendMessageStream()` for SSE streaming
+- Full CRUD for prompts, comments, threads, and settings
 
 **`components/ChatInterface.jsx`**
 - Multiline textarea (3 rows, resizable)
@@ -92,13 +123,20 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Green-tinted background (#f0fff0) to highlight conclusion
 - Uses ResponseWithComments for inline highlights and popups
 
-**Comment System Components**
+**Comment & Context System Components**
 - **`ResponseWithComments.jsx`**: Wrapper that applies inline highlights and manages hover popups
 - **`HighlightPopup.jsx`**: Responsive popup that appears next to highlighted text, shows comment content and delete button
 - **`CommentModal.jsx`**: Modal for adding new comments to selected text
 - **`CommitModal.jsx`**: Enhanced modal showing full context (highlighted text + comments + metadata) when starting follow-up threads
+- **`CommitSidebar.jsx`**: Review Context sidebar for managing annotations and context stack
+- **`AddToContextButton.jsx`**: Stack button on each Stage panel to pin entire responses
 - **`ThreadView.jsx`**: Component for continuing follow-up conversations with individual models
 - **`SelectionHandler.js`**: Utility for text selection, highlighting, and popup positioning
+
+**Prompt & Settings Components**
+- **`PromptSelector.jsx`**, **`PromptEditor.jsx`**, **`PromptManager.jsx`**: System prompt management UI
+- **`SettingsModal.jsx`**: Runtime API key configuration (for Docker deployments)
+- **`ConfigModal.jsx`**: Council/chairman model configuration per conversation
 
 **Styling (`*.css`)**
 - Light mode theme (not dark mode)
@@ -143,9 +181,9 @@ This strict format allows reliable parsing while still getting thoughtful evalua
 All backend modules use relative imports (e.g., `from .config import ...`) not absolute imports. This is critical for Python's module system to work correctly when running as `python -m backend.main`.
 
 ### Port Configuration
-- Backend: 8001 (changed from 8000 to avoid conflict)
-- Frontend: 5173 (Vite default)
-- Update both `backend/main.py` and `frontend/src/api.js` if changing
+- **Development**: Backend on 8001, Frontend on 5173
+- **Docker**: nginx on port 80 (mapped to 8080 externally), proxies `/api` to uvicorn on 8000
+- Frontend `api.js` auto-detects: uses `localhost:8001` in dev, relative URLs in production
 
 ### Markdown Rendering
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
@@ -159,11 +197,10 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 2. **CORS Issues**: Frontend must match allowed origins in `main.py` CORS middleware
 3. **Ranking Parse Failures**: If models don't follow format, fallback regex extracts any "Response X" patterns in order
 4. **Missing Metadata**: Metadata is ephemeral (not persisted), only available in API responses
+5. **Docker API Key**: In Docker, API key can be set via env var OR runtime settings UI; settings file takes priority
 
 ## Future Enhancement Ideas
 
-- Configurable council/chairman via UI instead of config file
-- Streaming responses instead of batch loading
 - Export conversations to markdown/PDF
 - Model performance analytics over time
 - Custom ranking criteria (not just accuracy/insight)
@@ -189,10 +226,31 @@ Frontend: Display with tabs + validation UI
 
 The entire flow is async/parallel where possible to minimize latency.
 
+## Docker Deployment
+
+### Architecture
+- Multi-stage Dockerfile: Node build stage → Python+nginx final image
+- Supervisord manages both nginx (frontend) and uvicorn (backend)
+- nginx serves static frontend and proxies `/api` to uvicorn
+
+### Volumes
+- `llm-council-data`: Conversation JSON files (`/app/data/conversations`)
+- `llm-council-prompts`: System prompt markdown files (`/app/prompts`)
+- `llm-council-config`: Runtime settings (`/app/data/config`)
+
+### Scripts (`scripts/`)
+- `deploy.sh`: Full deployment workflow (git pull → backup → migrate → rebuild → health check)
+- `backup.sh`: Creates timestamped backups, maintains rotation (keeps last 5)
+- `migrate.sh`: Data migrations between versions
+
+### Environment Variables
+- `OPENROUTER_API_KEY`: Can also be set via UI at runtime
+- `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`: Paths for Docker volume mounts
+
 ## Comment & Annotation System
 
 ### Overview
-Users can highlight text in any stage response, add comments, and use those comments to start follow-up threads with individual council members. Comments are stored locally and displayed as inline highlights with hover popups.
+Users can highlight text in any stage response, add comments, and use those comments to start follow-up threads with individual council members. Comments are persisted to conversation JSON and displayed as inline highlights with hover popups. Users can also pin entire response segments to a "context stack" without highlighting.
 
 ### Key Features
 
@@ -226,11 +284,17 @@ Users can highlight text in any stage response, add comments, and use those comm
 - Allows selecting target model for follow-up
 - User provides follow-up question
 
-**5. Thread View**
+**5. Context Stack**
+- Each Stage panel has a "stack" button to pin entire responses
+- Pinned segments stored in Review Context sidebar
+- Both highlights and stacked segments bundled for follow-up threads
+- Allows hand-picking exactly what context the next model sees
+
+**6. Thread View**
 - Direct conversation with selected model
-- Comment context automatically included in first message
+- Comment context + stacked segments automatically included in first message
 - Back-and-forth interaction maintained
-- Thread history persisted
+- Thread history persisted to conversation JSON
 
 ### Technical Implementation
 
@@ -259,8 +323,9 @@ Users can highlight text in any stage response, add comments, and use those comm
 - Clear indication that context will be included
 
 ### Storage
-Comments stored in App.jsx state as array of objects:
+Comments and threads are persisted to conversation JSON files (`data/conversations/{id}.json`):
 ```javascript
+// Comment structure
 {
   id: string,           // Unique identifier
   selection: string,    // Highlighted text
@@ -268,15 +333,26 @@ Comments stored in App.jsx state as array of objects:
   stage: number,        // 1, 2, or 3
   model: string,        // Model identifier
   message_index: number,// Which message in conversation
+  source_content: string, // Optional full source for context
   created_at: string    // ISO timestamp
+}
+
+// Thread structure
+{
+  id: string,
+  model: string,
+  comment_ids: string[],
+  context_segments: array,
+  messages: [{role, content}],
+  created_at: string
 }
 ```
 
 ### Delete Workflow
 1. User clicks delete in popup or annotation
-2. Component calls `onDeleteComment(commentId)`
-3. App.jsx removes from state
-4. SelectionHandler.removeHighlight() cleans DOM
+2. API call to `DELETE /api/conversations/{id}/comments/{commentId}`
+3. Backend removes from conversation JSON
+4. Frontend state updated, SelectionHandler.removeHighlight() cleans DOM
 5. UI updates to remove both highlight and popup
 
 ### Styling

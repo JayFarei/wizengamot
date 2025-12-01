@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads
+from . import storage, config, prompts, threads, settings
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -525,6 +525,51 @@ async def delete_prompt(filename: str):
         return {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# Settings Management Endpoints
+
+@app.get("/api/settings")
+async def get_settings():
+    """Get current settings status (not the actual API key value for security)."""
+    return {
+        "api_key_configured": settings.has_api_key_configured(),
+        "api_key_source": settings.get_api_key_source(),
+    }
+
+
+class UpdateApiKeyRequest(BaseModel):
+    """Request to update the OpenRouter API key."""
+    api_key: str
+
+
+@app.put("/api/settings/api-key")
+async def update_api_key(request: UpdateApiKeyRequest):
+    """Update the OpenRouter API key."""
+    if not request.api_key or len(request.api_key) < 10:
+        raise HTTPException(status_code=400, detail="Invalid API key")
+
+    settings.set_openrouter_api_key(request.api_key)
+    return {
+        "success": True,
+        "api_key_configured": True,
+        "api_key_source": "settings"
+    }
+
+
+@app.delete("/api/settings/api-key")
+async def clear_api_key():
+    """Clear the API key from settings (will fall back to environment variable)."""
+    current_settings = settings.load_settings()
+    if "openrouter_api_key" in current_settings:
+        del current_settings["openrouter_api_key"]
+        settings.save_settings(current_settings)
+
+    return {
+        "success": True,
+        "api_key_configured": settings.has_api_key_configured(),
+        "api_key_source": settings.get_api_key_source()
+    }
 
 
 if __name__ == "__main__":
