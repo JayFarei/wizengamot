@@ -89,8 +89,13 @@ export default function Sidebar({
                   onClick={() => onSelectConversation(conv.id)}
                 >
                   <div className="conversation-content">
-                    <div className="conversation-title">
-                      {conv.title || 'New Conversation'}
+                    <div className="conversation-title-row">
+                      <span className="conversation-title">
+                        {conv.title || 'New Conversation'}
+                      </span>
+                      {conv.mode === 'synthesizer' && (
+                        <span className="mode-badge mode-synthesizer">Notes</span>
+                      )}
                     </div>
                     <div className="conversation-meta">
                       {conv.message_count} messages

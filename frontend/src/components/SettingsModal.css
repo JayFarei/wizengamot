@@ -297,3 +297,26 @@
 .section-description a:hover {
   text-decoration: underline;
 }
+
+/* Setting Rows (Integrations tab) */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-row label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.setting-row select {
+  min-width: 200px;
+}

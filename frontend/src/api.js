@@ -34,11 +34,14 @@ export const api = {
    * @param {Array<string>} councilConfig.council_models - List of model identifiers
    * @param {string} councilConfig.chairman_model - Chairman model identifier
    * @param {string} systemPrompt - Optional system prompt content
+   * @param {string} mode - Conversation mode: "council" or "synthesizer"
+   * @param {Object} synthesizerConfig - Optional synthesizer configuration
    */
-  async createConversation(councilConfig = null, systemPrompt = null) {
-    const body = {};
+  async createConversation(councilConfig = null, systemPrompt = null, mode = 'council', synthesizerConfig = null) {
+    const body = { mode };
     if (councilConfig) body.council_config = councilConfig;
     if (systemPrompt) body.system_prompt = systemPrompt;
+    if (synthesizerConfig) body.synthesizer_config = synthesizerConfig;
 
     const response = await fetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
@@ -472,6 +475,104 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to update default prompt');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Synthesizer API Methods
+  // ==========================================================================
+
+  /**
+   * Process a URL and generate Zettelkasten notes.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} url - URL to process
+   * @param {string} comment - Optional user comment/guidance
+   * @param {string} model - Optional model override
+   * @param {boolean} useCouncil - Whether to use multiple models
+   */
+  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/synthesize`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          comment,
+          model,
+          use_council: useCouncil,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to synthesize');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get synthesizer settings.
+   */
+  async getSynthesizerSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/synthesizer`);
+    if (!response.ok) {
+      throw new Error('Failed to get synthesizer settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update synthesizer settings.
+   */
+  async updateSynthesizerSettings(model = null, mode = null, prompt = null) {
+    const body = {};
+    if (model !== null) body.model = model;
+    if (mode !== null) body.mode = mode;
+    if (prompt !== null) body.prompt = prompt;
+
+    const response = await fetch(`${API_BASE}/api/settings/synthesizer`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update synthesizer settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update Firecrawl API key.
+   */
+  async updateFirecrawlApiKey(apiKey) {
+    const response = await fetch(`${API_BASE}/api/settings/firecrawl-api-key`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update Firecrawl API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear Firecrawl API key.
+   */
+  async clearFirecrawlApiKey() {
+    const response = await fetch(`${API_BASE}/api/settings/firecrawl-api-key`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear Firecrawl API key');
     }
     return response.json();
   },

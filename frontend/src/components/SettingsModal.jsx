@@ -17,6 +17,10 @@ export default function SettingsModal({ isOpen, onClose }) {
   // Model pool management
   const [newModel, setNewModel] = useState('');
 
+  // Integrations
+  const [firecrawlKey, setFirecrawlKey] = useState('');
+  const [synthesizerSettings, setSynthesizerSettings] = useState(null);
+
   // Prompt editor modal
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
@@ -38,14 +42,16 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const loadAllSettings = async () => {
     try {
-      const [settingsData, modelData, promptsData] = await Promise.all([
+      const [settingsData, modelData, promptsData, synthData] = await Promise.all([
         api.getSettings(),
         api.getModelSettings(),
         api.listPrompts(),
+        api.getSynthesizerSettings(),
       ]);
       setSettings(settingsData);
       setModelSettings(modelData);
       setPrompts(promptsData);
+      setSynthesizerSettings(synthData);
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -269,6 +275,94 @@ export default function SettingsModal({ isOpen, onClose }) {
     return model.split('/')[1] || model;
   };
 
+  // Firecrawl API Key
+  const handleSaveFirecrawlKey = async () => {
+    if (!firecrawlKey.trim()) {
+      setError('Please enter a Firecrawl API key');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateFirecrawlApiKey(firecrawlKey.trim());
+      setSuccess('Firecrawl API key saved successfully');
+      setFirecrawlKey('');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to save Firecrawl API key');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearFirecrawlKey = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.clearFirecrawlApiKey();
+      setSuccess('Firecrawl API key cleared');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to clear Firecrawl API key');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Synthesizer Settings
+  const handleSynthesizerModelChange = async (model) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateSynthesizerSettings(model, null, null);
+      setSuccess('Synthesizer model updated');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to update synthesizer model');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSynthesizerModeChange = async (mode) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateSynthesizerSettings(null, mode, null);
+      setSuccess('Synthesizer mode updated');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to update synthesizer mode');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSynthesizerPromptChange = async (prompt) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateSynthesizerSettings(null, null, prompt || null);
+      setSuccess('Synthesizer prompt updated');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to update synthesizer prompt');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -294,6 +388,12 @@ export default function SettingsModal({ isOpen, onClose }) {
             onClick={() => setActiveTab('prompts')}
           >
             Prompts
+          </button>
+          <button
+            className={`settings-tab ${activeTab === 'integrations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('integrations')}
+          >
+            Integrations
           </button>
         </div>
 
@@ -497,6 +597,116 @@ export default function SettingsModal({ isOpen, onClose }) {
                   ))
                 )}
               </div>
+            </div>
+          </>
+        )}
+
+        {/* Integrations Tab */}
+        {activeTab === 'integrations' && (
+          <>
+            <div className="modal-section">
+              <h3>Firecrawl API Key</h3>
+              <p className="section-description">
+                Required for scraping articles in Synthesizer mode.
+                Get your key at <a href="https://www.firecrawl.dev/" target="_blank" rel="noopener noreferrer">firecrawl.dev</a>
+              </p>
+
+              {settings && (
+                <div className="api-key-status">
+                  <span className={`status-indicator ${settings.firecrawl_configured ? 'configured' : 'not-configured'}`}>
+                    {settings.firecrawl_configured ? 'Configured' : 'Not Configured'}
+                  </span>
+                  {settings.firecrawl_configured && settings.firecrawl_source && (
+                    <span className="status-source">
+                      (via {settings.firecrawl_source === 'settings' ? 'saved settings' : 'environment variable'})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="api-key-input-group">
+                <input
+                  type="password"
+                  className="api-key-input"
+                  placeholder="fc-..."
+                  value={firecrawlKey}
+                  onChange={(e) => setFirecrawlKey(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveFirecrawlKey()}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={handleSaveFirecrawlKey}
+                  disabled={loading || !firecrawlKey.trim()}
+                >
+                  {loading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+
+              {settings?.firecrawl_source === 'settings' && (
+                <button
+                  className="btn-secondary btn-clear"
+                  onClick={handleClearFirecrawlKey}
+                  disabled={loading}
+                >
+                  Clear Saved Key
+                </button>
+              )}
+            </div>
+
+            <div className="modal-section">
+              <h3>Synthesizer Settings</h3>
+              <p className="section-description">
+                Configure default behavior for the Synthesizer mode
+              </p>
+
+              {synthesizerSettings && modelSettings && (
+                <>
+                  <div className="setting-row">
+                    <label>Default Model</label>
+                    <select
+                      className="chairman-select"
+                      value={synthesizerSettings.default_model || ''}
+                      onChange={(e) => handleSynthesizerModelChange(e.target.value)}
+                      disabled={loading}
+                    >
+                      {modelSettings.model_pool.map((model) => (
+                        <option key={model} value={model}>
+                          {getModelShortName(model)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="setting-row">
+                    <label>Generation Mode</label>
+                    <select
+                      className="chairman-select"
+                      value={synthesizerSettings.default_mode || 'single'}
+                      onChange={(e) => handleSynthesizerModeChange(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="single">Single Model</option>
+                      <option value="council">Council (Multiple Models)</option>
+                    </select>
+                  </div>
+
+                  <div className="setting-row">
+                    <label>Default Prompt</label>
+                    <select
+                      className="chairman-select"
+                      value={synthesizerSettings.default_prompt || 'zettel.md'}
+                      onChange={(e) => handleSynthesizerPromptChange(e.target.value)}
+                      disabled={loading}
+                    >
+                      {prompts.map((prompt) => (
+                        <option key={prompt.filename} value={prompt.filename}>
+                          {prompt.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}

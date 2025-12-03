@@ -6,6 +6,8 @@ import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
 import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
+import ModeSelector from './components/ModeSelector';
+import SynthesizerInterface from './components/SynthesizerInterface';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
 import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
@@ -19,6 +21,7 @@ function App() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPromptManager, setShowPromptManager] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
   const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
 
@@ -124,7 +127,28 @@ function App() {
   };
 
   const handleNewConversation = () => {
-    setShowConfigModal(true);
+    setShowModeSelector(true);
+  };
+
+  const handleModeSelect = async (mode) => {
+    setShowModeSelector(false);
+
+    if (mode === 'council') {
+      // Show council config modal for model selection
+      setShowConfigModal(true);
+    } else if (mode === 'synthesizer') {
+      // Create synthesizer conversation directly
+      try {
+        const newConv = await api.createConversation(null, null, 'synthesizer', null);
+        setConversations([
+          { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'synthesizer' },
+          ...conversations,
+        ]);
+        setCurrentConversationId(newConv.id);
+      } catch (error) {
+        console.error('Failed to create synthesizer conversation:', error);
+      }
+    }
   };
 
   const handleConfigSubmit = async (config) => {
@@ -136,9 +160,9 @@ function App() {
 
   const handlePromptSelect = async (systemPrompt) => {
     try {
-      const newConv = await api.createConversation(pendingCouncilConfig, systemPrompt);
+      const newConv = await api.createConversation(pendingCouncilConfig, systemPrompt, 'council', null);
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title },
+        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'council' },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
@@ -574,20 +598,36 @@ function App() {
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
       />
-      <ChatInterface
-        conversation={currentConversation}
-        onSendMessage={handleSendMessage}
-        isLoading={isLoading}
-        comments={comments}
-        contextSegments={contextSegments}
-        onSelectionChange={handleSelectionChange}
-        onEditComment={handleEditComment}
-        onDeleteComment={handleDeleteComment}
-        activeCommentId={activeCommentId}
-        onSetActiveComment={handleSetActiveComment}
-        onAddContextSegment={handleAddContextSegment}
-        onRemoveContextSegment={handleRemoveContextSegment}
-      />
+      {currentConversation?.mode === 'synthesizer' ? (
+        <SynthesizerInterface
+          conversation={currentConversation}
+          onConversationUpdate={(updatedConv) => {
+            setCurrentConversation(updatedConv);
+            loadConversations();
+          }}
+        />
+      ) : (
+        <ChatInterface
+          conversation={currentConversation}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+          comments={comments}
+          contextSegments={contextSegments}
+          onSelectionChange={handleSelectionChange}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+          activeCommentId={activeCommentId}
+          onSetActiveComment={handleSetActiveComment}
+          onAddContextSegment={handleAddContextSegment}
+          onRemoveContextSegment={handleRemoveContextSegment}
+        />
+      )}
+      {showModeSelector && (
+        <ModeSelector
+          onSelect={handleModeSelect}
+          onCancel={() => setShowModeSelector(false)}
+        />
+      )}
       <ConfigModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}

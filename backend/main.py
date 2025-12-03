@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings
+from . import storage, config, prompts, threads, settings, content, synthesizer
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -30,10 +30,18 @@ class CouncilConfig(BaseModel):
     chairman_model: str
 
 
+class SynthesizerConfig(BaseModel):
+    """Synthesizer configuration for a conversation."""
+    model: Optional[str] = None
+    use_council: bool = False
+
+
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
     council_config: Optional[CouncilConfig] = None
     system_prompt: Optional[str] = None
+    mode: str = "council"  # "council" or "synthesizer"
+    synthesizer_config: Optional[SynthesizerConfig] = None
 
 
 class SendMessageRequest(BaseModel):
@@ -47,6 +55,7 @@ class ConversationMetadata(BaseModel):
     created_at: str
     title: str
     message_count: int
+    mode: str = "council"
 
 
 class Conversation(BaseModel):
@@ -57,6 +66,8 @@ class Conversation(BaseModel):
     messages: List[Dict[str, Any]]
     system_prompt: Optional[str] = None
     prompt_title: Optional[str] = None
+    mode: str = "council"
+    synthesizer_config: Optional[Dict[str, Any]] = None
 
 
 @app.get("/")
@@ -94,7 +105,21 @@ async def create_conversation(request: CreateConversationRequest):
             "chairman_model": request.council_config.chairman_model
         }
 
-    conversation = storage.create_conversation(conversation_id, council_config, request.system_prompt)
+    # Convert SynthesizerConfig to dict if provided
+    synthesizer_config = None
+    if request.synthesizer_config:
+        synthesizer_config = {
+            "model": request.synthesizer_config.model,
+            "use_council": request.synthesizer_config.use_council
+        }
+
+    conversation = storage.create_conversation(
+        conversation_id,
+        council_config,
+        request.system_prompt,
+        mode=request.mode,
+        synthesizer_config=synthesizer_config
+    )
     return conversation
 
 
@@ -669,6 +694,158 @@ async def update_default_prompt(request: UpdateDefaultPromptRequest):
 
     settings.set_default_prompt(request.prompt_filename)
     return {"success": True, "default_prompt": request.prompt_filename}
+
+
+# =============================================================================
+# Synthesizer Endpoints
+# =============================================================================
+
+class SynthesizeRequest(BaseModel):
+    """Request to process a URL in synthesizer mode."""
+    url: str
+    comment: Optional[str] = None
+    model: Optional[str] = None
+    use_council: bool = False
+
+
+@app.post("/api/conversations/{conversation_id}/synthesize")
+async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
+    """
+    Process a URL and generate Zettelkasten notes.
+    """
+    # Verify conversation exists and is synthesizer mode
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "synthesizer":
+        raise HTTPException(status_code=400, detail="Conversation is not in synthesizer mode")
+
+    # Check if this is the first message (for title generation)
+    is_first_message = len(conversation.get("messages", [])) == 0
+
+    # Add user message
+    storage.add_synthesizer_user_message(conversation_id, request.url, request.comment)
+
+    # Fetch content from URL
+    content_result = await content.fetch_content(request.url)
+
+    if content_result.get("error"):
+        raise HTTPException(status_code=400, detail=content_result["error"])
+
+    # Get system prompt
+    system_prompt = conversation.get("system_prompt")
+    if not system_prompt:
+        system_prompt = await synthesizer.get_synthesizer_prompt_content()
+
+    # Generate zettels
+    model = request.model or settings.get_synthesizer_model()
+
+    if request.use_council:
+        result = await synthesizer.generate_zettels_council(
+            content_result["content"],
+            system_prompt,
+            user_comment=request.comment
+        )
+    else:
+        result = await synthesizer.generate_zettels_single(
+            content_result["content"],
+            system_prompt,
+            model=model,
+            user_comment=request.comment
+        )
+
+    # Save synthesizer message
+    storage.add_synthesizer_message(
+        conversation_id,
+        result["notes"],
+        result.get("raw_response", ""),
+        content_result["content"][:500] if content_result["content"] else "",
+        content_result["source_type"],
+        request.url,
+        result.get("model"),
+        content_result.get("title")
+    )
+
+    # Update title if first message and we have a title from content
+    if is_first_message and content_result.get("title"):
+        storage.update_conversation_title(conversation_id, content_result["title"][:100])
+
+    return {
+        "notes": result["notes"],
+        "source_type": content_result["source_type"],
+        "source_title": content_result.get("title"),
+        "model": result.get("model")
+    }
+
+
+# Synthesizer Settings Endpoints
+
+class UpdateFirecrawlApiKeyRequest(BaseModel):
+    """Request to update the Firecrawl API key."""
+    api_key: str
+
+
+@app.put("/api/settings/firecrawl-api-key")
+async def update_firecrawl_api_key(request: UpdateFirecrawlApiKeyRequest):
+    """Update the Firecrawl API key."""
+    if not request.api_key or len(request.api_key) < 10:
+        raise HTTPException(status_code=400, detail="Invalid API key")
+
+    settings.set_firecrawl_api_key(request.api_key)
+    return {
+        "success": True,
+        "firecrawl_configured": True,
+        "firecrawl_source": "settings"
+    }
+
+
+@app.delete("/api/settings/firecrawl-api-key")
+async def clear_firecrawl_api_key():
+    """Clear the Firecrawl API key from settings."""
+    settings.clear_firecrawl_api_key()
+    return {
+        "success": True,
+        "firecrawl_configured": settings.has_firecrawl_configured(),
+        "firecrawl_source": settings.get_firecrawl_source()
+    }
+
+
+@app.get("/api/settings/synthesizer")
+async def get_synthesizer_settings():
+    """Get synthesizer-specific settings."""
+    return {
+        "firecrawl_configured": settings.has_firecrawl_configured(),
+        "firecrawl_source": settings.get_firecrawl_source(),
+        "default_model": settings.get_synthesizer_model(),
+        "default_mode": settings.get_synthesizer_mode(),
+        "default_prompt": settings.get_synthesizer_prompt()
+    }
+
+
+class UpdateSynthesizerSettingsRequest(BaseModel):
+    """Request to update synthesizer settings."""
+    model: Optional[str] = None
+    mode: Optional[str] = None
+    prompt: Optional[str] = None
+
+
+@app.put("/api/settings/synthesizer")
+async def update_synthesizer_settings(request: UpdateSynthesizerSettingsRequest):
+    """Update synthesizer settings."""
+    if request.model:
+        settings.set_synthesizer_model(request.model)
+    if request.mode:
+        settings.set_synthesizer_mode(request.mode)
+    if request.prompt is not None:
+        settings.set_synthesizer_prompt(request.prompt if request.prompt else None)
+
+    return {
+        "success": True,
+        "default_model": settings.get_synthesizer_model(),
+        "default_mode": settings.get_synthesizer_mode(),
+        "default_prompt": settings.get_synthesizer_prompt()
+    }
 
 
 if __name__ == "__main__":

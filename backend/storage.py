@@ -39,7 +39,13 @@ def get_conversation_path(conversation_id: str) -> str:
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
-def create_conversation(conversation_id: str, council_config: Optional[Dict[str, Any]] = None, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+def create_conversation(
+    conversation_id: str,
+    council_config: Optional[Dict[str, Any]] = None,
+    system_prompt: Optional[str] = None,
+    mode: str = "council",
+    synthesizer_config: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
     Create a new conversation.
 
@@ -49,6 +55,10 @@ def create_conversation(conversation_id: str, council_config: Optional[Dict[str,
             - council_models: List of model identifiers to include
             - chairman_model: Model identifier for the chairman
         system_prompt: Optional system prompt to use for this conversation
+        mode: Conversation mode - "council" or "synthesizer"
+        synthesizer_config: Optional synthesizer configuration with:
+            - model: Model to use for synthesis
+            - use_council: Whether to use multiple models
 
     Returns:
         New conversation dict
@@ -59,11 +69,13 @@ def create_conversation(conversation_id: str, council_config: Optional[Dict[str,
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
         "title": "New Conversation",
+        "mode": mode,
         "messages": [],
         "comments": [],  # Store inline comments
         "threads": [],  # Store follow-up threads
         "council_config": council_config,  # Store custom config if provided
-        "system_prompt": system_prompt  # Store system prompt if provided
+        "system_prompt": system_prompt,  # Store system prompt if provided
+        "synthesizer_config": synthesizer_config  # Store synthesizer config if provided
     }
 
     # Save to file
@@ -127,7 +139,8 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "id": data["id"],
                     "created_at": data["created_at"],
                     "title": data.get("title", "New Conversation"),
-                    "message_count": len(data["messages"])
+                    "message_count": len(data["messages"]),
+                    "mode": data.get("mode", "council")  # Default to council for backwards compat
                 })
 
     # Sort by creation time, newest first
@@ -438,3 +451,78 @@ def delete_conversation(conversation_id: str) -> bool:
 
     os.remove(path)
     return True
+
+
+# =============================================================================
+# Synthesizer-specific functions
+# =============================================================================
+
+def add_synthesizer_user_message(
+    conversation_id: str,
+    url: str,
+    comment: Optional[str] = None
+):
+    """
+    Add a synthesizer user message to a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        url: The URL being processed
+        comment: Optional user comment/guidance
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    conversation["messages"].append({
+        "role": "user",
+        "url": url,
+        "comment": comment
+    })
+
+    save_conversation(conversation)
+
+
+def add_synthesizer_message(
+    conversation_id: str,
+    notes: List[Dict[str, Any]],
+    raw_response: str,
+    source_content_preview: str,
+    source_type: str,
+    source_url: str,
+    model: Optional[str] = None,
+    source_title: Optional[str] = None
+):
+    """
+    Add a synthesizer assistant message with generated notes.
+
+    Args:
+        conversation_id: Conversation identifier
+        notes: List of generated Zettel notes, each with:
+            - id: Note identifier
+            - title: Note title
+            - tags: List of hashtags
+            - body: Note content (~100 words)
+        raw_response: Raw LLM response for debugging
+        source_content_preview: Preview of source content (first ~500 chars)
+        source_type: Type of source ("youtube" or "article")
+        source_url: Original URL
+        model: Model used for generation
+        source_title: Title of the source content
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    conversation["messages"].append({
+        "role": "assistant",
+        "notes": notes,
+        "raw_response": raw_response,
+        "source_content_preview": source_content_preview,
+        "source_type": source_type,
+        "source_url": source_url,
+        "source_title": source_title,
+        "model": model
+    })
+
+    save_conversation(conversation)
