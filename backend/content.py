@@ -2,6 +2,7 @@
 
 Handles URL detection and content extraction from:
 - YouTube videos (via transcription)
+- Podcasts (via MP3 extraction and transcription)
 - Articles/blogs (via Firecrawl)
 """
 
@@ -15,6 +16,7 @@ import httpx
 
 from .settings import get_firecrawl_api_key
 from .workers.youtube import transcribe_youtube, extract_start_time
+from .workers.podcast import is_podcast_url, transcribe_podcast
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +26,13 @@ FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape"
 
 def detect_url_type(url: str) -> str:
     """
-    Detect if URL is YouTube or a general article.
+    Detect if URL is YouTube, podcast, or a general article.
 
     Args:
         url: URL to analyze
 
     Returns:
-        'youtube' or 'article'
+        'youtube', 'podcast', or 'article'
     """
     youtube_patterns = [
         r'youtube\.com/watch',
@@ -43,6 +45,10 @@ def detect_url_type(url: str) -> str:
     for pattern in youtube_patterns:
         if re.search(pattern, url, re.IGNORECASE):
             return 'youtube'
+
+    # Check for podcast platforms
+    if is_podcast_url(url):
+        return 'podcast'
 
     return 'article'
 
@@ -92,6 +98,69 @@ async def fetch_youtube_content(url: str, whisper_model: str = "base") -> Dict[s
         logger.error(f"Failed to fetch YouTube content: {e}")
         return {
             "source_type": "youtube",
+            "content": None,
+            "title": None,
+            "error": str(e)
+        }
+
+
+async def fetch_podcast_content(url: str, whisper_model: str = "base") -> Dict[str, Any]:
+    """
+    Fetch content from a podcast episode via MP3 extraction and transcription.
+
+    Args:
+        url: Podcast episode page URL (Pocket Casts, Apple Podcasts, etc.)
+        whisper_model: Whisper model to use for transcription
+
+    Returns:
+        {
+            "source_type": "podcast",
+            "content": str (transcript),
+            "title": str,
+            "description": str,
+            "mp3_url": str,
+            "error": Optional[str]
+        }
+    """
+    api_key = get_firecrawl_api_key()
+    if not api_key:
+        return {
+            "source_type": "podcast",
+            "content": None,
+            "title": None,
+            "error": "Firecrawl API key not configured. Please add it in Settings > Integrations."
+        }
+
+    try:
+        result = await transcribe_podcast(
+            url=url,
+            api_key=api_key,
+            whisper_model=whisper_model
+        )
+
+        if result.get("error"):
+            return {
+                "source_type": "podcast",
+                "content": None,
+                "title": result.get("title"),
+                "description": result.get("description"),
+                "mp3_url": result.get("mp3_url"),
+                "error": result["error"]
+            }
+
+        return {
+            "source_type": "podcast",
+            "content": result["transcript"],
+            "title": result["title"],
+            "description": result.get("description"),
+            "mp3_url": result.get("mp3_url"),
+            "error": None
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch podcast content: {e}")
+        return {
+            "source_type": "podcast",
             "content": None,
             "title": None,
             "error": str(e)
@@ -195,11 +264,11 @@ async def fetch_content(url: str, whisper_model: str = "base") -> Dict[str, Any]
 
     Args:
         url: URL to fetch content from
-        whisper_model: Whisper model for YouTube transcription
+        whisper_model: Whisper model for YouTube/podcast transcription
 
     Returns:
         {
-            "source_type": "youtube" | "article",
+            "source_type": "youtube" | "podcast" | "article",
             "content": str (transcript or markdown),
             "title": Optional[str],
             "error": Optional[str]
@@ -209,5 +278,7 @@ async def fetch_content(url: str, whisper_model: str = "base") -> Dict[str, Any]
 
     if source_type == 'youtube':
         return await fetch_youtube_content(url, whisper_model)
+    elif source_type == 'podcast':
+        return await fetch_podcast_content(url, whisper_model)
     else:
         return await fetch_article_content(url)

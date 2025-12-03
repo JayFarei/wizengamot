@@ -12,4 +12,5 @@ dependencies = [
     "pydantic>=2.9.0",
     "yt-dlp>=2024.0.0",
     "openai-whisper>=20231117",
+    "feedparser>=6.0.0",
 ]

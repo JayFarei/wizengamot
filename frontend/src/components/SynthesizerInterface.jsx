@@ -75,7 +75,16 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
     try {
       // Detect URL type for stage messaging
       const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-      setProcessingStage(isYouTube ? 'Downloading and transcribing video...' : 'Fetching article content...');
+      const isPodcast = url.includes('pca.st') || url.includes('podcasts.apple.com') ||
+                        url.includes('open.spotify.com/episode') || url.includes('overcast.fm');
+
+      if (isYouTube) {
+        setProcessingStage('Downloading and transcribing video...');
+      } else if (isPodcast) {
+        setProcessingStage('Extracting and transcribing podcast...');
+      } else {
+        setProcessingStage('Fetching article content...');
+      }
 
       // Small delay to show the stage
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -156,7 +165,7 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
               </svg>
             </div>
             <h2>Transform Content into Notes</h2>
-            <p>Paste a YouTube video or article URL to generate atomic Zettelkasten notes</p>
+            <p>Paste a YouTube video, podcast episode, or article URL to generate atomic Zettelkasten notes</p>
           </div>
 
           <form className="synthesizer-form" onSubmit={handleSubmit}>
@@ -169,7 +178,7 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="https://youtube.com/watch?v=... or https://example.com/article"
+                placeholder="https://youtube.com/watch?v=... or https://pca.st/episode/... or article URL"
                 disabled={isProcessing}
                 autoFocus
               />
@@ -226,6 +235,9 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
             <ul>
               <li>
                 <strong>YouTube</strong> - Videos are transcribed locally using Whisper
+              </li>
+              <li>
+                <strong>Podcasts</strong> - Episodes from Pocket Casts, Apple Podcasts, Overcast, etc.
               </li>
               <li>
                 <strong>Articles</strong> - Web pages are parsed via Firecrawl API
