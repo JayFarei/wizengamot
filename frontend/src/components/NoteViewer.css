@@ -3,6 +3,7 @@
   flex-direction: column;
   height: 100%;
   background: #fafafa;
+  outline: none; /* Hide focus outline since container is focusable for keyboard nav */
 }
 
 .note-viewer-empty {
@@ -184,7 +185,11 @@
 }
 
 .note-body p {
-  margin: 0;
+  margin: 0 0 1em 0;
+}
+
+.note-body p:last-child {
+  margin-bottom: 0;
 }
 
 /* Navigation */
@@ -340,4 +345,163 @@
   .note-title {
     font-size: 18px;
   }
+}
+
+/* Focus Mode Button */
+.focus-btn {
+  margin-left: 8px;
+}
+
+/* Focus Mode Overlay */
+.focus-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: focusFadeIn 0.2s ease-out;
+}
+
+@keyframes focusFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.focus-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  position: relative;
+}
+
+.focus-close-btn {
+  position: absolute;
+  top: -50px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.15s;
+}
+
+.focus-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.focus-close-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.focus-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  width: 100%;
+  min-height: 400px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: focusCardIn 0.25s ease-out;
+}
+
+@keyframes focusCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.focus-card .note-title {
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+
+.focus-card .note-tags {
+  margin-bottom: 24px;
+}
+
+.focus-card .note-tag {
+  font-size: 14px;
+  padding: 6px 14px;
+}
+
+.focus-card .note-body {
+  font-size: 18px;
+  line-height: 1.8;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.focus-navigation {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.focus-navigation .nav-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.focus-navigation .nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.focus-navigation .nav-btn:disabled {
+  opacity: 0.3;
+}
+
+.focus-navigation .nav-indicator {
+  color: white;
+  font-size: 18px;
+}
+
+.focus-navigation .nav-current {
+  color: #4a90e2;
+}
+
+.focus-hint {
+  margin-top: 20px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.focus-hint kbd {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
 }

@@ -570,6 +570,8 @@ async def get_settings():
     return {
         "api_key_configured": settings.has_api_key_configured(),
         "api_key_source": settings.get_api_key_source(),
+        "firecrawl_configured": settings.has_firecrawl_configured(),
+        "firecrawl_source": settings.get_firecrawl_source(),
     }
 
 

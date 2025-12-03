@@ -247,7 +247,7 @@ def set_synthesizer_mode(mode: str) -> None:
 def get_synthesizer_prompt() -> Optional[str]:
     """Get the default synthesizer prompt filename."""
     settings = load_settings()
-    return settings.get("synthesizer_prompt", "zettel.md")
+    return settings.get("synthesizer_prompt", "summarizer.md")
 
 
 def set_synthesizer_prompt(prompt_filename: Optional[str]) -> None:
