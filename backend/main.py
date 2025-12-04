@@ -64,6 +64,9 @@ class Conversation(BaseModel):
     created_at: str
     title: str
     messages: List[Dict[str, Any]]
+    threads: List[Dict[str, Any]] = []
+    comments: List[Dict[str, Any]] = []
+    council_config: Optional[Dict[str, Any]] = None
     system_prompt: Optional[str] = None
     prompt_title: Optional[str] = None
     mode: str = "council"
@@ -414,7 +417,7 @@ async def create_thread(conversation_id: str, request: CreateThreadRequest):
         system_prompt = conversation.get("system_prompt")
 
         # Query the model with context
-        segment_payload = [segment.dict() for segment in request.context_segments]
+        segment_payload = [segment.model_dump() for segment in request.context_segments]
 
         response = await threads.query_with_context(
             request.model,
@@ -803,15 +806,17 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     )
 
     # Generate title from notes if first message
+    generated_title = None
     if is_first_message and result.get("notes"):
-        title = await generate_synthesizer_title(result["notes"])
-        storage.update_conversation_title(conversation_id, title)
+        generated_title = await generate_synthesizer_title(result["notes"])
+        storage.update_conversation_title(conversation_id, generated_title)
 
     return {
         "notes": result["notes"],
         "source_type": content_result["source_type"],
         "source_title": content_result.get("title"),
-        "model": result.get("model")
+        "model": result.get("model"),
+        "conversation_title": generated_title
     }
 
 

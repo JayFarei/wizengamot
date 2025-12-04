@@ -175,6 +175,35 @@ function App() {
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
+
+      // Convert persisted threads to follow-up messages for display
+      if (conv.threads && conv.threads.length > 0) {
+        const threadMessages = [];
+        conv.threads.forEach(thread => {
+          thread.messages.forEach(msg => {
+            if (msg.role === 'user') {
+              threadMessages.push({
+                role: 'follow-up-user',
+                content: msg.content,
+                model: thread.model,
+                thread_id: thread.id,
+                comments: [],
+                context_segments: thread.context?.context_segments || [],
+              });
+            } else if (msg.role === 'assistant') {
+              threadMessages.push({
+                role: 'follow-up-assistant',
+                content: msg.content,
+                model: thread.model,
+                thread_id: thread.id,
+                loading: false,
+              });
+            }
+          });
+        });
+        conv.messages = [...conv.messages, ...threadMessages];
+      }
+
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
@@ -353,10 +382,14 @@ function App() {
             break;
 
           case 'title_complete':
-            // Set animation state before reloading
+            // Update conversations list with the new title directly
+            setConversations(prev => prev.map(conv =>
+              conv.id === currentConversationId
+                ? { ...conv, title: event.data.title }
+                : conv
+            ));
+            // Trigger title animation
             setAnimatingTitleId(currentConversationId);
-            // Reload conversations to get updated title
-            loadConversations();
             break;
 
           case 'complete':
@@ -729,8 +762,15 @@ function App() {
       {currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface
           conversation={currentConversation}
-          onConversationUpdate={(updatedConv) => {
+          onConversationUpdate={(updatedConv, newTitle) => {
             setCurrentConversation(updatedConv);
+            if (newTitle) {
+              // Update title in conversations list immediately and trigger animation
+              setConversations((prev) =>
+                prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
+              );
+              setAnimatingTitleId(updatedConv.id);
+            }
             loadConversations();
           }}
           comments={comments}

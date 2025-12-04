@@ -83,11 +83,74 @@ export default function NoteViewer({
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [onSelectionChange]);
 
+  // Format note body with empty line after each sentence
+  const formatNoteBody = useCallback((body) => {
+    if (!body) return '';
+    // Split on sentence endings (. ! ?) followed by space or end
+    // Keep the punctuation with the sentence, then add double newline
+    return body
+      .replace(/([.!?])\s+/g, '$1\n\n')
+      .trim();
+  }, []);
+
+  // Copy current note to clipboard in Zettelkasten format
+  const copyNoteToClipboard = useCallback(async () => {
+    if (!notes?.length) return;
+
+    const safeIndex = Math.min(currentIndex, notes.length - 1);
+    const note = notes[safeIndex];
+    if (!note) return;
+
+    // Build the formatted note
+    const parts = [];
+
+    // # heading
+    parts.push(`# ${note.title}`);
+    parts.push('');
+
+    // #tags (one per line or space-separated)
+    if (note.tags && note.tags.length > 0) {
+      const formattedTags = note.tags.map(tag =>
+        tag.startsWith('#') ? tag : `#${tag.replace(/\s+/g, '-')}`
+      ).join(' ');
+      parts.push(formattedTags);
+      parts.push('');
+    }
+
+    // Note body with empty lines after sentences
+    parts.push(formatNoteBody(note.body));
+    parts.push('');
+
+    // ### Up and ### Down sections
+    parts.push('### Up');
+    parts.push('');
+    parts.push('### Down');
+    parts.push('');
+
+    const formattedNote = parts.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(formattedNote);
+      setCopyFeedback('Note copied!');
+      setTimeout(() => setCopyFeedback(null), 2000);
+    } catch (err) {
+      setCopyFeedback('Failed to copy');
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }
+  }, [currentIndex, notes, formatNoteBody]);
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
     // Skip if user is typing in an input
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (!notes?.length) return;
+
+    // C key copies the current note (in swipe view or focus mode)
+    if ((e.key === 'c' || e.key === 'C') && (viewMode === 'swipe' || focusMode)) {
+      e.preventDefault();
+      copyNoteToClipboard();
+      return;
+    }
 
     // F key toggles focus mode (only in swipe view)
     if ((e.key === 'f' || e.key === 'F') && viewMode === 'swipe') {
@@ -113,7 +176,7 @@ export default function NoteViewer({
       e.preventDefault();
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
     }
-  }, [viewMode, focusMode, notes?.length]);
+  }, [viewMode, focusMode, notes?.length, copyNoteToClipboard]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -289,7 +352,7 @@ export default function NoteViewer({
 
             <div className="note-body">
               <ResponseWithComments
-                content={currentNote.body}
+                content={formatNoteBody(currentNote.body)}
                 comments={currentNoteComments}
                 sourceType="synthesizer"
                 noteId={currentNote.id}
@@ -334,7 +397,7 @@ export default function NoteViewer({
           </div>
 
           <p className="nav-hint">
-            Press <kbd>J</kbd> / <kbd>K</kbd> or arrow keys to navigate
+            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy note
           </p>
         </div>
       ) : (
@@ -361,7 +424,7 @@ export default function NoteViewer({
 
               <div className="note-body">
                 <ResponseWithComments
-                  content={note.body}
+                  content={formatNoteBody(note.body)}
                   comments={getCommentsForNote(note.id)}
                   sourceType="synthesizer"
                   noteId={note.id}
@@ -377,6 +440,11 @@ export default function NoteViewer({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Copy Feedback Toast */}
+      {copyFeedback && copyFeedback.includes('Note') && (
+        <div className="copy-toast">{copyFeedback}</div>
       )}
 
       {/* Focus Mode Overlay */}
@@ -414,7 +482,7 @@ export default function NoteViewer({
 
               <div className="note-body">
                 <ResponseWithComments
-                  content={currentNote.body}
+                  content={formatNoteBody(currentNote.body)}
                   comments={currentNoteComments}
                   sourceType="synthesizer"
                   noteId={currentNote.id}
@@ -458,7 +526,7 @@ export default function NoteViewer({
             </div>
 
             <p className="focus-hint">
-              <kbd>J</kbd> / <kbd>K</kbd> to navigate, <kbd>Esc</kbd> to exit
+              <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy, <kbd>Esc</kbd> exit
             </p>
           </div>
         </div>

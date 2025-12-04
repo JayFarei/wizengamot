@@ -15,12 +15,13 @@ Each note follows this structure:
 3. One line of space-separated hashtags (e.g. `#insight #model #strategy`).
    * Use **1-2 tags** that classify the idea.
 4. Blank line.
-5. Single paragraph **up to 100 words** that:
+5. Body content **up to 100 words** with **one sentence per line**, separated by blank lines:
    * Opens with the **primary conclusion** in one clear sentence.
+   * Each sentence on its own line, followed by a blank line for readability.
    * Packs every sentence with **context, evidence, or consequences**.
    * Mentions **specific details, metrics, or examples** where helpful.
    * Closes with a **practical takeaway**.
-6. Stop after the paragraph.
+6. Stop after the body.
 
 ## Minimization Principles
 

@@ -14,13 +14,14 @@ Each note is a **single knowledge building block** (one concept, argument, model
    (e.g. `#insight #how #experience #idea #why`).
    * Use **1–2 tags** that best classify the idea.
 4. Blank line.
-5. Single paragraph **up to 100 words** that:
+5. Body content **up to 100 words** with **one sentence per line**, separated by blank lines:
    * Opens with the **primary conclusion** in one clear sentence.
+   * Each sentence on its own line, followed by a blank line for readability.
    * Packs every sentence with either **context, a supporting fact, or a consequence**.
    * Mentions **specific tools, metrics, examples, or comparisons** where helpful.
    * Optionally embeds existing notes via `[[id|alias]]` when referencing ideas already in the vault.
    * Closes with a **practical takeaway**: what to do, watch for, or expect next.
-6. Stop after the paragraph.
+6. Stop after the body.
 
 ## Atomicity – golden rule
 
