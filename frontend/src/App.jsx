@@ -122,12 +122,20 @@ function App() {
     loadConfig();
   }, []);
 
-  // Global Cmd+K keyboard shortcut for search
+  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearchModal(s => !s);
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'k') {
+          e.preventDefault();
+          setShowSearchModal(s => !s);
+        } else if (e.key === '/') {
+          e.preventDefault();
+          setLeftSidebarCollapsed(c => !c);
+        } else if (e.key === 'd') {
+          e.preventDefault();
+          handleNewConversation();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
