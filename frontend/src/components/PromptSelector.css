@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,24 +12,25 @@
 }
 
 .prompt-selector {
-  background: white;
+  background: var(--bg-elevated);
   border-radius: 8px;
   padding: 24px;
   max-width: 700px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px var(--shadow);
+  border: 1px solid var(--border-primary);
 }
 
 .prompt-selector h2 {
   margin-top: 0;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .prompt-selector-description {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 20px;
   font-size: 14px;
 }
@@ -42,38 +43,39 @@
 }
 
 .prompt-item {
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-primary);
   border-radius: 6px;
   padding: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  background-color: var(--bg-primary);
 }
 
 .prompt-item:hover {
-  border-color: #4a90e2;
-  background-color: #f8f9fa;
+  border-color: var(--primary);
+  background-color: var(--bg-hover);
 }
 
 .prompt-item.selected {
-  border-color: #4a90e2;
-  background-color: #e8f4fd;
+  border-color: var(--primary);
+  background-color: var(--primary-light);
 }
 
 .prompt-item-title {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 
 .prompt-item-preview {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .prompt-preview {
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   padding: 16px;
   margin-bottom: 20px;
@@ -83,7 +85,7 @@
   margin-top: 0;
   margin-bottom: 12px;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -93,7 +95,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
   max-height: 200px;
   overflow-y: auto;
@@ -118,37 +120,39 @@
 }
 
 .btn-primary {
-  background-color: #4a90e2;
-  color: white;
+  background-color: var(--primary);
+  color: var(--text-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #357abd;
+  background-color: var(--primary-hover);
 }
 
 .btn-primary:disabled {
-  background-color: #ccc;
+  background-color: var(--border-primary);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-secondary:hover {
-  background-color: #d0d0d0;
+  background-color: var(--bg-active);
 }
 
 .no-prompts {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error-message {
-  color: #d32f2f;
-  background-color: #ffebee;
+  color: var(--error);
+  background-color: var(--error-bg);
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 20px;
