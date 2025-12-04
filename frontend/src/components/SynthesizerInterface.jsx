@@ -123,11 +123,16 @@ export default function SynthesizerInterface({
       const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
       const isPodcast = url.includes('pca.st') || url.includes('podcasts.apple.com') ||
                         url.includes('open.spotify.com/episode') || url.includes('overcast.fm');
+      const isPDF = url.toLowerCase().endsWith('.pdf') ||
+                    url.includes('arxiv.org/abs/') ||
+                    url.includes('arxiv.org/pdf/');
 
       if (isYouTube) {
         setProcessingStage('Downloading and transcribing video...');
       } else if (isPodcast) {
         setProcessingStage('Extracting and transcribing podcast...');
+      } else if (isPDF) {
+        setProcessingStage('Parsing PDF document...');
       } else {
         setProcessingStage('Fetching article content...');
       }
@@ -373,6 +378,9 @@ export default function SynthesizerInterface({
               </li>
               <li>
                 <strong>Podcasts</strong> - Episodes from Pocket Casts, Apple Podcasts, Overcast, etc.
+              </li>
+              <li>
+                <strong>PDFs</strong> - Direct PDF links and arXiv papers (full paper parsing)
               </li>
               <li>
                 <strong>Articles</strong> - Web pages are parsed via Firecrawl API
