@@ -375,7 +375,7 @@ export default function SettingsModal({ isOpen, onClose }) {
             className={`settings-tab ${activeTab === 'api' ? 'active' : ''}`}
             onClick={() => setActiveTab('api')}
           >
-            API Key
+            API Keys
           </button>
           <button
             className={`settings-tab ${activeTab === 'models' ? 'active' : ''}`}
@@ -390,19 +390,20 @@ export default function SettingsModal({ isOpen, onClose }) {
             Prompts
           </button>
           <button
-            className={`settings-tab ${activeTab === 'integrations' ? 'active' : ''}`}
-            onClick={() => setActiveTab('integrations')}
+            className={`settings-tab ${activeTab === 'synthesizer' ? 'active' : ''}`}
+            onClick={() => setActiveTab('synthesizer')}
           >
-            Integrations
+            Synthesizer
           </button>
         </div>
 
-        {/* API Key Tab */}
+        {/* API Keys Tab */}
         {activeTab === 'api' && (
-          <div className="modal-section">
-            <h3>OpenRouter API Key</h3>
+          <>
+            <div className="modal-section">
+              <h3>OpenRouter</h3>
             <p className="section-description">
-              Configure your OpenRouter API key for querying LLM models.
+              Required for querying LLM models in Council mode.
               Get your key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a>
             </p>
 
@@ -447,6 +448,56 @@ export default function SettingsModal({ isOpen, onClose }) {
               </button>
             )}
           </div>
+
+          <div className="modal-section">
+            <h3>Firecrawl</h3>
+            <p className="section-description">
+              Required for scraping articles in Synthesizer mode.
+              Get your key at <a href="https://www.firecrawl.dev/" target="_blank" rel="noopener noreferrer">firecrawl.dev</a>
+            </p>
+
+            {settings && (
+              <div className="api-key-status">
+                <span className={`status-indicator ${settings.firecrawl_configured ? 'configured' : 'not-configured'}`}>
+                  {settings.firecrawl_configured ? 'Configured' : 'Not Configured'}
+                </span>
+                {settings.firecrawl_configured && settings.firecrawl_source && (
+                  <span className="status-source">
+                    (via {settings.firecrawl_source === 'settings' ? 'saved settings' : 'environment variable'})
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="api-key-input-group">
+              <input
+                type="password"
+                className="api-key-input"
+                placeholder="fc-..."
+                value={firecrawlKey}
+                onChange={(e) => setFirecrawlKey(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveFirecrawlKey()}
+              />
+              <button
+                className="btn-primary"
+                onClick={handleSaveFirecrawlKey}
+                disabled={loading || !firecrawlKey.trim()}
+              >
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+
+            {settings?.firecrawl_source === 'settings' && (
+              <button
+                className="btn-secondary btn-clear"
+                onClick={handleClearFirecrawlKey}
+                disabled={loading}
+              >
+                Clear Saved Key
+              </button>
+            )}
+          </div>
+          </>
         )}
 
         {/* Models Tab */}
@@ -601,58 +652,9 @@ export default function SettingsModal({ isOpen, onClose }) {
           </>
         )}
 
-        {/* Integrations Tab */}
-        {activeTab === 'integrations' && (
+        {/* Synthesizer Tab */}
+        {activeTab === 'synthesizer' && (
           <>
-            <div className="modal-section">
-              <h3>Firecrawl API Key</h3>
-              <p className="section-description">
-                Required for scraping articles in Synthesizer mode.
-                Get your key at <a href="https://www.firecrawl.dev/" target="_blank" rel="noopener noreferrer">firecrawl.dev</a>
-              </p>
-
-              {settings && (
-                <div className="api-key-status">
-                  <span className={`status-indicator ${settings.firecrawl_configured ? 'configured' : 'not-configured'}`}>
-                    {settings.firecrawl_configured ? 'Configured' : 'Not Configured'}
-                  </span>
-                  {settings.firecrawl_configured && settings.firecrawl_source && (
-                    <span className="status-source">
-                      (via {settings.firecrawl_source === 'settings' ? 'saved settings' : 'environment variable'})
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="api-key-input-group">
-                <input
-                  type="password"
-                  className="api-key-input"
-                  placeholder="fc-..."
-                  value={firecrawlKey}
-                  onChange={(e) => setFirecrawlKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveFirecrawlKey()}
-                />
-                <button
-                  className="btn-primary"
-                  onClick={handleSaveFirecrawlKey}
-                  disabled={loading || !firecrawlKey.trim()}
-                >
-                  {loading ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-
-              {settings?.firecrawl_source === 'settings' && (
-                <button
-                  className="btn-secondary btn-clear"
-                  onClick={handleClearFirecrawlKey}
-                  disabled={loading}
-                >
-                  Clear Saved Key
-                </button>
-              )}
-            </div>
-
             <div className="modal-section">
               <h3>Synthesizer Settings</h3>
               <p className="section-description">
