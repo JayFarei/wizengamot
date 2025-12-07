@@ -8,7 +8,7 @@ import './ModeSelector.css';
  */
 export default function ModeSelector({ onSelect, onCancel }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const modes = ['council', 'synthesizer'];
+  const modes = ['council', 'synthesizer', 'monitor'];
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -21,10 +21,10 @@ export default function ModeSelector({ onSelect, onCancel }) {
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      setSelectedIndex(0);
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : modes.length - 1));
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      setSelectedIndex(1);
+      setSelectedIndex((prev) => (prev < modes.length - 1 ? prev + 1 : 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       onSelect(modes[selectedIndex]);
@@ -101,6 +101,34 @@ export default function ModeSelector({ onSelect, onCancel }) {
               <span className="feature-tag">Articles</span>
               <span className="feature-tag">PDF</span>
               <span className="feature-tag">Zettelkasten</span>
+            </div>
+          </button>
+
+          <button
+            className={`mode-card mode-card-monitor ${selectedIndex === 2 ? 'selected' : ''}`}
+            onClick={() => onSelect('monitor')}
+            onMouseEnter={() => setSelectedIndex(2)}
+          >
+            <div className="mode-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+                <line x1="12" y1="2" x2="12" y2="4" />
+                <line x1="12" y1="20" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="4" y2="12" />
+                <line x1="20" y1="12" x2="22" y2="12" />
+              </svg>
+            </div>
+            <h3 className="mode-card-title">Monitor</h3>
+            <p className="mode-card-description">
+              Track how competitor narratives change over time: ICP, promises, pricing, and proof.
+              Get alerts when websites update.
+            </p>
+            <div className="mode-card-features">
+              <span className="feature-tag">Competitors</span>
+              <span className="feature-tag">Timeline</span>
+              <span className="feature-tag">Change Detection</span>
             </div>
           </button>
         </div>

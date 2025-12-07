@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import CompetitorRow from './CompetitorRow';
 import AddCompetitorModal from './AddCompetitorModal';
-import AddPageModal from './AddPageModal';
 import MonitorTimeline from './MonitorTimeline';
 import MonitorCompare from './MonitorCompare';
 import MonitorUpdateDetail from './MonitorUpdateDetail';
@@ -15,8 +14,6 @@ export default function MonitorCard({ monitor, onMonitorUpdate }) {
   const [crawlResult, setCrawlResult] = useState(null);
   const [selectedUpdate, setSelectedUpdate] = useState(null);
   const [showAddCompetitorModal, setShowAddCompetitorModal] = useState(false);
-  const [showAddPageModal, setShowAddPageModal] = useState(false);
-  const [selectedCompetitorForPage, setSelectedCompetitorForPage] = useState(null);
   const [expandedCompetitors, setExpandedCompetitors] = useState([]);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
@@ -93,18 +90,6 @@ export default function MonitorCard({ monitor, onMonitorUpdate }) {
       }
     } catch (error) {
       console.error('Failed to remove page:', error);
-    }
-  };
-
-  const handleOpenAddPageModal = (competitor) => {
-    setSelectedCompetitorForPage(competitor);
-    setShowAddPageModal(true);
-  };
-
-  const handlePageAdded = async () => {
-    if (onMonitorUpdate) {
-      const updatedMonitor = await api.getMonitor(monitor.id);
-      onMonitorUpdate(updatedMonitor);
     }
   };
 
@@ -207,7 +192,6 @@ export default function MonitorCard({ monitor, onMonitorUpdate }) {
           onToggleExpand={() => handleToggleExpand(competitor.id)}
           onEdit={() => {/* TODO: Edit competitor modal */}}
           onDelete={() => handleDeleteCompetitor(competitor.id)}
-          onAddPage={() => handleOpenAddPageModal(competitor)}
           onRemovePage={(pageId) => handleRemovePage(competitor.id, pageId)}
         />
       ))}
@@ -393,19 +377,6 @@ export default function MonitorCard({ monitor, onMonitorUpdate }) {
         onClose={() => setShowAddCompetitorModal(false)}
         monitorId={monitor?.id}
         onCompetitorAdded={handleCompetitorAdded}
-      />
-
-      {/* Add Page Modal */}
-      <AddPageModal
-        isOpen={showAddPageModal}
-        onClose={() => {
-          setShowAddPageModal(false);
-          setSelectedCompetitorForPage(null);
-        }}
-        monitorId={monitor?.id}
-        competitorId={selectedCompetitorForPage?.id}
-        competitorName={selectedCompetitorForPage?.name}
-        onPageAdded={handlePageAdded}
       />
     </div>
   );

@@ -7,7 +7,6 @@ export default function CompetitorRow({
   onToggleExpand,
   onEdit,
   onDelete,
-  onAddPage,
   onRemovePage,
 }) {
   const pageCount = competitor.pages?.length || 0;
@@ -29,9 +28,19 @@ export default function CompetitorRow({
 
         <span className="competitor-name">{competitor.name}</span>
 
+        {competitor.domain && (
+          <span className="competitor-domain">{new URL(competitor.domain).hostname}</span>
+        )}
+
         <span className="page-count-badge">
           {pageCount} {pageCount === 1 ? 'page' : 'pages'}
         </span>
+
+        {competitor.tier && (
+          <span className={`tier-badge tier-${competitor.tier}`}>
+            {competitor.tier}
+          </span>
+        )}
 
         <div className="competitor-actions" onClick={(e) => e.stopPropagation()}>
           <button className="action-btn edit" onClick={onEdit} title="Edit competitor">
@@ -64,6 +73,11 @@ export default function CompetitorRow({
                   >
                     {page.url}
                   </a>
+                  {page.reason && (
+                    <span className="page-reason" title={page.reason}>
+                      {page.reason}
+                    </span>
+                  )}
                   <button
                     className="remove-page-inline-btn"
                     onClick={() => onRemovePage(page.id)}
@@ -80,14 +94,6 @@ export default function CompetitorRow({
           ) : (
             <p className="no-pages-message">No pages tracked yet</p>
           )}
-
-          <button className="add-page-inline-btn" onClick={onAddPage}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add Page
-          </button>
         </div>
       )}
     </div>

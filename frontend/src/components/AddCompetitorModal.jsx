@@ -2,68 +2,96 @@ import { useState } from 'react';
 import { api } from '../api';
 import './AddCompetitorModal.css';
 
-const PAGE_TYPES = ['homepage', 'pricing', 'about', 'features', 'blog', 'docs', 'custom'];
+const TIER_INFO = {
+  minimum: {
+    label: 'Minimum',
+    description: 'Essential pages only (3-5 pages)',
+    icon: '1'
+  },
+  suggested: {
+    label: 'Suggested',
+    description: 'Core analyst watchlist (8-15 pages)',
+    icon: '2'
+  },
+  generous: {
+    label: 'Generous',
+    description: 'Comprehensive coverage (20-30 pages)',
+    icon: '3'
+  },
+  all: {
+    label: 'All Pages',
+    description: 'Track everything discovered',
+    icon: '4'
+  }
+};
 
 export default function AddCompetitorModal({ isOpen, onClose, monitorId, onCompetitorAdded }) {
+  const [step, setStep] = useState(1);
   const [competitorName, setCompetitorName] = useState('');
-  const [pages, setPages] = useState([{ url: '', type: 'homepage' }]);
+  const [domainUrl, setDomainUrl] = useState('');
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
+  const [selectedTier, setSelectedTier] = useState('suggested');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleAddPage = () => {
-    setPages([...pages, { url: '', type: 'homepage' }]);
-  };
-
-  const handleRemovePage = (index) => {
-    if (pages.length > 1) {
-      setPages(pages.filter((_, i) => i !== index));
-    }
-  };
-
-  const handlePageChange = (index, field, value) => {
-    const newPages = [...pages];
-    newPages[index] = { ...newPages[index], [field]: value };
-    setPages(newPages);
-  };
-
-  const handleSubmit = async () => {
+  const handleDiscover = async () => {
     setError(null);
 
-    // Validation
     if (!competitorName.trim()) {
       setError('Competitor name is required');
       return;
     }
 
-    const validPages = pages.filter(p => p.url.trim());
-    if (validPages.length === 0) {
-      setError('At least one URL is required');
+    if (!domainUrl.trim()) {
+      setError('Website URL is required');
       return;
     }
 
-    // Basic URL validation
-    for (const page of validPages) {
-      try {
-        new URL(page.url);
-      } catch {
-        setError(`Invalid URL: ${page.url}`);
-        return;
-      }
+    // Validate URL
+    try {
+      new URL(domainUrl);
+    } catch {
+      setError('Please enter a valid URL (e.g., https://example.com)');
+      return;
     }
 
-    setIsSubmitting(true);
+    setIsDiscovering(true);
+    setStep(2);
 
     try {
-      await api.addCompetitor(monitorId, competitorName.trim(), validPages);
+      const result = await api.discoverCompetitorPages(monitorId, domainUrl, competitorName);
+      setDiscoveryResult(result);
+      setStep(3);
+    } catch (err) {
+      setError(err.message || 'Failed to discover pages');
+      setStep(1);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
 
-      // Reset form
-      setCompetitorName('');
-      setPages([{ url: '', type: 'homepage' }]);
+  const handleAddCompetitor = async () => {
+    if (!discoveryResult) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const tierPages = discoveryResult.tiers[selectedTier] || [];
+
+      await api.addCompetitor(monitorId, {
+        name: competitorName,
+        domain: domainUrl,
+        pages: tierPages,
+        site_map_baseline: discoveryResult.site_map,
+        tier: selectedTier
+      });
 
       if (onCompetitorAdded) {
         onCompetitorAdded();
       }
-      onClose();
+      handleClose();
     } catch (err) {
       setError(err.message || 'Failed to add competitor');
     } finally {
@@ -72,10 +100,20 @@ export default function AddCompetitorModal({ isOpen, onClose, monitorId, onCompe
   };
 
   const handleClose = () => {
+    setStep(1);
     setCompetitorName('');
-    setPages([{ url: '', type: 'homepage' }]);
+    setDomainUrl('');
+    setDiscoveryResult(null);
+    setSelectedTier('suggested');
     setError(null);
     onClose();
+  };
+
+  const handleBack = () => {
+    if (step === 3) {
+      setStep(1);
+      setDiscoveryResult(null);
+    }
   };
 
   if (!isOpen) return null;
@@ -83,94 +121,164 @@ export default function AddCompetitorModal({ isOpen, onClose, monitorId, onCompe
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content add-competitor-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Add Competitor</h2>
+        {/* Step 1: Enter Details */}
+        {step === 1 && (
+          <>
+            <h2>Add Competitor</h2>
+            <p className="modal-subtitle">
+              Enter a competitor's website and we'll automatically discover and analyze their pages
+            </p>
 
-        {error && (
-          <div className="modal-error">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-            {error}
+            {error && (
+              <div className="modal-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                {error}
+              </div>
+            )}
+
+            <div className="modal-section">
+              <label className="input-label">Competitor Name</label>
+              <input
+                type="text"
+                className="text-input"
+                placeholder="e.g., Acme Corp"
+                value={competitorName}
+                onChange={(e) => setCompetitorName(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="modal-section">
+              <label className="input-label">Website URL</label>
+              <input
+                type="text"
+                className="text-input"
+                placeholder="https://acme.com"
+                value={domainUrl}
+                onChange={(e) => setDomainUrl(e.target.value)}
+              />
+              <p className="input-hint">
+                We'll map the entire site to find pages worth tracking
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={handleClose}>
+                Cancel
+              </button>
+              <button className="btn-primary btn-orange" onClick={handleDiscover}>
+                Discover Pages
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Discovering */}
+        {step === 2 && (
+          <div className="discovery-loading">
+            <div className="loading-spinner" />
+            <h3>Mapping {competitorName}'s website...</h3>
+            <p className="loading-status">
+              {isDiscovering ? 'Discovering pages and analyzing content...' : 'Processing...'}
+            </p>
+            <div className="loading-steps">
+              <div className="loading-step active">Mapping site structure</div>
+              <div className="loading-step">Analyzing pages with AI</div>
+              <div className="loading-step">Categorizing by importance</div>
+            </div>
           </div>
         )}
 
-        <div className="modal-section">
-          <label className="input-label">Competitor Name</label>
-          <input
-            type="text"
-            className="text-input"
-            placeholder="e.g., AcmeAI"
-            value={competitorName}
-            onChange={(e) => setCompetitorName(e.target.value)}
-            autoFocus
-          />
-        </div>
+        {/* Step 3: Select Tier */}
+        {step === 3 && discoveryResult && (
+          <>
+            <h2>Select Tracking Level</h2>
+            <p className="modal-subtitle">
+              Found <strong>{discoveryResult.total_pages_found}</strong> pages on {competitorName}'s site.
+              Choose how many to track:
+            </p>
 
-        <div className="modal-section">
-          <label className="input-label">Pages to Track</label>
-          <p className="section-description">
-            Add the URLs you want to monitor for this competitor
-          </p>
-
-          <div className="pages-list">
-            {pages.map((page, index) => (
-              <div key={index} className="page-entry">
-                <input
-                  type="text"
-                  className="url-input"
-                  placeholder="https://example.com/page"
-                  value={page.url}
-                  onChange={(e) => handlePageChange(index, 'url', e.target.value)}
-                />
-                <select
-                  className="type-select"
-                  value={page.type}
-                  onChange={(e) => handlePageChange(index, 'type', e.target.value)}
-                >
-                  {PAGE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="remove-page-btn"
-                  onClick={() => handleRemovePage(index)}
-                  disabled={pages.length === 1}
-                  title="Remove page"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+            {error && (
+              <div className="modal-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                {error}
               </div>
-            ))}
-          </div>
+            )}
 
-          <button className="add-page-btn" onClick={handleAddPage}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add another page
-          </button>
-        </div>
+            <div className="tier-grid">
+              {Object.entries(TIER_INFO).map(([tier, info]) => {
+                const tierPages = discoveryResult.tiers[tier] || [];
+                const pageCount = tierPages.length;
+                const isSelected = selectedTier === tier;
 
-        <div className="modal-actions">
-          <button className="btn-secondary" onClick={handleClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            className="btn-primary btn-orange"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Adding...' : 'Add Competitor'}
-          </button>
-        </div>
+                return (
+                  <div
+                    key={tier}
+                    className={`tier-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedTier(tier)}
+                  >
+                    <div className="tier-header">
+                      <span className="tier-icon">{info.icon}</span>
+                      <span className="tier-label">{info.label}</span>
+                      {tier === 'suggested' && <span className="tier-badge">Recommended</span>}
+                    </div>
+                    <div className="tier-count">{pageCount} pages</div>
+                    <div className="tier-description">{info.description}</div>
+                    {tierPages.length > 0 && (
+                      <div className="tier-preview">
+                        {tierPages.slice(0, 3).map((page, i) => (
+                          <div key={i} className="preview-page">
+                            <span className="preview-type">{page.type}</span>
+                            <span className="preview-url" title={page.url}>
+                              {new URL(page.url).pathname || '/'}
+                            </span>
+                          </div>
+                        ))}
+                        {tierPages.length > 3 && (
+                          <div className="preview-more">+{tierPages.length - 3} more</div>
+                        )}
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="tier-checkmark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {discoveryResult.tiers.reasoning && (
+              <div className="ai-reasoning">
+                <strong>AI Analysis:</strong> {discoveryResult.tiers.reasoning}
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={handleBack}>
+                Back
+              </button>
+              <button
+                className="btn-primary btn-orange"
+                onClick={handleAddCompetitor}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Adding...' : `Add ${competitorName}`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

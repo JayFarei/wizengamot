@@ -30,6 +30,13 @@ def get_model() -> TextEmbedding:
     return _model
 
 
+def get_embedding(text: str) -> np.ndarray:
+    """Get embedding vector for a text string."""
+    model = get_model()
+    embeddings = list(model.embed([text]))
+    return embeddings[0]
+
+
 def extract_content(conversation: Dict[str, Any]) -> str:
     """Extract all searchable text from a conversation."""
     parts = []

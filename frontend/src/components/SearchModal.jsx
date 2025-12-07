@@ -2,6 +2,50 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api';
 import './SearchModal.css';
 
+// Filter definitions
+const FILTERS = [
+  { key: 'council', label: 'Council', description: 'Filter to council discussions' },
+  { key: 'notes', label: 'Notes', description: 'Filter to synthesizer notes' },
+  { key: 'monitors', label: 'Monitors', description: 'Filter to monitors' },
+];
+
+// Parse @prefix filters from query
+function parseFilterAndQuery(input) {
+  for (const f of FILTERS) {
+    const prefix = `@${f.key}`;
+    if (input.startsWith(prefix + ' ') || input === prefix) {
+      return {
+        filter: f.key,
+        query: input.slice(prefix.length).trim()
+      };
+    }
+  }
+  return { filter: 'all', query: input };
+}
+
+// Check if showing @ suggestions
+function getFilterSuggestions(input) {
+  if (!input.startsWith('@')) return [];
+  const partial = input.slice(1).toLowerCase();
+  // Don't show suggestions if we already have a complete filter with space
+  for (const f of FILTERS) {
+    if (input.startsWith(`@${f.key} `)) return [];
+  }
+  // Filter suggestions by partial match
+  return FILTERS.filter(f => f.key.startsWith(partial));
+}
+
+// Apply type filter to results
+function applyTypeFilter(results, filter) {
+  if (filter === 'all') return results;
+  return results.filter(r => {
+    if (filter === 'council') return r.mode !== 'synthesizer';
+    if (filter === 'notes') return r.mode === 'synthesizer';
+    if (filter === 'monitors') return r.type === 'monitor';
+    return true;
+  });
+}
+
 export default function SearchModal({ isOpen, onClose, onSelectConversation, onNewConversation, theme, onToggleTheme, onOpenSettings }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -10,9 +54,23 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // Total items: 3 actions (New, Theme, Settings) + search results
+  // Parse filter from query
+  const { filter: activeFilter, query: searchQuery } = parseFilterAndQuery(query);
+
+  // Get filter suggestions when typing @
+  const filterSuggestions = getFilterSuggestions(query);
+  const showingFilterSuggestions = filterSuggestions.length > 0;
+
+  // Apply filter to results
+  const filteredResults = applyTypeFilter(results, activeFilter);
+
+  // Total items depends on what we're showing
+  // When showing filter suggestions: suggestions only
+  // Otherwise: 3 actions + results
   const ACTION_COUNT = 3;
-  const totalItems = results.length + ACTION_COUNT;
+  const totalItems = showingFilterSuggestions
+    ? filterSuggestions.length
+    : filteredResults.length + ACTION_COUNT;
 
   // Focus input when modal opens
   useEffect(() => {
@@ -25,15 +83,15 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   }, [isOpen]);
 
   // Debounced search
-  const doSearch = useCallback(async (searchQuery) => {
-    if (!searchQuery.trim()) {
+  const doSearch = useCallback(async (queryText) => {
+    if (!queryText.trim()) {
       setResults([]);
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await api.searchConversations(searchQuery);
+      const response = await api.searchConversations(queryText);
       setResults(response.results || []);
       setSelectedIndex(0);
     } catch (err) {
@@ -51,7 +109,8 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
     }
 
     debounceRef.current = setTimeout(() => {
-      doSearch(query);
+      // Use parsed searchQuery (without @prefix) for actual search
+      doSearch(searchQuery);
     }, 200);
 
     return () => {
@@ -59,7 +118,7 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, doSearch]);
+  }, [searchQuery, doSearch]);
 
   // Keyboard navigation
   const handleKeyDown = (e) => {
@@ -79,6 +138,16 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   };
 
   const handleSelectByIndex = (index) => {
+    // Handle filter suggestion selection
+    if (showingFilterSuggestions) {
+      const suggestion = filterSuggestions[index];
+      if (suggestion) {
+        setQuery(`@${suggestion.key} `);
+        setSelectedIndex(0);
+      }
+      return;
+    }
+
     if (index === 0) {
       // New Conversation
       onClose();
@@ -92,7 +161,7 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
       onOpenSettings?.();
     } else {
       // Search result (index - ACTION_COUNT)
-      const result = results[index - ACTION_COUNT];
+      const result = filteredResults[index - ACTION_COUNT];
       if (result) {
         onSelectConversation(result.id);
         onClose();
@@ -130,7 +199,7 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
             ref={inputRef}
             type="text"
             className="search-input"
-            placeholder="Search conversations..."
+            placeholder="Search or @council, @notes, @monitors..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -141,7 +210,26 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
         </div>
 
         <div className="search-results">
-          {/* Action items - always shown */}
+          {/* Filter suggestions when typing @ */}
+          {showingFilterSuggestions && (
+            <div className="filter-suggestions">
+              <div className="filter-suggestions-label">Filter by type</div>
+              {filterSuggestions.map((suggestion, index) => (
+                <div
+                  key={suggestion.key}
+                  className={`filter-suggestion ${index === selectedIndex ? 'selected' : ''}`}
+                  onClick={() => handleSelectByIndex(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <span className="filter-suggestion-key">@{suggestion.key}</span>
+                  <span className="filter-suggestion-desc">{suggestion.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action items - shown when not showing filter suggestions */}
+          {!showingFilterSuggestions && (
           <div className="search-actions">
             {/* New Conversation */}
             <div
@@ -196,43 +284,54 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
               <span className="action-label">Settings</span>
             </div>
           </div>
-
-          <div className="search-divider" />
-
-          {isLoading && (
-            <div className="search-loading">Searching...</div>
           )}
 
-          {!isLoading && query && results.length === 0 && (
-            <div className="search-empty">No matching conversations found</div>
-          )}
+          {!showingFilterSuggestions && <div className="search-divider" />}
 
-          {!isLoading && results.map((result, index) => (
-            <div
-              key={result.id}
-              className={`search-result ${index + ACTION_COUNT === selectedIndex ? 'selected' : ''}`}
-              onClick={() => handleSelectByIndex(index + ACTION_COUNT)}
-              onMouseEnter={() => setSelectedIndex(index + ACTION_COUNT)}
-            >
-              <div className="search-result-header">
-                <span className="search-result-title">{result.title}</span>
-                <span className={`search-result-mode ${result.mode}`}>
-                  {result.mode}
-                </span>
-              </div>
-              <div className="search-result-meta">
-                <span className="search-result-time">{formatRelativeTime(result.created_at)}</span>
-                <span className="search-result-score">
-                  {Math.round(result.similarity * 100)}% match
-                </span>
-              </div>
-            </div>
-          ))}
+          {!showingFilterSuggestions && (
+            <>
+              {isLoading && (
+                <div className="search-loading">Searching...</div>
+              )}
 
-          {!query && !isLoading && (
-            <div className="search-hint-text">
-              Type to search by content, title, or topic
-            </div>
+              {!isLoading && (searchQuery || activeFilter !== 'all') && filteredResults.length === 0 && (
+                <div className="search-empty">
+                  {activeFilter !== 'all'
+                    ? `No ${activeFilter} items found${searchQuery ? ` matching "${searchQuery}"` : ''}`
+                    : 'No matching conversations found'}
+                </div>
+              )}
+
+              {!isLoading && filteredResults.map((result, index) => (
+                <div
+                  key={result.id}
+                  className={`search-result ${index + ACTION_COUNT === selectedIndex ? 'selected' : ''}`}
+                  onClick={() => handleSelectByIndex(index + ACTION_COUNT)}
+                  onMouseEnter={() => setSelectedIndex(index + ACTION_COUNT)}
+                >
+                  <div className="search-result-header">
+                    <span className="search-result-title">{result.title}</span>
+                    <span className={`search-result-mode ${result.mode}`}>
+                      {result.mode === 'synthesizer' ? 'notes' : 'council'}
+                    </span>
+                  </div>
+                  <div className="search-result-meta">
+                    <span className="search-result-time">{formatRelativeTime(result.created_at)}</span>
+                    {result.similarity && (
+                      <span className="search-result-score">
+                        {Math.round(result.similarity * 100)}% match
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {!query && !isLoading && (
+                <div className="search-hint-text">
+                  Type to search, or @ to filter by type
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

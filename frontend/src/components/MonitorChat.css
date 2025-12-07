@@ -1,0 +1,233 @@
+.monitor-chat {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  height: 100%;
+}
+
+/* Input-only mode for dashboard view */
+.monitor-chat.input-only {
+  max-height: none;
+  height: auto;
+}
+
+.monitor-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 250px;
+}
+
+.monitor-chat-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.monitor-chat-empty p {
+  margin: 0;
+}
+
+/* Messages */
+.monitor-message {
+  max-width: 85%;
+}
+
+.monitor-message.user {
+  align-self: flex-end;
+}
+
+.monitor-message.assistant {
+  align-self: flex-start;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.message-role {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.message-time {
+  color: var(--text-muted);
+}
+
+.message-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.monitor-message.user .message-content {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.monitor-message.user .message-content p {
+  margin: 0;
+}
+
+.monitor-message.error .message-content {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+/* Action results */
+.action-result {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.action-result.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.action-result.failure {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.action-result svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Loading indicator */
+.monitor-message.loading .message-content {
+  padding: 16px;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Input form */
+.monitor-input-form {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+}
+
+.monitor-input-form textarea {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 44px;
+  max-height: 150px;
+  line-height: 1.4;
+}
+
+.monitor-input-form textarea:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.monitor-input-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.monitor-input-form button {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.monitor-input-form button:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.monitor-input-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.monitor-input-form button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Error display */
+.monitor-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.monitor-error svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}

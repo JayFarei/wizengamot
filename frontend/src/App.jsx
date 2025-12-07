@@ -8,6 +8,7 @@ import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
 import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
+import MonitorInterface from './components/MonitorInterface';
 import SearchModal from './components/SearchModal';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
@@ -27,6 +28,11 @@ function App() {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
   const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
+
+  // Monitor state
+  const [monitors, setMonitors] = useState([]);
+  const [currentMonitorId, setCurrentMonitorId] = useState(null);
+  const [currentMonitor, setCurrentMonitor] = useState(null);
 
   // Comment and thread state
   const [comments, setComments] = useState([]);
@@ -121,9 +127,10 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations, config, and prompt labels on mount
+  // Load conversations, monitors, config, and prompt labels on mount
   useEffect(() => {
     loadConversations();
+    loadMonitors();
     loadConfig();
     loadPromptLabels();
   }, []);
@@ -187,6 +194,24 @@ function App() {
     }
   };
 
+  const loadMonitors = async () => {
+    try {
+      const mons = await api.listMonitors();
+      setMonitors(mons);
+    } catch (error) {
+      console.error('Failed to load monitors:', error);
+    }
+  };
+
+  const loadMonitor = async (id) => {
+    try {
+      const mon = await api.getMonitor(id);
+      setCurrentMonitor(mon);
+    } catch (error) {
+      console.error('Failed to load monitor:', error);
+    }
+  };
+
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
@@ -244,8 +269,25 @@ function App() {
           ...conversations,
         ]);
         setCurrentConversationId(newConv.id);
+        setCurrentMonitorId(null);
+        setCurrentMonitor(null);
       } catch (error) {
         console.error('Failed to create synthesizer conversation:', error);
+      }
+    } else if (mode === 'monitor') {
+      // Create monitor directly
+      try {
+        const newMonitor = await api.createMonitor('New Monitor');
+        setMonitors([
+          { id: newMonitor.id, name: newMonitor.name, created_at: newMonitor.created_at, competitor_count: 0 },
+          ...monitors,
+        ]);
+        setCurrentMonitorId(newMonitor.id);
+        setCurrentMonitor(newMonitor);
+        setCurrentConversationId(null);
+        setCurrentConversation(null);
+      } catch (error) {
+        console.error('Failed to create monitor:', error);
       }
     }
   };
@@ -273,6 +315,9 @@ function App() {
   };
 
   const handleSelectConversation = (id) => {
+    // Clear monitor selection when selecting a conversation
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
     setCurrentConversationId(id);
     setActiveCommentId(null);
     setContextSegments([]);
@@ -288,6 +333,71 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
+    }
+  };
+
+  // Monitor handlers
+  const handleSelectMonitor = async (id) => {
+    // Clear conversation selection when selecting a monitor
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(id);
+    try {
+      const monitor = await api.getMonitor(id);
+      setCurrentMonitor(monitor);
+    } catch (error) {
+      console.error('Failed to load monitor:', error);
+    }
+  };
+
+  const handlePauseMonitor = async (id) => {
+    try {
+      await api.pauseMonitor(id);
+      loadMonitors();
+      if (currentMonitorId === id) {
+        const monitor = await api.getMonitor(id);
+        setCurrentMonitor(monitor);
+      }
+    } catch (error) {
+      console.error('Failed to pause monitor:', error);
+    }
+  };
+
+  const handleResumeMonitor = async (id) => {
+    try {
+      await api.resumeMonitor(id);
+      loadMonitors();
+      if (currentMonitorId === id) {
+        const monitor = await api.getMonitor(id);
+        setCurrentMonitor(monitor);
+      }
+    } catch (error) {
+      console.error('Failed to resume monitor:', error);
+    }
+  };
+
+  const handleDeleteMonitor = async (id) => {
+    try {
+      await api.deleteMonitor(id);
+      setMonitors(monitors.filter(m => m.id !== id));
+      if (currentMonitorId === id) {
+        setCurrentMonitorId(null);
+        setCurrentMonitor(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete monitor:', error);
+    }
+  };
+
+  const handleMarkMonitorRead = async (id) => {
+    try {
+      await api.markMonitorRead(id);
+      // Update the monitors list to reflect the change
+      setMonitors(monitors.map(m =>
+        m.id === id ? { ...m, unread_updates: 0 } : m
+      ));
+    } catch (error) {
+      console.error('Failed to mark monitor as read:', error);
     }
   };
 
@@ -774,8 +884,23 @@ function App() {
         animatingTitleId={animatingTitleId}
         onTitleAnimationComplete={() => setAnimatingTitleId(null)}
         promptLabels={promptLabels}
+        monitors={monitors}
+        currentMonitorId={currentMonitorId}
+        onSelectMonitor={handleSelectMonitor}
+        onPauseMonitor={handlePauseMonitor}
+        onResumeMonitor={handleResumeMonitor}
+        onDeleteMonitor={handleDeleteMonitor}
       />
-      {currentConversation?.mode === 'synthesizer' ? (
+      {currentMonitor ? (
+        <MonitorInterface
+          monitor={currentMonitor}
+          onMonitorUpdate={(updatedMonitor) => {
+            setCurrentMonitor(updatedMonitor);
+            loadMonitors();
+          }}
+          onMarkRead={handleMarkMonitorRead}
+        />
+      ) : currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface
           conversation={currentConversation}
           onConversationUpdate={(updatedConv, newTitle) => {

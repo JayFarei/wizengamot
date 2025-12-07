@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -22,6 +22,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on app startup."""
+    # Start the monitor scheduler
+    monitor_scheduler.start_scheduler()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on app shutdown."""
+    monitor_scheduler.stop_scheduler()
 
 
 class CouncilConfig(BaseModel):
@@ -55,7 +68,10 @@ class ConversationMetadata(BaseModel):
     created_at: str
     title: str
     message_count: int
+    thread_count: int = 0
     mode: str = "council"
+    source_type: Optional[str] = None
+    prompt_title: Optional[str] = None
 
 
 class Conversation(BaseModel):
@@ -924,6 +940,430 @@ async def generate_tweet_endpoint(request: GenerateTweetRequest):
         "tweet": tweet_text,
         "char_count": len(tweet_text)
     }
+
+
+# =============================================================================
+# Monitor Endpoints
+# =============================================================================
+
+class CreateMonitorRequest(BaseModel):
+    """Request to create a new monitor."""
+    name: str
+    question_set: str = "default_b2b_saas_v1"
+
+
+class MonitorMessageRequest(BaseModel):
+    """Request to send a message to a monitor."""
+    content: str
+
+
+@app.get("/api/monitors")
+async def list_monitors():
+    """List all monitors."""
+    return monitors.list_monitors()
+
+
+@app.post("/api/monitors")
+async def create_monitor(request: CreateMonitorRequest):
+    """Create a new monitor."""
+    return monitors.create_monitor(request.name, request.question_set)
+
+
+@app.get("/api/monitors/{monitor_id}")
+async def get_monitor(monitor_id: str):
+    """Get a specific monitor."""
+    monitor = monitors.get_monitor(monitor_id)
+    if monitor is None:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return monitor
+
+
+@app.patch("/api/monitors/{monitor_id}")
+async def update_monitor(monitor_id: str, updates: dict):
+    """Update a monitor's configuration."""
+    monitor = monitors.update_monitor(monitor_id, updates)
+    if monitor is None:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return monitor
+
+
+@app.delete("/api/monitors/{monitor_id}")
+async def delete_monitor(monitor_id: str):
+    """Delete a monitor and all its data."""
+    if not monitors.delete_monitor(monitor_id):
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return {"success": True}
+
+
+@app.post("/api/monitors/{monitor_id}/mark-read")
+async def mark_monitor_read(monitor_id: str):
+    """Mark a monitor as read, resetting the unread updates counter."""
+    result = monitors.mark_read(monitor_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return result
+
+
+@app.post("/api/monitors/{monitor_id}/message")
+async def send_monitor_message(monitor_id: str, request: MonitorMessageRequest):
+    """Send a message to a monitor and get a response."""
+    result = await monitor_chat.process_monitor_message(monitor_id, request.content)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/monitors/{monitor_id}/message/stream")
+async def send_monitor_message_stream(monitor_id: str, request: MonitorMessageRequest):
+    """Send a message to a monitor with streaming response."""
+    return StreamingResponse(
+        monitor_chat.process_monitor_message_stream(monitor_id, request.content),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+class DiscoverCompetitorRequest(BaseModel):
+    """Request to discover pages on a competitor website."""
+    url: str
+    name: str
+
+
+@app.post("/api/monitors/{monitor_id}/discover")
+async def discover_competitor_pages(monitor_id: str, request: DiscoverCompetitorRequest):
+    """
+    Discover pages on a competitor website using Firecrawl map.
+    Returns tiered page recommendations from LLM analysis.
+    """
+    from .monitor_crawler import map_website
+    from .monitor_analysis import analyze_pages_for_tracking
+
+    # Verify monitor exists
+    monitor = monitors.get_monitor(monitor_id)
+    if not monitor:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+    # Map the website
+    map_result = await map_website(request.url, limit=200)
+
+    if not map_result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to map website: {map_result.get('error', 'Unknown error')}"
+        )
+
+    pages = map_result.get("pages", [])
+
+    if not pages:
+        raise HTTPException(status_code=400, detail="No pages found on website")
+
+    # Analyze pages with LLM to get tier recommendations
+    tiers = await analyze_pages_for_tracking(pages, request.name)
+
+    if not tiers:
+        # Fallback to basic tier structure
+        tiers = {
+            "minimum": [{"url": pages[0]["url"], "type": "homepage", "reason": "Main page"}] if pages else [],
+            "suggested": [],
+            "generous": [],
+            "all": [{"url": p["url"], "type": "other", "reason": ""} for p in pages],
+            "reasoning": "LLM analysis unavailable, using fallback"
+        }
+
+    return {
+        "success": True,
+        "name": request.name,
+        "domain": request.url,
+        "total_pages_found": len(pages),
+        "tiers": tiers,
+        "site_map": pages  # Full map for baseline storage
+    }
+
+
+class AddCompetitorRequest(BaseModel):
+    """Request to add a competitor to a monitor."""
+    name: str
+    domain: str = None
+    pages: List[Dict[str, Any]] = []
+    site_map_baseline: List[Dict[str, Any]] = None
+    tier: str = "suggested"
+
+
+@app.post("/api/monitors/{monitor_id}/competitors")
+async def add_competitor(monitor_id: str, request: AddCompetitorRequest):
+    """Add a competitor to a monitor with discovered pages."""
+    competitor = monitors.add_competitor(
+        monitor_id,
+        request.name,
+        domain=request.domain,
+        pages=request.pages,
+        site_map_baseline=request.site_map_baseline,
+        tier=request.tier
+    )
+    if competitor is None:
+        raise HTTPException(status_code=400, detail="Failed to add competitor (may already exist)")
+    return competitor
+
+
+@app.get("/api/monitors/{monitor_id}/competitors/{competitor_id}/structure-changes")
+async def get_structure_changes(monitor_id: str, competitor_id: str):
+    """
+    Get site structure changes for a competitor.
+    Compares current site map to baseline and provides strategic analysis.
+    """
+    from .monitor_crawler import map_website, compare_site_structure
+    from .monitor_analysis import analyze_structural_changes
+
+    # Get competitor
+    competitor = monitors.get_competitor(monitor_id, competitor_id)
+    if not competitor:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+
+    domain = competitor.get("domain")
+    if not domain:
+        raise HTTPException(status_code=400, detail="Competitor has no domain configured")
+
+    baseline = competitor.get("site_map_baseline", [])
+
+    # Get current site map
+    map_result = await map_website(domain, limit=200)
+    if not map_result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to map website: {map_result.get('error', 'Unknown error')}"
+        )
+
+    current_map = map_result.get("pages", [])
+
+    # Compare structures
+    changes = compare_site_structure(current_map, baseline)
+
+    # Get strategic analysis if there are changes
+    analysis = None
+    if changes.get("has_changes"):
+        analysis = await analyze_structural_changes(changes, competitor.get("name", ""))
+
+    return {
+        "competitor_id": competitor_id,
+        "competitor_name": competitor.get("name"),
+        "changes": changes,
+        "analysis": analysis,
+        "current_map_size": len(current_map),
+        "baseline_map_size": len(baseline)
+    }
+
+
+@app.post("/api/monitors/{monitor_id}/competitors/{competitor_id}/update-baseline")
+async def update_competitor_baseline(monitor_id: str, competitor_id: str):
+    """
+    Update a competitor's site map baseline to current state.
+    """
+    from .monitor_crawler import map_website
+
+    # Get competitor
+    competitor = monitors.get_competitor(monitor_id, competitor_id)
+    if not competitor:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+
+    domain = competitor.get("domain")
+    if not domain:
+        raise HTTPException(status_code=400, detail="Competitor has no domain configured")
+
+    # Get current site map
+    map_result = await map_website(domain, limit=200)
+    if not map_result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to map website: {map_result.get('error', 'Unknown error')}"
+        )
+
+    # Update baseline
+    updated = monitors.update_competitor_site_map(
+        monitor_id,
+        competitor_id,
+        map_result.get("pages", [])
+    )
+
+    if not updated:
+        raise HTTPException(status_code=400, detail="Failed to update baseline")
+
+    return {
+        "success": True,
+        "competitor_id": competitor_id,
+        "new_baseline_size": len(map_result.get("pages", []))
+    }
+
+
+@app.delete("/api/monitors/{monitor_id}/competitors/{competitor_id}")
+async def remove_competitor(monitor_id: str, competitor_id: str):
+    """Remove a competitor from a monitor."""
+    if not monitors.remove_competitor(monitor_id, competitor_id):
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    return {"success": True}
+
+
+class AddPageRequest(BaseModel):
+    """Request to add a page to track."""
+    url: str
+    page_type: str = "page"
+    visual_critical: bool = False
+    crawl_frequency: str = "daily"
+
+
+@app.post("/api/monitors/{monitor_id}/competitors/{competitor_id}/pages")
+async def add_page(monitor_id: str, competitor_id: str, request: AddPageRequest):
+    """Add a page to track for a competitor."""
+    page = monitors.add_page(
+        monitor_id,
+        competitor_id,
+        request.url,
+        request.page_type,
+        request.visual_critical,
+        request.crawl_frequency
+    )
+    if page is None:
+        raise HTTPException(status_code=400, detail="Failed to add page")
+    return page
+
+
+@app.delete("/api/monitors/{monitor_id}/competitors/{competitor_id}/pages/{page_id}")
+async def remove_page(monitor_id: str, competitor_id: str, page_id: str):
+    """Remove a page from tracking."""
+    if not monitors.remove_page(monitor_id, competitor_id, page_id):
+        raise HTTPException(status_code=404, detail="Page not found")
+    return {"success": True}
+
+
+@app.post("/api/monitors/{monitor_id}/crawl")
+async def trigger_monitor_crawl(monitor_id: str):
+    """Trigger an immediate crawl for a monitor."""
+    result = await monitor_scheduler.trigger_crawl(monitor_id)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/monitors/{monitor_id}/snapshots")
+async def list_snapshots(monitor_id: str, competitor_id: str = None, page_id: str = None, limit: int = 100):
+    """List snapshots for a monitor."""
+    snapshots = monitor_crawler.get_snapshots(monitor_id, competitor_id, page_id, limit)
+    return snapshots
+
+
+@app.get("/api/monitors/{monitor_id}/updates")
+async def get_monitor_updates(
+    monitor_id: str,
+    since: str = None,
+    tags: str = None,
+    competitor_id: str = None,
+    limit: int = 50
+):
+    """Get updates (meaningful changes) for a monitor."""
+    tag_list = tags.split(",") if tags else None
+    updates = monitor_updates.get_updates(monitor_id, since, tag_list, competitor_id, limit)
+    return updates
+
+
+@app.get("/api/monitors/{monitor_id}/summary")
+async def get_monitor_summary(monitor_id: str):
+    """Get aggregate summary stats for a monitor."""
+    summary = monitor_updates.get_summary(monitor_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return summary
+
+
+@app.get("/api/monitors/{monitor_id}/compare")
+async def get_monitor_comparison(monitor_id: str, question: str, competitor_ids: str = None):
+    """Get comparison data for a specific question across competitors."""
+    comp_list = competitor_ids.split(",") if competitor_ids else None
+    comparison = monitor_updates.get_comparison(monitor_id, question, comp_list)
+    return comparison
+
+
+@app.get("/api/monitors/{monitor_id}/screenshot/{screenshot_path:path}")
+async def get_monitor_screenshot(monitor_id: str, screenshot_path: str):
+    """Serve a screenshot file for a monitor."""
+    from fastapi.responses import FileResponse
+    from .monitors import _get_monitor_data_dir
+
+    # Validate path to prevent directory traversal
+    if ".." in screenshot_path or screenshot_path.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    data_dir = _get_monitor_data_dir(monitor_id)
+    file_path = data_dir / screenshot_path
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+
+    return FileResponse(file_path, media_type="image/png")
+
+
+@app.get("/api/monitors/{monitor_id}/snapshot/{snapshot_id}")
+async def get_monitor_snapshot_detail(monitor_id: str, snapshot_id: str):
+    """Get full snapshot details including previous snapshot for comparison."""
+    from .monitor_crawler import get_snapshots, _get_snapshot_dir, _get_monitor_data_dir
+    import json as json_module
+
+    # Find the snapshot
+    data_dir = _get_monitor_data_dir(monitor_id)
+    snapshots_root = data_dir / "snapshots"
+
+    if not snapshots_root.exists():
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    # Search for the snapshot file
+    snapshot_data = None
+    for snapshot_file in snapshots_root.glob(f"**/{snapshot_id}.json"):
+        with open(snapshot_file, "r") as f:
+            snapshot_data = json_module.load(f)
+        break
+
+    if not snapshot_data:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    # Get previous snapshot if available
+    previous_snapshot = None
+    if snapshot_data.get("previous_snapshot_id"):
+        prev_id = snapshot_data["previous_snapshot_id"]
+        for prev_file in snapshots_root.glob(f"**/{prev_id}.json"):
+            with open(prev_file, "r") as f:
+                previous_snapshot = json_module.load(f)
+            break
+
+    return {
+        "current": snapshot_data,
+        "previous": previous_snapshot
+    }
+
+
+@app.get("/api/monitors/{monitor_id}/digests")
+async def list_monitor_digests(monitor_id: str, limit: int = 10):
+    """List past digests for a monitor."""
+    digests = monitor_digest.get_digests(monitor_id, limit)
+    return digests
+
+
+@app.get("/api/monitors/{monitor_id}/digests/{digest_id}")
+async def get_monitor_digest(monitor_id: str, digest_id: str):
+    """Get a specific digest by ID."""
+    digest = monitor_digest.get_digest(monitor_id, digest_id)
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+    return digest
+
+
+@app.post("/api/monitors/{monitor_id}/digests")
+async def create_monitor_digest(monitor_id: str, period: str = "weekly"):
+    """Generate a new digest for the specified period."""
+    digest = monitor_digest.generate_digest(monitor_id, period)
+    if not digest:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return digest
 
 
 if __name__ == "__main__":

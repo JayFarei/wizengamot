@@ -140,6 +140,7 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "created_at": data["created_at"],
                     "title": data.get("title", "New Conversation"),
                     "message_count": len(data["messages"]),
+                    "thread_count": len(data.get("threads", [])),
                     "mode": data.get("mode", "council")  # Default to council for backwards compat
                 }
                 # For council conversations, extract prompt title from system_prompt
