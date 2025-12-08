@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -244,6 +244,11 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     is_first_message = len(conversation["messages"]) == 0
 
     async def event_generator():
+        # Initialize results outside try for access in finally
+        stage1_results = None
+        stage2_results = None
+        stage3_result = None
+
         try:
             # Add user message
             storage.add_user_message(conversation_id, request.content)
@@ -285,20 +290,22 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 storage.update_conversation_title(conversation_id, title)
                 yield f"data: {json.dumps({'type': 'title_complete', 'data': {'title': title}})}\n\n"
 
-            # Save complete assistant message
-            storage.add_assistant_message(
-                conversation_id,
-                stage1_results,
-                stage2_results,
-                stage3_result
-            )
-
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete'})}\n\n"
 
         except Exception as e:
             # Send error event
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        finally:
+            # Save in finally block - ensures save even if client disconnects
+            if stage1_results and stage2_results and stage3_result:
+                storage.add_assistant_message(
+                    conversation_id,
+                    stage1_results,
+                    stage2_results,
+                    stage3_result
+                )
 
     return StreamingResponse(
         event_generator(),
@@ -615,6 +622,78 @@ async def delete_prompt(filename: str):
     """Delete a prompt file."""
     try:
         prompts.delete_prompt(filename)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# Question Sets Management Endpoints
+
+@app.get("/api/question-sets")
+async def list_question_sets_endpoint():
+    """List all available question sets."""
+    return question_sets.list_question_sets()
+
+
+@app.get("/api/question-sets/{filename}")
+async def get_question_set(filename: str):
+    """Get a specific question set by filename."""
+    qs = question_sets.get_question_set(filename)
+    if qs is None:
+        raise HTTPException(status_code=404, detail="Question set not found")
+    return qs
+
+
+class CreateQuestionSetRequest(BaseModel):
+    """Request to create a new question set."""
+    title: str
+    questions: Dict[str, str]
+    description: str = ""
+    output_schema: Optional[Dict[str, str]] = None
+
+
+@app.post("/api/question-sets")
+async def create_question_set_endpoint(request: CreateQuestionSetRequest):
+    """Create a new question set file."""
+    try:
+        return question_sets.create_question_set(
+            request.title,
+            request.questions,
+            request.description,
+            request.output_schema
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class UpdateQuestionSetRequest(BaseModel):
+    """Request to update an existing question set."""
+    content: Optional[str] = None
+    questions: Optional[Dict[str, str]] = None
+    description: Optional[str] = None
+    output_schema: Optional[Dict[str, str]] = None
+
+
+@app.put("/api/question-sets/{filename}")
+async def update_question_set_endpoint(filename: str, request: UpdateQuestionSetRequest):
+    """Update an existing question set file."""
+    try:
+        return question_sets.update_question_set(
+            filename,
+            content=request.content,
+            questions=request.questions,
+            description=request.description,
+            output_schema=request.output_schema
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/question-sets/{filename}")
+async def delete_question_set_endpoint(filename: str):
+    """Delete a question set file."""
+    try:
+        question_sets.delete_question_set(filename)
         return {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
