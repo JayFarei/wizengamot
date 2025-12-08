@@ -30,6 +30,7 @@ function CommitSidebar({
   const [editValue, setEditValue] = useState('');
   const [isStackCollapsed, setIsStackCollapsed] = useState(false);
   const [stackToggledManually, setStackToggledManually] = useState(false);
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const editTextareaRef = useRef(null);
@@ -133,6 +134,24 @@ function CommitSidebar({
     setStackToggledManually(true);
   };
 
+  const handleCopyToSlack = async () => {
+    if (comments.length === 0) return;
+
+    const formatted = comments.map(comment => {
+      const highlight = comment.selection.trim();
+      const commentary = comment.content.trim();
+      return `"${highlight}"\n=> ${commentary}`;
+    }).join('\n\n');
+
+    try {
+      await navigator.clipboard.writeText(formatted);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   const tokenBreakdown = useMemo(
     () =>
       computeTokenBreakdown({
@@ -161,6 +180,24 @@ function CommitSidebar({
           <h3>Review Context</h3>
           <span className="comment-count">{totalContextItems}</span>
         </div>
+        {comments.length > 0 && (
+          <button
+            className="btn-copy-slack"
+            onClick={handleCopyToSlack}
+            title="Copy highlights to clipboard"
+          >
+            {copied ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            )}
+          </button>
+        )}
         <button className="btn-close" onClick={onClose} title="Close sidebar">
           ×
         </button>
