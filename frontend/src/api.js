@@ -33,6 +33,17 @@ export const api = {
   },
 
   /**
+   * Get the features list for the splash screen.
+   */
+  async getFeatures() {
+    const response = await fetch(`${API_BASE}/api/features`);
+    if (!response.ok) {
+      throw new Error('Failed to get features');
+    }
+    return response.json();
+  },
+
+  /**
    * List all conversations.
    */
   async listConversations() {

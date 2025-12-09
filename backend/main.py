@@ -112,6 +112,16 @@ async def search_conversations(q: str, limit: int = 10):
     return {"results": results, "query": q}
 
 
+@app.get("/api/features")
+async def get_features():
+    """Get the features list for the splash screen."""
+    from pathlib import Path
+    features_path = Path("FEATURES.md")
+    if features_path.exists():
+        return {"content": features_path.read_text()}
+    return {"content": ""}
+
+
 @app.get("/api/conversations", response_model=List[ConversationMetadata])
 async def list_conversations():
     """List all conversations (metadata only)."""

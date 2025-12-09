@@ -1,0 +1,99 @@
+.feature-list {
+  max-width: 600px;
+  margin: 24px auto 0;
+  text-align: left;
+  position: relative;
+}
+
+.feature-list-loading {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.feature-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 350px; /* ~10 items */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+/* Fade text at bottom using mask */
+.feature-list.scrollable:not(.at-bottom) .feature-items {
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 60px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 60px),
+    transparent 100%
+  );
+}
+
+.feature-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feature-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.feature-items::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+.feature-items::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.feature-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-date {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.feature-text {
+  color: var(--text-primary);
+}
+
+
+/* Scroll indicator arrow */
+.scroll-indicator {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  color: var(--text-muted);
+  animation: pulse-bounce 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bounce {
+  0%, 100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(4px);
+  }
+}

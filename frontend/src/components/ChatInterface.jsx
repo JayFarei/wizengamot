@@ -4,6 +4,7 @@ import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import SystemPromptBadge from './SystemPromptBadge';
+import FeatureList from './FeatureList';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -51,8 +52,93 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
-          <h2>Welcome to LLM Council</h2>
-          <p>Create a new conversation to get started</p>
+          <div className="logo-container">
+            <svg className="council-logo" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                {/* Glow filter for center */}
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                {/* Gradient for center sphere */}
+                <radialGradient id="sphereGradient" cx="40%" cy="40%">
+                  <stop offset="0%" stopColor="#fcd34d"/>
+                  <stop offset="50%" stopColor="#f59e0b"/>
+                  <stop offset="100%" stopColor="#d97706"/>
+                </radialGradient>
+                {/* Outer glow */}
+                <radialGradient id="outerGlow" cx="50%" cy="50%">
+                  <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.8"/>
+                  <stop offset="100%" stopColor="#fef3c7" stopOpacity="0"/>
+                </radialGradient>
+              </defs>
+
+              {/* Outer glow halo */}
+              <circle cx="100" cy="100" r="35" fill="url(#outerGlow)"/>
+
+              {/* Orbital rings - 5 ellipses at different rotations */}
+              {[0, 36, 72, 108, 144].map((rotation, i) => (
+                <ellipse
+                  key={`ring-${i}`}
+                  cx="100"
+                  cy="100"
+                  rx="80"
+                  ry="35"
+                  fill="none"
+                  stroke={i % 2 === 0 ? 'currentColor' : '#f59e0b'}
+                  strokeWidth="1.5"
+                  opacity={i % 2 === 0 ? 0.4 : 0.7}
+                  transform={`rotate(${rotation} 100 100)`}
+                />
+              ))}
+
+              {/* Nodes on orbits */}
+              {[
+                { angle: 30, ring: 0, isOrange: false },
+                { angle: 150, ring: 0, isOrange: false },
+                { angle: 270, ring: 0, isOrange: true },
+                { angle: 60, ring: 1, isOrange: true },
+                { angle: 180, ring: 1, isOrange: false },
+                { angle: 300, ring: 1, isOrange: false },
+                { angle: 0, ring: 2, isOrange: false },
+                { angle: 120, ring: 2, isOrange: true },
+                { angle: 240, ring: 2, isOrange: false },
+                { angle: 45, ring: 3, isOrange: false },
+                { angle: 165, ring: 3, isOrange: true },
+                { angle: 285, ring: 3, isOrange: false },
+                { angle: 90, ring: 4, isOrange: true },
+                { angle: 210, ring: 4, isOrange: false },
+                { angle: 330, ring: 4, isOrange: false },
+              ].map((node, i) => {
+                const ringRotation = [0, 36, 72, 108, 144][node.ring];
+                const rad = (node.angle) * Math.PI / 180;
+                const x = 80 * Math.cos(rad);
+                const y = 35 * Math.sin(rad);
+                const rotRad = ringRotation * Math.PI / 180;
+                const finalX = 100 + x * Math.cos(rotRad) - y * Math.sin(rotRad);
+                const finalY = 100 + x * Math.sin(rotRad) + y * Math.cos(rotRad);
+                return (
+                  <circle
+                    key={`node-${i}`}
+                    cx={finalX}
+                    cy={finalY}
+                    r="4"
+                    fill={node.isOrange ? '#f59e0b' : 'currentColor'}
+                    opacity={node.isOrange ? 1 : 0.6}
+                  />
+                );
+              })}
+
+              {/* Center glowing sphere */}
+              <circle cx="100" cy="100" r="18" fill="url(#sphereGradient)" filter="url(#glow)"/>
+            </svg>
+            <h1 className="brand-title">WIZENGAMOT</h1>
+            <p className="brand-tagline">A personal agentic sounding board</p>
+          </div>
+          <FeatureList />
         </div>
       </div>
     );
