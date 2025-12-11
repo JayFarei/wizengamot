@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 11 - Visualiser mode for generating diagrams and flowcharts from conversations
 Dec 9 - Branded splash screen with WIZENGAMOT logo and feature list
 Dec 9 - Customizable question sets so that you can tailor monitor analysis to specific criteria
 Dec 8 - Copy group of highlights to slack so that you can update your team about key passages and commentary
