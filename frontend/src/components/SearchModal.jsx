@@ -7,6 +7,7 @@ const FILTERS = [
   { key: 'council', label: 'Council', description: 'Filter to council discussions' },
   { key: 'notes', label: 'Notes', description: 'Filter to synthesizer notes' },
   { key: 'monitors', label: 'Monitors', description: 'Filter to monitors' },
+  { key: 'diagrams', label: 'Diagrams', description: 'Filter to visualiser diagrams' },
 ];
 
 // Parse @prefix filters from query
@@ -39,9 +40,10 @@ function getFilterSuggestions(input) {
 function applyTypeFilter(results, filter) {
   if (filter === 'all') return results;
   return results.filter(r => {
-    if (filter === 'council') return r.mode !== 'synthesizer';
+    if (filter === 'council') return r.mode === 'council';
     if (filter === 'notes') return r.mode === 'synthesizer';
     if (filter === 'monitors') return r.type === 'monitor';
+    if (filter === 'diagrams') return r.mode === 'visualiser';
     return true;
   });
 }
@@ -190,7 +192,7 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
       // Search result
       const result = filteredResults[index];
       if (result) {
-        onSelectConversation(result.id);
+        onSelectConversation(result);
         onClose();
       }
     }
@@ -284,7 +286,7 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
             ref={inputRef}
             type="text"
             className="search-input"
-            placeholder="Search or @council, @notes, @monitors..."
+            placeholder="Search or @council, @notes, @diagrams..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}

@@ -8,7 +8,7 @@ import './ModeSelector.css';
  */
 export default function ModeSelector({ onSelect, onCancel }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const modes = ['council', 'synthesizer', 'monitor'];
+  const modes = ['council', 'synthesizer', 'monitor', 'visualiser'];
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -129,6 +129,32 @@ export default function ModeSelector({ onSelect, onCancel }) {
               <span className="feature-tag">Competitors</span>
               <span className="feature-tag">Timeline</span>
               <span className="feature-tag">Change Detection</span>
+            </div>
+          </button>
+
+          <button
+            className={`mode-card mode-card-visualiser ${selectedIndex === 3 ? 'selected' : ''}`}
+            onClick={() => onSelect('visualiser')}
+            onMouseEnter={() => setSelectedIndex(3)}
+          >
+            <div className="mode-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+                <line x1="15" y1="3" x2="15" y2="21" />
+              </svg>
+            </div>
+            <h3 className="mode-card-title">Visualiser</h3>
+            <p className="mode-card-description">
+              Transform content into visual diagrams. Create bento layouts, whiteboard sketches,
+              system diagrams, and more from conversations, URLs, or text.
+            </p>
+            <div className="mode-card-features">
+              <span className="feature-tag">6 Styles</span>
+              <span className="feature-tag">AI Generated</span>
+              <span className="feature-tag">Download</span>
             </div>
           </button>
         </div>

@@ -9,8 +9,8 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets
-from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser
+from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
 
@@ -180,6 +180,16 @@ async def delete_conversation(conversation_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"success": True}
+
+
+@app.post("/api/conversations/{conversation_id}/mark-read")
+async def mark_conversation_read(conversation_id: str):
+    """Mark a conversation as read."""
+    try:
+        storage.mark_conversation_read(conversation_id)
+        return {"success": True}
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
 
 @app.post("/api/conversations/{conversation_id}/message")
@@ -998,6 +1008,452 @@ async def update_synthesizer_settings(request: UpdateSynthesizerSettingsRequest)
         "default_mode": settings.get_synthesizer_mode(),
         "default_prompt": settings.get_synthesizer_prompt()
     }
+
+
+# =============================================================================
+# Visualiser Endpoints
+# =============================================================================
+
+
+class VisualiseRequest(BaseModel):
+    """Request to generate a diagram."""
+    source_type: str  # 'conversation', 'url', 'text'
+    source_id: Optional[str] = None
+    source_url: Optional[str] = None
+    source_text: Optional[str] = None
+    style: str = "bento"
+    model: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/visualise")
+async def visualise_content(conversation_id: str, request: VisualiseRequest):
+    """Generate a diagram from content."""
+    from fastapi.responses import FileResponse
+
+    # Verify conversation exists and is visualiser mode
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "visualiser":
+        raise HTTPException(status_code=400, detail="Conversation is not in visualiser mode")
+
+    # Validate style against configured styles
+    available_styles = settings.get_diagram_styles()
+    if request.style not in available_styles:
+        raise HTTPException(status_code=400, detail=f"Invalid style. Must be one of: {list(available_styles.keys())}")
+
+    # Get content based on source type
+    source_content = None
+
+    source_title = None
+
+    if request.source_type == "conversation":
+        if not request.source_id:
+            raise HTTPException(status_code=400, detail="source_id required for conversation source")
+        source_conv = storage.get_conversation(request.source_id)
+        if not source_conv:
+            raise HTTPException(status_code=404, detail="Source conversation not found")
+        source_content = extract_conversation_content(source_conv)
+        source_title = source_conv.get("title", "Conversation")
+
+    elif request.source_type == "url":
+        if not request.source_url:
+            raise HTTPException(status_code=400, detail="source_url required for URL source")
+        content_result = await content.fetch_content(request.source_url)
+        if content_result.get("error"):
+            raise HTTPException(status_code=400, detail=content_result["error"])
+        source_content = content_result.get("content", "")
+        source_title = content_result.get("title") or request.source_url
+
+    elif request.source_type == "text":
+        if not request.source_text:
+            raise HTTPException(status_code=400, detail="source_text required for text source")
+        source_content = request.source_text
+        # Use first 50 chars as title for text content
+        source_title = (request.source_text[:50] + "...") if len(request.source_text) > 50 else request.source_text
+
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source_type. Must be 'conversation', 'url', or 'text'")
+
+    # Check if this is the first message
+    is_first_message = len(conversation.get("messages", [])) == 0
+
+    # Add user message
+    storage.add_visualiser_user_message(
+        conversation_id,
+        request.source_type,
+        request.source_id,
+        request.source_url,
+        request.source_text,
+        source_title,
+        request.style
+    )
+
+    # Generate diagram
+    result = await visualiser.generate_diagram(
+        source_content,
+        request.style,
+        request.model
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    # Save message
+    storage.add_visualiser_message(
+        conversation_id,
+        result["image_id"],
+        result["image_path"],
+        request.style,
+        source_content,
+        result.get("model")
+    )
+
+    # Generate title if first message
+    generated_title = None
+    if is_first_message:
+        generated_title = await generate_visualiser_title(source_content)
+        storage.update_conversation_title(conversation_id, generated_title)
+
+    return {
+        "image_id": result["image_id"],
+        "image_url": f"/api/images/{result['image_id']}",
+        "style": request.style,
+        "model": result.get("model"),
+        "conversation_title": generated_title
+    }
+
+
+class VisualiseEditRequest(BaseModel):
+    """Request to edit/regenerate a diagram."""
+    edit_prompt: str
+    model: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/visualise/edit")
+async def edit_visualisation(conversation_id: str, request: VisualiseEditRequest):
+    """Edit an existing diagram to create a new version."""
+    # Verify conversation exists and is visualiser mode
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "visualiser":
+        raise HTTPException(status_code=400, detail="Conversation is not in visualiser mode")
+
+    # Find the latest assistant message with an image
+    messages = conversation.get("messages", [])
+    latest_image_msg = None
+    for msg in reversed(messages):
+        if msg.get("role") == "assistant" and msg.get("image_id"):
+            latest_image_msg = msg
+            break
+
+    if not latest_image_msg:
+        raise HTTPException(status_code=400, detail="No existing image to edit")
+
+    # Get the image path
+    image_path = latest_image_msg.get("image_path")
+    if not image_path:
+        # Try to construct from image_id
+        image_id = latest_image_msg.get("image_id")
+        image_path = f"data/images/{image_id}.png"
+
+    source_content = latest_image_msg.get("source_content", "")
+    style = latest_image_msg.get("style", "bento")
+
+    # Generate edited diagram
+    result = await visualiser.edit_diagram(
+        image_path,
+        request.edit_prompt,
+        source_content,
+        style,
+        request.model
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    # Save as new assistant message (new version)
+    storage.add_visualiser_message(
+        conversation_id,
+        result["image_id"],
+        result["image_path"],
+        style,
+        source_content,
+        result.get("model"),
+        edit_prompt=request.edit_prompt
+    )
+
+    return {
+        "image_id": result["image_id"],
+        "image_url": f"/api/images/{result['image_id']}",
+        "style": style,
+        "model": result.get("model"),
+        "version": len([m for m in messages if m.get("role") == "assistant" and m.get("image_id")]) + 1
+    }
+
+
+class VisualiseSpellCheckRequest(BaseModel):
+    """Request to spell check a diagram."""
+    model: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/visualise/spellcheck")
+async def spellcheck_visualisation(conversation_id: str, request: VisualiseSpellCheckRequest = VisualiseSpellCheckRequest()):
+    """Spell check an existing diagram and generate a corrected version if errors are found."""
+    # Verify conversation exists and is visualiser mode
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "visualiser":
+        raise HTTPException(status_code=400, detail="Conversation is not in visualiser mode")
+
+    # Find the latest assistant message with an image
+    messages = conversation.get("messages", [])
+    latest_image_msg = None
+    for msg in reversed(messages):
+        if msg.get("role") == "assistant" and msg.get("image_id"):
+            latest_image_msg = msg
+            break
+
+    if not latest_image_msg:
+        raise HTTPException(status_code=400, detail="No existing image to spell check")
+
+    # Get the image path
+    image_path = latest_image_msg.get("image_path")
+    if not image_path:
+        # Try to construct from image_id
+        image_id = latest_image_msg.get("image_id")
+        image_path = f"data/images/{image_id}.png"
+
+    source_content = latest_image_msg.get("source_content", "")
+    style = latest_image_msg.get("style", "bento")
+
+    # Run spell check
+    result = await visualiser.spell_check_diagram(
+        image_path,
+        source_content,
+        style,
+        request.model
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    # If no errors found, return response without creating new version
+    if not result.get("has_errors"):
+        return {
+            "has_errors": False,
+            "errors_found": result.get("errors_found", []),
+            "message": "No spelling errors found"
+        }
+
+    # Save as new assistant message (new version) with spell check metadata
+    # Store full list of errors for modal display
+    errors_text = "\n".join(f"• {error}" for error in result['errors_found'])
+    storage.add_visualiser_message(
+        conversation_id,
+        result["image_id"],
+        result["image_path"],
+        style,
+        source_content,
+        result.get("model"),
+        edit_prompt=f"Spell check correction:\n{errors_text}"
+    )
+
+    return {
+        "has_errors": True,
+        "errors_found": result.get("errors_found", []),
+        "corrected_prompt": result.get("corrected_prompt", ""),
+        "image_id": result["image_id"],
+        "image_url": f"/api/images/{result['image_id']}",
+        "style": style,
+        "model": result.get("model"),
+        "version": len([m for m in messages if m.get("role") == "assistant" and m.get("image_id")]) + 1
+    }
+
+
+def extract_conversation_content(conversation: Dict) -> str:
+    """Extract readable content from a conversation for visualization."""
+    parts = []
+    parts.append(f"Title: {conversation.get('title', 'Untitled')}")
+
+    for msg in conversation.get("messages", []):
+        if msg.get("role") == "user":
+            if msg.get("content"):
+                parts.append(f"Question: {msg['content']}")
+        elif msg.get("role") == "assistant":
+            # Council mode - stage3 is the synthesized answer
+            if msg.get("stage3"):
+                parts.append(f"Answer: {msg['stage3'].get('content', '')}")
+            # Synthesizer mode - notes
+            elif msg.get("notes"):
+                for note in msg["notes"]:
+                    parts.append(f"Note - {note.get('title', '')}: {note.get('body', '')}")
+
+    return "\n\n".join(parts)
+
+
+@app.get("/api/images/{image_id}")
+async def get_image(image_id: str):
+    """Serve a generated image."""
+    from fastapi.responses import FileResponse
+
+    # Validate image_id to prevent path traversal
+    if ".." in image_id or "/" in image_id or "\\" in image_id:
+        raise HTTPException(status_code=400, detail="Invalid image ID")
+
+    image_path = visualiser.get_image_path(image_id)
+    if not image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(image_path, media_type="image/png")
+
+
+@app.get("/api/images/{image_id}/download")
+async def download_image(image_id: str, filename: str = "diagram.png"):
+    """Download a generated image with Content-Disposition header."""
+    from fastapi.responses import FileResponse
+
+    # Validate image_id to prevent path traversal
+    if ".." in image_id or "/" in image_id or "\\" in image_id:
+        raise HTTPException(status_code=400, detail="Invalid image ID")
+
+    image_path = visualiser.get_image_path(image_id)
+    if not image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(
+        image_path,
+        media_type="image/png",
+        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@app.get("/api/settings/visualiser")
+async def get_visualiser_settings_endpoint():
+    """Get visualiser-specific settings including diagram styles."""
+    styles = settings.get_diagram_styles()
+    return {
+        "default_model": settings.get_visualiser_model(),
+        "diagram_styles": styles
+    }
+
+
+class UpdateVisualiserModelRequest(BaseModel):
+    model: str
+
+
+@app.put("/api/settings/visualiser/model")
+async def update_visualiser_model(request: UpdateVisualiserModelRequest):
+    """Update visualiser default model."""
+    if not request.model:
+        raise HTTPException(status_code=400, detail="Model is required")
+
+    settings.set_visualiser_model(request.model)
+    return {
+        "success": True,
+        "default_model": settings.get_visualiser_model()
+    }
+
+
+# Diagram Style Endpoints
+
+@app.get("/api/settings/visualiser/styles")
+async def get_diagram_styles_endpoint():
+    """Get all diagram styles."""
+    return settings.get_diagram_styles()
+
+
+@app.get("/api/settings/visualiser/styles/{style_id}")
+async def get_diagram_style_endpoint(style_id: str):
+    """Get a specific diagram style."""
+    style = settings.get_diagram_style(style_id)
+    if not style:
+        raise HTTPException(status_code=404, detail="Style not found")
+    return {"id": style_id, **style}
+
+
+class CreateDiagramStyleRequest(BaseModel):
+    """Request to create a new diagram style."""
+    id: str
+    name: str
+    description: str
+    prompt: str
+
+
+@app.post("/api/settings/visualiser/styles")
+async def create_diagram_style_endpoint(request: CreateDiagramStyleRequest):
+    """Create a new diagram style."""
+    # Validate ID format (alphanumeric and underscores only)
+    if not request.id or not all(c.isalnum() or c == '_' for c in request.id):
+        raise HTTPException(status_code=400, detail="Style ID must contain only letters, numbers, and underscores")
+
+    success = settings.create_diagram_style(
+        request.id,
+        request.name,
+        request.description,
+        request.prompt
+    )
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Style ID already exists")
+
+    return {
+        "success": True,
+        "style": {
+            "id": request.id,
+            "name": request.name,
+            "description": request.description,
+            "prompt": request.prompt
+        }
+    }
+
+
+class UpdateDiagramStyleRequest(BaseModel):
+    """Request to update a diagram style."""
+    name: str
+    description: str
+    prompt: str
+
+
+@app.put("/api/settings/visualiser/styles/{style_id}")
+async def update_diagram_style_endpoint(style_id: str, request: UpdateDiagramStyleRequest):
+    """Update an existing diagram style."""
+    # Check if style exists
+    existing = settings.get_diagram_style(style_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Style not found")
+
+    settings.update_diagram_style(
+        style_id,
+        request.name,
+        request.description,
+        request.prompt
+    )
+
+    return {
+        "success": True,
+        "style": {
+            "id": style_id,
+            "name": request.name,
+            "description": request.description,
+            "prompt": request.prompt
+        }
+    }
+
+
+@app.delete("/api/settings/visualiser/styles/{style_id}")
+async def delete_diagram_style_endpoint(style_id: str):
+    """Delete a diagram style."""
+    success = settings.delete_diagram_style(style_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Cannot delete style (not found or is the last style)")
+    return {"success": True}
 
 
 # =============================================================================

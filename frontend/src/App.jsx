@@ -9,6 +9,7 @@ import CommitSidebar from './components/CommitSidebar';
 import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
+import VisualiserInterface from './components/VisualiserInterface';
 import SearchModal from './components/SearchModal';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
@@ -289,6 +290,20 @@ function App() {
       } catch (error) {
         console.error('Failed to create monitor:', error);
       }
+    } else if (mode === 'visualiser') {
+      // Create visualiser conversation directly
+      try {
+        const newConv = await api.createConversation(null, null, 'visualiser', null);
+        setConversations([
+          { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'visualiser' },
+          ...conversations,
+        ]);
+        setCurrentConversationId(newConv.id);
+        setCurrentMonitorId(null);
+        setCurrentMonitor(null);
+      } catch (error) {
+        console.error('Failed to create visualiser conversation:', error);
+      }
     }
   };
 
@@ -314,13 +329,28 @@ function App() {
     }
   };
 
-  const handleSelectConversation = (id) => {
+  const handleSelectConversation = async (idOrResult) => {
+    // Accept either an ID string or a result object with .id
+    const id = typeof idOrResult === 'string' ? idOrResult : idOrResult?.id;
     // Clear monitor selection when selecting a conversation
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
     setCurrentConversationId(id);
     setActiveCommentId(null);
     setContextSegments([]);
+
+    // Auto-mark as read if unread
+    const conv = conversations.find(c => c.id === id);
+    if (conv?.status?.is_unread) {
+      try {
+        await api.markConversationRead(id);
+        setConversations(prev => prev.map(c =>
+          c.id === id ? { ...c, status: { ...c.status, is_unread: false } } : c
+        ));
+      } catch (error) {
+        console.error('Failed to mark conversation as read:', error);
+      }
+    }
   };
 
   const handleDeleteConversation = async (id) => {
@@ -950,6 +980,20 @@ function App() {
           activeCommentId={activeCommentId}
           onSetActiveComment={handleSetActiveComment}
         />
+      ) : currentConversation?.mode === 'visualiser' ? (
+        <VisualiserInterface
+          conversation={currentConversation}
+          onConversationUpdate={(updatedConv, newTitle) => {
+            setCurrentConversation(updatedConv);
+            if (newTitle) {
+              setConversations((prev) =>
+                prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
+              );
+              setAnimatingTitleId(updatedConv.id);
+            }
+            loadConversations();
+          }}
+        />
       ) : (
         <ChatInterface
           conversation={currentConversation}
@@ -1036,8 +1080,8 @@ function App() {
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
-        onSelectConversation={(id) => {
-          handleSelectConversation(id);
+        onSelectConversation={(result) => {
+          handleSelectConversation(result);
           setShowSearchModal(false);
         }}
         onNewConversation={handleNewConversation}

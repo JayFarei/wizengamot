@@ -258,3 +258,255 @@ def set_synthesizer_prompt(prompt_filename: Optional[str]) -> None:
     elif "synthesizer_prompt" in settings:
         del settings["synthesizer_prompt"]
     save_settings(settings)
+
+
+# =============================================================================
+# Visualiser Settings
+# =============================================================================
+
+DEFAULT_VISUALISER_MODEL = "google/gemini-3-pro-image-preview"
+
+
+def get_visualiser_model() -> str:
+    """
+    Get the default visualiser model.
+    Priority: settings file > default
+    """
+    settings = load_settings()
+    return settings.get("visualiser_model", DEFAULT_VISUALISER_MODEL)
+
+
+def set_visualiser_model(model: str) -> None:
+    """Set the default visualiser model."""
+    settings = load_settings()
+    settings["visualiser_model"] = model
+    save_settings(settings)
+
+
+# Default diagram styles - these are the initial styles available
+DEFAULT_DIAGRAM_STYLES = {
+    "bento": {
+        "name": "Bento",
+        "description": "Modular dashboard layout with cards",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, identify the key pieces of information, concepts, or data points in this content. What are the distinct chunks that can each live in their own card or widget? How do they relate to each other?
+Visual approach:
+- Bento overview layout: modular cards and widgets arranged in a grid
+- Each card contains one piece of information — a concept, a fact, a label, a small visualization
+- Mix of card sizes: some large/hero, some small/supporting
+- Clean, modern UI aesthetic — rounded corners, subtle shadows, clear hierarchy
+- Typography-forward: key words and concepts displayed prominently, large and bold
+- Color palette: dark mode (dark background, colored cards) — cohesive and considered
+- Can include simple icons, small charts, or visual elements within cards
+- Information should be scannable — this is a dashboard, not a document
+- Text should be real, pulled from the content — not placeholder
+The best result feels like a beautifully designed app interface — information architecture made visual. Each card earns its place.
+Context for the infographic:"""
+    },
+    "whiteboard": {
+        "name": "Whiteboard",
+        "description": "Hand-drawn explanation style",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, identify the core concept or process being explained. How would a teacher or professor sketch this out to help someone understand? What are the key elements, relationships, and flow?
+Visual approach:
+- Whiteboard/dry-erase aesthetic: hand-drawn feel, sketchy lines, marker texture
+- Background: white or off-white, like an actual whiteboard or paper
+- Hand-drawn diagrams, arrows, boxes, circles, and connectors
+- Mix of simple illustrations and text labels
+- Casual, spontaneous energy — like someone explaining in real-time
+- Can include small doodles, underlines, emphasis marks, asterisks
+- Color palette: marker colors — black as primary, with red, blue, green, orange as accents
+- Text should look handwritten or marker-style, not typeset
+- Arrows and flow lines connect ideas
+- Imperfect and human — not polished, but clear
+The best result feels like walking up to a whiteboard after a great explanation — you can trace the thinking, see the connections, understand the concept at a glance.
+Context for the infographic:"""
+    },
+    "system_diagram": {
+        "name": "System Diagram",
+        "description": "Technical reference poster",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, extract the essential knowledge from this content. What are the key concepts, rules, patterns, or principles? Then think: how can each concept be visualized, even simply? How can text and visuals work together?
+Visual approach:
+- Icons or simple visuals for each concept — every idea gets a small visual representation
+- Text and visuals interact: annotations point to things, labels explain visuals, examples sit next to principles
+- Organized but not rigid — clear sections and groupings, but varied layouts within
+- Monochrome base (black/grey on white) with one accent color for emphasis and organization
+- Dense with information but clear hierarchy — headers, labels, annotations at different scales
+- Mix of elements: icons, small diagrams, text blocks, callouts, examples
+- Clean, modern aesthetic — simple geometric icons, clean typography
+- Designed to be scanned and studied — reward both glancing and close reading
+- The whole thing feels like a reference poster you'd want on your wall
+The best result feels like knowledge made visible — every concept crystallized into icon and label, organized so you can find anything and understand it at a glance.
+Context for the infographic:"""
+    },
+    "napkin": {
+        "name": "Napkin Sketch",
+        "description": "Simple conceptual sketch",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, deeply understand the content. What is the core insight or relationship?
+- Then ask: what is the *shape* of this idea?
+  - Is it a tension between two things? → two ends of a line, a tug-of-war
+  - Is it a progression? → a curve, a path, an arrow
+  - Is it a cycle? → a spiral, a loop
+  - Is it a tradeoff? → two axes, a quadrant
+  - Is it a transformation? → before/after, diverging paths
+  - Is it layers? → concentric circles, a stack
+- Find the ONE visual that captures the idea's structure. Then strip away everything else.
+Visual approach:
+- One simple conceptual sketch — a graph, curve, spiral, quadrant, axes, Venn, or simple shapes
+- Truly hand-drawn: wobbly lines, imperfect circles, raw and unpolished
+- Handwritten labels — messy, quick, like actual pen on paper
+- Black or dark ink only
+- Background: white with subtle paper or napkin texture — tactile, organic
+- NO icons, NO illustrations, NO people, NO detailed drawings
+- Just: lines, shapes, arrows, and handwritten words
+- The kind of sketch you'd make in 30 seconds to land an idea
+The best result looks like a brilliant napkin sketch — the moment an idea became clear, captured in pen.
+Context for the infographic:"""
+    },
+    "cheatsheet": {
+        "name": "Cheatsheet",
+        "description": "Dense reference card",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, extract the essential knowledge from this content. What are the key concepts, rules, patterns, shortcuts, or principles someone needs to remember? Organize them into logical groups or categories.
+Visual approach:
+- Modern, sleek design — clean lines, refined typography, polished and professional
+- Dark mode aesthetic: dark charcoal or near-black background with crisp white and one accent color
+- Clear sections and groupings — related information clustered together with clear hierarchy
+- Typography-forward: bold headers, clean body text, excellent readability
+- Dense but not cluttered — information-rich, but with breathing room
+- Simple visual elements to aid scanning: divider lines, subtle boxes, numbered items, clean icons if helpful
+- Designed to be saved, shared, printed — something you'd want to post or send to someone
+- One accent color used consistently for emphasis and organization
+- The whole thing feels like a high-quality reference card from a design-forward company
+The best result is something you'd screenshot and send to a friend — essential knowledge, beautifully organized, instantly useful.
+Context for the infographic:"""
+    },
+    "cartoon": {
+        "name": "Cartoon",
+        "description": "Comic book style illustration",
+        "prompt": """Create an infographic for the context below.
+Creative process:
+- First, understand the key concepts or message in this content. Then ask: how can these ideas become characters, scenes, or moments? What's the drama, the conflict, the transformation? Make the abstract feel alive and dynamic.
+Visual approach:
+- Superhero comic book aesthetic: bold lines, dynamic poses, dramatic angles, vibrant colors
+- Strong black outlines, cel-shaded coloring, action energy
+- Characters or figures that represent concepts — ideas personified, not just illustrated
+- Speech bubbles, captions, or callouts containing real insights from the content
+- Can be single dramatic scene or 2-4 panel sequence
+- Visual metaphors: concepts as heroes, challenges as villains, transformations as superpowers
+- Bold, punchy typography — comic book style headers and labels
+- Bright, saturated color palette — primary colors, high contrast
+- The information is real and valuable — the style just makes it memorable
+The best result feels like a comic book panel that actually teaches you something — dramatic, fun, and genuinely insightful.
+Context for the infographic:"""
+    },
+}
+
+
+def get_diagram_styles() -> Dict[str, Dict[str, str]]:
+    """
+    Get all available diagram styles.
+    Priority: settings file > defaults
+
+    Returns:
+        Dict mapping style_id to {name, description, prompt}
+    """
+    settings = load_settings()
+    return settings.get("diagram_styles", DEFAULT_DIAGRAM_STYLES)
+
+
+def set_diagram_styles(styles: Dict[str, Dict[str, str]]) -> None:
+    """Set all diagram styles."""
+    settings = load_settings()
+    settings["diagram_styles"] = styles
+    save_settings(settings)
+
+
+def get_diagram_style(style_id: str) -> Optional[Dict[str, str]]:
+    """
+    Get a specific diagram style by ID.
+
+    Returns:
+        Dict with name, description, prompt or None if not found
+    """
+    styles = get_diagram_styles()
+    return styles.get(style_id)
+
+
+def update_diagram_style(style_id: str, name: str, description: str, prompt: str) -> None:
+    """Update an existing diagram style."""
+    settings = load_settings()
+    styles = settings.get("diagram_styles", DEFAULT_DIAGRAM_STYLES.copy())
+    styles[style_id] = {
+        "name": name,
+        "description": description,
+        "prompt": prompt
+    }
+    settings["diagram_styles"] = styles
+    save_settings(settings)
+
+
+def create_diagram_style(style_id: str, name: str, description: str, prompt: str) -> bool:
+    """
+    Create a new diagram style.
+
+    Returns:
+        True if created, False if style_id already exists
+    """
+    settings = load_settings()
+    styles = settings.get("diagram_styles", DEFAULT_DIAGRAM_STYLES.copy())
+
+    if style_id in styles:
+        return False
+
+    styles[style_id] = {
+        "name": name,
+        "description": description,
+        "prompt": prompt
+    }
+    settings["diagram_styles"] = styles
+    save_settings(settings)
+    return True
+
+
+def delete_diagram_style(style_id: str) -> bool:
+    """
+    Delete a diagram style.
+
+    Returns:
+        True if deleted, False if not found or is the last style
+    """
+    settings = load_settings()
+    styles = settings.get("diagram_styles", DEFAULT_DIAGRAM_STYLES.copy())
+
+    if style_id not in styles:
+        return False
+
+    # Don't allow deleting the last style
+    if len(styles) <= 1:
+        return False
+
+    del styles[style_id]
+    settings["diagram_styles"] = styles
+    save_settings(settings)
+    return True
+
+
+def get_visualiser_settings() -> Dict[str, Any]:
+    """
+    Get all visualiser settings.
+
+    Returns:
+        Dict with default_model and diagram_styles
+    """
+    return {
+        "default_model": get_visualiser_model(),
+        "diagram_styles": get_diagram_styles()
+    }

@@ -112,6 +112,22 @@ export const api = {
   },
 
   /**
+   * Mark a conversation as read.
+   */
+  async markConversationRead(conversationId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/mark-read`,
+      {
+        method: 'POST',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to mark conversation as read');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message in a conversation.
    */
   async sendMessage(conversationId, content) {
@@ -711,6 +727,211 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to update synthesizer settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Visualiser API Methods
+  // ==========================================================================
+
+  /**
+   * Get the API base URL.
+   * Used for constructing image URLs.
+   */
+  getBaseUrl() {
+    return API_BASE;
+  },
+
+  /**
+   * Generate a diagram from content.
+   * @param {string} conversationId - The conversation ID
+   * @param {Object} options - Visualisation options
+   * @param {string} options.source_type - 'conversation', 'url', or 'text'
+   * @param {string} [options.source_id] - Source conversation ID (if source_type='conversation')
+   * @param {string} [options.source_url] - Source URL (if source_type='url')
+   * @param {string} [options.source_text] - Source text (if source_type='text')
+   * @param {string} options.style - Diagram style
+   * @param {string} [options.model] - Optional model override
+   */
+  async visualise(conversationId, options) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/visualise`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(options),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to generate diagram');
+    }
+    return response.json();
+  },
+
+  /**
+   * Edit/regenerate a diagram to create a new version.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} editPrompt - Description of changes to make
+   * @param {string} [model] - Optional model override
+   */
+  async editVisualisation(conversationId, editPrompt, model = null) {
+    const body = { edit_prompt: editPrompt };
+    if (model) body.model = model;
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/visualise/edit`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to edit diagram');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get visualiser settings including diagram styles.
+   */
+  async getVisualiserSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser`);
+    if (!response.ok) {
+      throw new Error('Failed to get visualiser settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update visualiser default model.
+   * @param {string} model - Model to use for visualisation
+   */
+  async updateVisualiserModel(model) {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/model`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update visualiser model');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get all diagram styles.
+   */
+  async getDiagramStyles() {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/styles`);
+    if (!response.ok) {
+      throw new Error('Failed to get diagram styles');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific diagram style.
+   * @param {string} styleId - The style ID
+   */
+  async getDiagramStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/styles/${styleId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get diagram style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new diagram style.
+   * @param {string} id - Style ID (alphanumeric and underscores)
+   * @param {string} name - Display name
+   * @param {string} description - Short description
+   * @param {string} prompt - Full prompt text
+   */
+  async createDiagramStyle(id, name, description, prompt) {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/styles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id, name, description, prompt }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to create diagram style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a diagram style.
+   * @param {string} styleId - The style ID
+   * @param {string} name - Display name
+   * @param {string} description - Short description
+   * @param {string} prompt - Full prompt text
+   */
+  async updateDiagramStyle(styleId, name, description, prompt) {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/styles/${styleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, description, prompt }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update diagram style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a diagram style.
+   * @param {string} styleId - The style ID to delete
+   */
+  async deleteDiagramStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/settings/visualiser/styles/${styleId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to delete diagram style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Spell check a visualisation and generate a corrected version if errors are found.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} [model] - Optional model override for image regeneration
+   * @returns {Promise<{has_errors: boolean, errors_found: string[], image_id?: string, image_url?: string, message?: string}>}
+   */
+  async spellCheckVisualisation(conversationId, model = null) {
+    const body = {};
+    if (model) body.model = model;
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/visualise/spellcheck`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to spell check diagram');
     }
     return response.json();
   },

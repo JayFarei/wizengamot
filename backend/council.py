@@ -358,6 +358,47 @@ Title:"""
     return title
 
 
+async def generate_visualiser_title(content: str) -> str:
+    """
+    Generate a short title for a visualiser diagram based on its content.
+
+    Args:
+        content: The source content used to generate the diagram
+
+    Returns:
+        A short title (3-5 words)
+    """
+    if not content or not content.strip():
+        return "Diagram"
+
+    # Truncate content if too long
+    content_preview = content[:2000]
+
+    title_prompt = f"""Generate a very short title (3-5 words maximum) that summarizes the main topic of this content.
+The title should be concise and descriptive. Do not use quotes or punctuation in the title.
+
+Content:
+{content_preview}
+
+Title:"""
+
+    messages = [{"role": "user", "content": title_prompt}]
+
+    # Use gemini-2.5-flash for title generation (fast and cheap)
+    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+
+    if response is None:
+        return "Diagram"
+
+    title = response.get('content', 'Diagram').strip()
+    title = title.strip('"\'')
+
+    if len(title) > 50:
+        title = title[:47] + "..."
+
+    return title
+
+
 async def run_full_council(
     user_query: str,
     council_models: Optional[List[str]] = None,

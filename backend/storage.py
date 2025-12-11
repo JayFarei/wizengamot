@@ -154,6 +154,17 @@ def list_conversations() -> List[Dict[str, Any]]:
                         if msg.get("role") == "assistant" and msg.get("source_type"):
                             conv_meta["source_type"] = msg["source_type"]
                             break
+                # For visualiser, extract source_type from first user message
+                if conv_meta["mode"] == "visualiser":
+                    for msg in data.get("messages", []):
+                        if msg.get("role") == "user" and msg.get("source_type"):
+                            conv_meta["source_type"] = msg["source_type"]
+                            break
+                # Include status in metadata (with defaults for existing conversations)
+                conv_meta["status"] = {
+                    "state": data.get("status", {}).get("state", "idle"),
+                    "is_unread": data.get("status", {}).get("is_unread", False)
+                }
                 conversations.append(conv_meta)
 
     # Sort by creation time, newest first
@@ -224,6 +235,65 @@ def update_conversation_title(conversation_id: str, title: str):
         raise ValueError(f"Conversation {conversation_id} not found")
 
     conversation["title"] = title
+    save_conversation(conversation)
+
+
+def update_conversation_status(
+    conversation_id: str,
+    state: str,
+    is_unread: Optional[bool] = None
+):
+    """
+    Update the status of a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        state: New state ('idle', 'pending', 'completed')
+        is_unread: Optional flag to set unread status (only for background updates)
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "status" not in conversation:
+        conversation["status"] = {
+            "state": "idle",
+            "is_unread": False,
+            "last_updated_at": None,
+            "last_read_at": None
+        }
+
+    conversation["status"]["state"] = state
+    conversation["status"]["last_updated_at"] = datetime.utcnow().isoformat()
+
+    if is_unread is not None:
+        conversation["status"]["is_unread"] = is_unread
+
+    save_conversation(conversation)
+
+
+def mark_conversation_read(conversation_id: str):
+    """
+    Mark a conversation as read.
+
+    Args:
+        conversation_id: Conversation identifier
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "status" not in conversation:
+        conversation["status"] = {
+            "state": "idle",
+            "is_unread": False,
+            "last_updated_at": None,
+            "last_read_at": None
+        }
+
+    conversation["status"]["is_unread"] = False
+    conversation["status"]["last_read_at"] = datetime.utcnow().isoformat()
+
     save_conversation(conversation)
 
 
@@ -562,5 +632,97 @@ def add_synthesizer_message(
         "source_title": source_title,
         "model": model
     })
+
+    save_conversation(conversation)
+
+
+# =============================================================================
+# Visualiser-specific storage functions
+# =============================================================================
+
+
+def add_visualiser_user_message(
+    conversation_id: str,
+    source_type: str,
+    source_id: Optional[str] = None,
+    source_url: Optional[str] = None,
+    source_text: Optional[str] = None,
+    source_title: Optional[str] = None,
+    style: str = "bento"
+):
+    """
+    Add a visualiser user message to a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        source_type: Type of source ('conversation', 'url', 'text')
+        source_id: Source conversation ID (if source_type='conversation')
+        source_url: URL (if source_type='url')
+        source_text: Plain text (if source_type='text')
+        source_title: Title of the source content
+        style: Diagram style
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    message = {
+        "role": "user",
+        "source_type": source_type,
+        "style": style
+    }
+
+    if source_title:
+        message["source_title"] = source_title
+
+    if source_type == "conversation":
+        message["source_id"] = source_id
+    elif source_type == "url":
+        message["source_url"] = source_url
+    elif source_type == "text":
+        message["source_text"] = source_text
+
+    conversation["messages"].append(message)
+    save_conversation(conversation)
+
+
+def add_visualiser_message(
+    conversation_id: str,
+    image_id: str,
+    image_path: str,
+    style: str,
+    source_content: str,
+    model: Optional[str] = None,
+    edit_prompt: Optional[str] = None
+):
+    """
+    Add a visualiser assistant message with generated image.
+
+    Args:
+        conversation_id: Conversation identifier
+        image_id: Unique identifier for the generated image
+        image_path: Path where the image is stored
+        style: Diagram style used
+        source_content: Content that was visualized
+        model: Model used for generation
+        edit_prompt: The edit prompt used if this is a regenerated version
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    message = {
+        "role": "assistant",
+        "image_id": image_id,
+        "image_path": image_path,
+        "style": style,
+        "source_content": source_content,
+        "model": model
+    }
+
+    if edit_prompt:
+        message["edit_prompt"] = edit_prompt
+
+    conversation["messages"].append(message)
 
     save_conversation(conversation)

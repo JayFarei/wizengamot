@@ -22,6 +22,16 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [firecrawlKey, setFirecrawlKey] = useState('');
   const [synthesizerSettings, setSynthesizerSettings] = useState(null);
 
+  // Visualiser settings
+  const [visualiserSettings, setVisualiserSettings] = useState(null);
+  const [editingStyle, setEditingStyle] = useState(null);
+  const [editingStyleName, setEditingStyleName] = useState('');
+  const [editingStyleDescription, setEditingStyleDescription] = useState('');
+  const [editingStylePrompt, setEditingStylePrompt] = useState('');
+  const [isNewStyle, setIsNewStyle] = useState(false);
+  const [showStyleEditor, setShowStyleEditor] = useState(false);
+  const [newStyleId, setNewStyleId] = useState('');
+
   // Prompt editor modal
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
@@ -43,16 +53,18 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const loadAllSettings = async () => {
     try {
-      const [settingsData, modelData, promptsData, synthData] = await Promise.all([
+      const [settingsData, modelData, promptsData, synthData, visData] = await Promise.all([
         api.getSettings(),
         api.getModelSettings(),
         api.listPrompts(),
         api.getSynthesizerSettings(),
+        api.getVisualiserSettings(),
       ]);
       setSettings(settingsData);
       setModelSettings(modelData);
       setPrompts(promptsData);
       setSynthesizerSettings(synthData);
+      setVisualiserSettings(visData);
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -364,6 +376,101 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
   };
 
+  // Visualiser Settings
+  const handleVisualiserModelChange = async (model) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateVisualiserModel(model);
+      setSuccess('Visualiser model updated');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to update visualiser model');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditStyle = (styleId) => {
+    const style = visualiserSettings?.diagram_styles?.[styleId];
+    if (!style) return;
+
+    setEditingStyle(styleId);
+    setEditingStyleName(style.name || '');
+    setEditingStyleDescription(style.description || '');
+    setEditingStylePrompt(style.prompt || '');
+    setIsNewStyle(false);
+    setShowStyleEditor(true);
+  };
+
+  const handleNewStyle = () => {
+    setEditingStyle(null);
+    setNewStyleId('');
+    setEditingStyleName('');
+    setEditingStyleDescription('');
+    setEditingStylePrompt('');
+    setIsNewStyle(true);
+    setShowStyleEditor(true);
+  };
+
+  const handleSaveStyle = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      if (isNewStyle) {
+        if (!newStyleId.trim()) {
+          setError('Style ID is required');
+          setLoading(false);
+          return;
+        }
+        await api.createDiagramStyle(
+          newStyleId.trim(),
+          editingStyleName.trim(),
+          editingStyleDescription.trim(),
+          editingStylePrompt
+        );
+        setSuccess('Style created');
+      } else {
+        await api.updateDiagramStyle(
+          editingStyle,
+          editingStyleName.trim(),
+          editingStyleDescription.trim(),
+          editingStylePrompt
+        );
+        setSuccess('Style updated');
+      }
+      setShowStyleEditor(false);
+      setEditingStyle(null);
+      await loadAllSettings();
+    } catch (err) {
+      setError(isNewStyle ? 'Failed to create style' : 'Failed to update style');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStyle = async (styleId) => {
+    if (!confirm('Are you sure you want to delete this diagram style?')) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.deleteDiagramStyle(styleId);
+      setSuccess('Style deleted');
+      await loadAllSettings();
+    } catch (err) {
+      setError('Failed to delete style (must have at least one style)');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -401,6 +508,12 @@ export default function SettingsModal({ isOpen, onClose }) {
             onClick={() => setActiveTab('questionsets')}
           >
             Question Sets
+          </button>
+          <button
+            className={`settings-tab ${activeTab === 'visualiser' ? 'active' : ''}`}
+            onClick={() => setActiveTab('visualiser')}
+          >
+            Visualiser
           </button>
         </div>
 
@@ -725,6 +838,158 @@ export default function SettingsModal({ isOpen, onClose }) {
           <div className="modal-section">
             <h3>Question Sets</h3>
             <QuestionSetManager />
+          </div>
+        )}
+
+        {/* Visualiser Tab */}
+        {activeTab === 'visualiser' && (
+          <>
+            <div className="modal-section">
+              <h3>Image Generation Model</h3>
+              <p className="section-description">
+                Model used for generating diagram images. Must support image output (e.g., gemini-3-pro-image-preview).
+              </p>
+              {visualiserSettings && (
+                <div className="visualiser-model-input-group">
+                  <input
+                    type="text"
+                    className="visualiser-model-input"
+                    placeholder="e.g., google/gemini-3-pro-image-preview"
+                    defaultValue={visualiserSettings.default_model || ''}
+                    onBlur={(e) => {
+                      const newModel = e.target.value.trim();
+                      if (newModel && newModel !== visualiserSettings.default_model) {
+                        handleVisualiserModelChange(newModel);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const newModel = e.target.value.trim();
+                        if (newModel && newModel !== visualiserSettings.default_model) {
+                          handleVisualiserModelChange(newModel);
+                        }
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="modal-section">
+              <div className="section-header">
+                <h3>Diagram Styles</h3>
+                <button
+                  className="btn-small btn-primary"
+                  onClick={handleNewStyle}
+                >
+                  + New Style
+                </button>
+              </div>
+              <p className="section-description">
+                Manage diagram style prompts. Each style defines a visual approach for infographics.
+              </p>
+
+              <div className="prompts-list">
+                {visualiserSettings?.diagram_styles && Object.entries(visualiserSettings.diagram_styles).length === 0 ? (
+                  <p className="no-prompts">No styles yet. Create one to get started.</p>
+                ) : (
+                  visualiserSettings?.diagram_styles && Object.entries(visualiserSettings.diagram_styles).map(([styleId, style]) => (
+                    <div key={styleId} className="prompt-item">
+                      <div className="prompt-info">
+                        <span className="prompt-title">{style.name}</span>
+                        <span className="prompt-filename">{styleId}</span>
+                        <span className="prompt-description">{style.description}</span>
+                      </div>
+                      <div className="prompt-actions">
+                        <button
+                          className="btn-small btn-secondary"
+                          onClick={() => handleEditStyle(styleId)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn-small btn-danger"
+                          onClick={() => handleDeleteStyle(styleId)}
+                          disabled={loading || Object.keys(visualiserSettings.diagram_styles).length <= 1}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Style Editor Modal */}
+        {showStyleEditor && (
+          <div className="modal-overlay style-editor-overlay" onClick={() => setShowStyleEditor(false)}>
+            <div className="modal-content style-editor-modal" onClick={(e) => e.stopPropagation()}>
+              <h2>{isNewStyle ? 'Create New Style' : `Edit Style: ${editingStyleName}`}</h2>
+
+              {isNewStyle && (
+                <div className="form-group">
+                  <label>Style ID</label>
+                  <input
+                    type="text"
+                    className="style-id-input"
+                    placeholder="e.g., my_custom_style"
+                    value={newStyleId}
+                    onChange={(e) => setNewStyleId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
+                  />
+                  <span className="form-hint">Lowercase letters, numbers, and underscores only</span>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Name</label>
+                <input
+                  type="text"
+                  className="style-name-input"
+                  placeholder="Display name for this style"
+                  value={editingStyleName}
+                  onChange={(e) => setEditingStyleName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <input
+                  type="text"
+                  className="style-description-input"
+                  placeholder="Short description of the visual approach"
+                  value={editingStyleDescription}
+                  onChange={(e) => setEditingStyleDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Prompt</label>
+                <textarea
+                  className="style-prompt-textarea"
+                  placeholder="Full prompt for generating diagrams in this style..."
+                  value={editingStylePrompt}
+                  onChange={(e) => setEditingStylePrompt(e.target.value)}
+                  rows={12}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowStyleEditor(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={handleSaveStyle}
+                  disabled={loading || !editingStyleName.trim() || (isNewStyle && !newStyleId.trim())}
+                >
+                  {loading ? 'Saving...' : (isNewStyle ? 'Create Style' : 'Save Changes')}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

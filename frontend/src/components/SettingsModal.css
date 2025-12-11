@@ -1,6 +1,8 @@
 .settings-modal-full {
-  max-width: 600px;
-  min-height: 400px;
+  max-width: 700px;
+  min-height: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 /* Tabs */
@@ -334,4 +336,112 @@
   border: 1px solid var(--border-primary);
   padding: 8px;
   border-radius: 4px;
+}
+
+/* Style description in prompt list */
+.prompt-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Style Editor Modal */
+.style-editor-overlay {
+  z-index: 1100;
+}
+
+.style-editor-modal {
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.style-editor-modal h2 {
+  margin: 0 0 20px 0;
+  color: var(--text-primary);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.form-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.style-id-input,
+.style-name-input,
+.style-description-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.style-id-input {
+  font-family: monospace;
+}
+
+.style-id-input:focus,
+.style-name-input:focus,
+.style-description-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.style-prompt-textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 13px;
+  font-family: monospace;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 200px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.style-prompt-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* Visualiser Model Input */
+.visualiser-model-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.visualiser-model-input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: monospace;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.visualiser-model-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
 }

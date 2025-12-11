@@ -226,6 +226,32 @@
   color: #b45309;
 }
 
+.mode-card-visualiser:hover,
+.mode-card-visualiser.selected {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.mode-card-visualiser.selected {
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.mode-card-visualiser:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.mode-card-visualiser .mode-card-icon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.mode-card-visualiser:hover .feature-tag,
+.mode-card-visualiser.selected .feature-tag {
+  background: rgba(139, 92, 246, 0.2);
+  color: #6d28d9;
+}
+
 .mode-selector-cancel {
   display: block;
   width: 100%;

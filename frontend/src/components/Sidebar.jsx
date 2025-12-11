@@ -13,6 +13,15 @@ function getSourceTypeLabel(sourceType) {
   return labels[sourceType] || sourceType;
 }
 
+function getVisualiserSourceLabel(sourceType) {
+  const labels = {
+    conversation: 'Conversation',
+    url: 'URL',
+    text: 'Text'
+  };
+  return labels[sourceType] || sourceType;
+}
+
 function TypewriterTitle({ text, isAnimating, onAnimationComplete }) {
   const [displayText, setDisplayText] = useState(text);
   const animatingRef = useRef(false);
@@ -188,12 +197,12 @@ export default function Sidebar({
         ) : (
           <>
             {/* Council section */}
-            {conversations.filter(c => c.mode !== 'synthesizer').length > 0 && (
+            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser').length > 0 && (
               <div className="sidebar-section scrollable">
                 <div className="section-header">Council</div>
                 <div className="section-list">
                   {conversations
-                    .filter(c => c.mode !== 'synthesizer')
+                    .filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')
                     .map((conv) => {
                       const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
                       const shouldAnimate = conv.id === animatingTitleId;
@@ -214,6 +223,9 @@ export default function Sidebar({
                                   <span className="loading-dot"></span>
                                   <span className="loading-dot"></span>
                                 </span>
+                              )}
+                              {conv.status?.is_unread && !isCurrentAndLoading && (
+                                <span className="unread-dot" />
                               )}
                               <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
                                 <TypewriterTitle
@@ -263,6 +275,12 @@ export default function Sidebar({
               </div>
             )}
 
+            {/* Separator between Council and Notes */}
+            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser').length > 0 &&
+             conversations.filter(c => c.mode === 'synthesizer').length > 0 && (
+              <div className="sidebar-separator"></div>
+            )}
+
             {/* Notes section */}
             {conversations.filter(c => c.mode === 'synthesizer').length > 0 && (
               <div className="sidebar-section scrollable">
@@ -290,6 +308,9 @@ export default function Sidebar({
                                   <span className="loading-dot"></span>
                                   <span className="loading-dot"></span>
                                 </span>
+                              )}
+                              {conv.status?.is_unread && !isCurrentAndLoading && (
+                                <span className="unread-dot" />
                               )}
                               <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
                                 <TypewriterTitle
@@ -328,6 +349,80 @@ export default function Sidebar({
                                     </svg>
                                     {conv.thread_count}
                                   </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Separator before Visualiser */}
+            {conversations.filter(c => c.mode === 'visualiser').length > 0 &&
+             conversations.filter(c => c.mode !== 'visualiser').length > 0 && (
+              <div className="sidebar-separator"></div>
+            )}
+
+            {/* Visualiser section */}
+            {conversations.filter(c => c.mode === 'visualiser').length > 0 && (
+              <div className="sidebar-section scrollable">
+                <div className="section-header">Visualiser</div>
+                <div className="section-list">
+                  {conversations
+                    .filter(c => c.mode === 'visualiser')
+                    .map((conv) => {
+                      const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
+                      const shouldAnimate = conv.id === animatingTitleId;
+
+                      return (
+                        <div
+                          key={conv.id}
+                          className={`conversation-item ${
+                            conv.id === currentConversationId ? 'active' : ''
+                          } ${isCurrentAndLoading ? 'loading' : ''}`}
+                          onClick={() => onSelectConversation(conv.id)}
+                        >
+                          <div className="conversation-content">
+                            <div className="conversation-title-row">
+                              {isCurrentAndLoading && (
+                                <span className="loading-indicator">
+                                  <span className="loading-dot"></span>
+                                  <span className="loading-dot"></span>
+                                  <span className="loading-dot"></span>
+                                </span>
+                              )}
+                              {conv.status?.is_unread && !isCurrentAndLoading && (
+                                <span className="unread-dot" />
+                              )}
+                              <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
+                                <TypewriterTitle
+                                  text={conv.title || 'New Conversation'}
+                                  isAnimating={shouldAnimate}
+                                  onAnimationComplete={onTitleAnimationComplete}
+                                />
+                              </span>
+                              <button
+                                className="conversation-delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Delete this conversation?')) {
+                                    onDeleteConversation(conv.id);
+                                  }
+                                }}
+                                title="Delete conversation"
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <div className="conversation-meta">
+                              <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                              {conv.source_type && (
+                                <>
+                                  <span className="meta-separator">·</span>
+                                  <span className="source-type-label">{getVisualiserSourceLabel(conv.source_type)}</span>
                                 </>
                               )}
                             </div>

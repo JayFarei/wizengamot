@@ -534,6 +534,16 @@
   }
 }
 
+/* Unread indicator dot */
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
 /* Title animation */
 .conversation-title.animating {
   color: var(--primary);
