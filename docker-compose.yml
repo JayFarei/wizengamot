@@ -1,13 +1,13 @@
 services:
-  llm-council:
+  wizengamot:
     build: .
-    container_name: llm-council
+    container_name: wizengamot
     ports:
       - "8080:80"
     volumes:
-      - llm-council-data:/app/data/conversations
-      - llm-council-prompts:/app/prompts
-      - llm-council-config:/app/data/config
+      - wizengamot-data:/app/data/conversations
+      - wizengamot-prompts:/app/prompts
+      - wizengamot-config:/app/data/config
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - DATA_DIR=/app/data/conversations
@@ -22,9 +22,9 @@ services:
       start_period: 40s
 
 volumes:
-  llm-council-data:
-    name: llm-council-data
-  llm-council-prompts:
-    name: llm-council-prompts
-  llm-council-config:
-    name: llm-council-config
+  wizengamot-data:
+    name: wizengamot-data
+  wizengamot-prompts:
+    name: wizengamot-prompts
+  wizengamot-config:
+    name: wizengamot-config
