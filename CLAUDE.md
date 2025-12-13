@@ -15,6 +15,10 @@ cd frontend && npm install       # Frontend JS dependencies
 uv run python -m backend.main    # Backend on port 8001
 cd frontend && npm run dev       # Frontend on port 5173
 
+# Run tests
+uv run pytest tests/             # Run all tests from project root
+uv run pytest backend/tests/     # Backend-specific tests
+
 # Frontend commands
 cd frontend && npm run build     # Production build
 cd frontend && npm run lint      # ESLint
@@ -28,11 +32,13 @@ docker compose up -d             # Run container on port 8080
 
 ## Project Overview
 
-LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively answer user questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
+Wizengamot is a multi-LLM deliberation system where multiple models collaboratively answer questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
 
-**Two Modes:**
+**Four Modes:**
 - **Council**: Multi-model deliberation with peer ranking (Stage 1 → Stage 2 → Stage 3)
-- **Synthesizer**: Transform URLs (YouTube, articles) into Zettelkasten notes
+- **Synthesizer**: Transform URLs (YouTube, podcasts, articles, PDFs) into Zettelkasten notes
+- **Monitor**: Track entities/competitors across multiple sources with scheduled analysis
+- **Visualiser**: Generate diagrams and flowcharts from content using AI image generation
 
 ## Architecture
 
@@ -103,6 +109,37 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Scoring: 70% semantic similarity + 30% recency (30-day half-life decay)
 - Extracts searchable content: titles, user messages, stage1/stage3 responses, synthesizer notes
 
+**Monitor System (`monitor_*.py`, `monitors.py`)**
+- `monitors.py`: CRUD operations for monitor configurations, stored as JSON in `data/monitors/`
+- `monitor_crawler.py`: Web crawling using Firecrawl API for content extraction
+- `monitor_analysis.py`: LLM-based analysis of crawled content against question sets
+- `monitor_scheduler.py`: APScheduler-based cron scheduling for automated monitoring
+- `monitor_updates.py`: Track and store updates/changes detected by monitors
+- `monitor_digest.py`: Generate periodic digest summaries of monitor findings
+- `monitor_chat.py`: Conversational interface for querying monitor data
+
+**`question_sets.py`**
+- Manages reusable question sets for monitor analysis
+- Stored as markdown files in `question_sets/` directory
+- Format: `# Title`, description, `## Questions` with `- key: question` items
+- Optional `## Output Schema` section for structured responses
+
+**`visualiser.py`**
+- Generates diagrams from content using AI image generation via OpenRouter
+- Supports multiple styles: bento, whiteboard, system_diagram, napkin, cheatsheet, cartoon
+- Images stored in `data/images/`
+
+**`content.py`**
+- Content extraction from various URL types (YouTube, podcasts, PDFs, web pages)
+- Integrates with Firecrawl for web scraping
+
+**`tweet.py`**
+- Tweet generation from synthesized notes for sharing insights
+
+**`workers/`**
+- `youtube.py`: YouTube transcript extraction using yt-dlp
+- `podcast.py`: Podcast/audio transcription using Whisper
+
 ### Frontend Structure (`frontend/src/`)
 
 **`App.jsx`**
@@ -168,10 +205,29 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **Synthesizer Components**
 - **`SynthesizerInterface.jsx`**: URL-to-Zettelkasten notes interface
-- **`NoteViewer.jsx`**: Display generated notes with focus mode
+- **`NoteViewer.jsx`**: Display generated notes with focus mode and sentence highlighting
+
+**Monitor Components**
+- **`MonitorInterface.jsx`**: Main monitor management interface
+- **`MonitorCard.jsx`**: Individual monitor display with status
+- **`MonitorTimeline.jsx`**: Timeline view of monitor updates
+- **`MonitorUpdateDetail.jsx`**: Detailed view of a single update
+- **`MonitorCompare.jsx`**: Side-by-side comparison of changes
+- **`MonitorDigest.jsx`**: Digest summary view
+- **`MonitorChat.jsx`**: Conversational interface for querying monitor data
+- **`CompetitorRow.jsx`**, **`AddCompetitorModal.jsx`**, **`FeatureList.jsx`**: Competitor tracking UI
+
+**Visualiser & Question Set Components**
+- **`VisualiserInterface.jsx`**: Diagram generation interface
+- **`QuestionSetManager.jsx`**, **`QuestionSetEditor.jsx`**, **`QuestionSetSelector.jsx`**: Question set CRUD
+
+**Theme & Utilities**
+- **`contexts/ThemeContext.jsx`**: Dark/light mode toggle (supports both themes)
+- **`utils/tokenizer.js`**: Token counting for context management
+- **`utils/formatRelativeTime.js`**: Human-readable timestamps
 
 **Styling (`*.css`)**
-- Light mode theme (not dark mode)
+- Supports both light and dark mode via ThemeContext
 - Primary color: #4a90e2 (blue)
 - Global markdown styling in `index.css` with `.markdown-content` class
 - 12px padding on all markdown content to prevent cluttered appearance
@@ -235,13 +291,6 @@ Default model pool and chairman defined in `backend/settings.py`.
 4. **Missing Metadata**: Metadata is ephemeral (not persisted), only available in API responses
 5. **Docker API Key**: In Docker, API key can be set via env var OR runtime settings UI; settings file takes priority
 
-## Future Enhancement Ideas
-
-- Export conversations to markdown/PDF
-- Model performance analytics over time
-- Custom ranking criteria (not just accuracy/insight)
-- Support for reasoning models (o1, etc.) with special handling
-
 ## Data Flow Summary
 
 ```
@@ -270,9 +319,9 @@ The entire flow is async/parallel where possible to minimize latency.
 - nginx serves static frontend and proxies `/api` to uvicorn
 
 ### Volumes
-- `llm-council-data`: Conversation JSON files (`/app/data/conversations`)
-- `llm-council-prompts`: System prompt markdown files (`/app/prompts`)
-- `llm-council-config`: Runtime settings (`/app/data/config`)
+- `wizengamot-data`: Conversation JSON files (`/app/data/conversations`)
+- `wizengamot-prompts`: System prompt markdown files (`/app/prompts`)
+- `wizengamot-config`: Runtime settings (`/app/data/config`)
 
 ### Scripts (`scripts/`)
 - `deploy.sh`: Full deployment workflow (git pull → backup → migrate → rebuild → health check)
@@ -281,7 +330,8 @@ The entire flow is async/parallel where possible to minimize latency.
 
 ### Environment Variables
 - `OPENROUTER_API_KEY`: Can also be set via UI at runtime
-- `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`: Paths for Docker volume mounts
+- `FIRECRAWL_API_KEY`: Required for monitor web crawling functionality
+- `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`, `QUESTION_SETS_DIR`: Paths for Docker volume mounts
 
 ## Comment & Annotation System
 
@@ -398,10 +448,3 @@ Comments and threads are persisted to conversation JSON files (`data/conversatio
 - Popup: white with subtle shadow, 300px max width
 - Global styles in `index.css` for consistency
 
-### Future Enhancements
-- Multiple comments per selection (comment threads)
-- Comment replies/discussions
-- Export comments with highlighted context
-- Search/filter comments
-- Comment analytics (most commented sections)
-- Shareable comment links
