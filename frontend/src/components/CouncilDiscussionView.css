@@ -9,16 +9,31 @@
   overflow: hidden;
 }
 
-/* Config bar - improved alignment */
-.council-config-bar {
+/* Unified header bar - config info + view toggles */
+.council-header-bar {
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
   padding: 10px 20px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
   font-size: 13px;
   flex-shrink: 0;
+  gap: 16px;
+}
+
+.council-header-config {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.council-header-config .config-info {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .config-info {
@@ -30,13 +45,95 @@
 .config-label {
   font-weight: 600;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .config-value {
   color: var(--text-primary);
+  line-height: 1.4;
 }
 
-/* View toggle - Primary navigation (Stages / Conversation) */
+/* System prompt label */
+.header-prompt-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.header-prompt-label svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.header-prompt-label:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.council-header-toggles {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Compact pill toggle buttons */
+.header-toggle-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.header-toggle-pill svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.header-toggle-pill:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.header-toggle-pill.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+/* Legacy styles kept for backwards compatibility */
+.council-config-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
 .council-view-toggle {
   display: flex;
   gap: 8px;
@@ -441,6 +538,27 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .council-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .council-header-config {
+    gap: 12px;
+  }
+
+  .council-header-toggles {
+    width: 100%;
+  }
+
+  .header-toggle-pill {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+  }
+
   .council-config-bar {
     flex-direction: column;
     align-items: flex-start;

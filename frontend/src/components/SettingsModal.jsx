@@ -5,8 +5,8 @@ import QuestionSetManager from './QuestionSetManager';
 import './ConfigModal.css';
 import './SettingsModal.css';
 
-export default function SettingsModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('api');
+export default function SettingsModal({ isOpen, onClose, defaultTab = 'api' }) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [apiKey, setApiKey] = useState('');
   const [settings, setSettings] = useState(null);
   const [modelSettings, setModelSettings] = useState(null);
@@ -41,6 +41,7 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(defaultTab);
       loadAllSettings();
       setApiKey('');
       setError('');
@@ -49,7 +50,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       setEditingPrompt(null);
       setIsNewPrompt(false);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultTab]);
 
   const loadAllSettings = async () => {
     try {

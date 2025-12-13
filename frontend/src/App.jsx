@@ -27,6 +27,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsDefaultTab, setSettingsDefaultTab] = useState('api');
   const [showPromptManager, setShowPromptManager] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
@@ -1049,6 +1050,10 @@ function App() {
           onSetActiveComment={handleSetActiveComment}
           onAddContextSegment={handleAddContextSegment}
           onRemoveContextSegment={handleRemoveContextSegment}
+          onOpenSettings={(tab) => {
+            setSettingsDefaultTab(tab || 'api');
+            setShowSettingsModal(true);
+          }}
         />
       ) : (
         <ChatInterface
@@ -1084,9 +1089,11 @@ function App() {
         isOpen={showSettingsModal}
         onClose={() => {
           setShowSettingsModal(false);
+          setSettingsDefaultTab('api'); // Reset to default tab
           loadConfig(); // Reload config to pick up any model changes
           loadApiKeyStatus(); // Reload API key status in case user added keys
         }}
+        defaultTab={settingsDefaultTab}
       />
       {showPromptManager && (
         <PromptManager
