@@ -23,18 +23,24 @@ export default function CouncilDiscussionView({
   const [activeModelIndex, setActiveModelIndex] = useState(0); // Active model tab index
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
 
-  // Get the latest assistant message with council data
+  // Get the latest assistant message with council data (or loading state)
   const latestCouncilMessage = useMemo(() => {
     if (!conversation?.messages) return null;
 
     for (let i = conversation.messages.length - 1; i >= 0; i--) {
       const msg = conversation.messages[i];
-      if (msg.role === 'assistant' && (msg.stage1 || msg.stage2 || msg.stage3)) {
+      // Include messages with stage data OR loading state
+      if (msg.role === 'assistant' && (msg.stage1 || msg.stage2 || msg.stage3 || msg.loading)) {
         return { message: msg, index: i };
       }
     }
     return null;
   }, [conversation]);
+
+  // Track loading states for each stage
+  const loadingStage1 = latestCouncilMessage?.message?.loading?.stage1 ?? false;
+  const loadingStage2 = latestCouncilMessage?.message?.loading?.stage2 ?? false;
+  const loadingStage3 = latestCouncilMessage?.message?.loading?.stage3 ?? false;
 
   // Get the user's original question
   const userQuestion = useMemo(() => {
@@ -119,7 +125,28 @@ export default function CouncilDiscussionView({
   }, [isPromptCollapsed]);
 
   if (!latestCouncilMessage) {
-    return null;
+    // Fallback loading state (shouldn't happen in normal flow)
+    return (
+      <div className="council-discussion-view">
+        {userQuestion && (
+          <div className="council-user-question">
+            <button className="prompt-collapse-toggle">
+              <svg className="collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>Your Question</span>
+            </button>
+            <div className="council-user-question-content markdown-content">
+              <ReactMarkdown>{userQuestion}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+        <div className="council-loading-state">
+          <div className="spinner"></div>
+          <span>Preparing council deliberation...</span>
+        </div>
+      </div>
+    );
   }
 
   const councilConfig = conversation.council_config;
@@ -189,6 +216,9 @@ export default function CouncilDiscussionView({
           stageModels={stageModels}
           activeModel={activeModel}
           onModelChange={handleModelChange}
+          loadingStage1={loadingStage1}
+          loadingStage2={loadingStage2}
+          loadingStage3={loadingStage3}
         />
       ) : (
         <CouncilConversationView

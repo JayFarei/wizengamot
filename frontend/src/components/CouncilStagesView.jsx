@@ -27,6 +27,10 @@ export default function CouncilStagesView({
   stageModels,
   activeModel,
   onModelChange,
+  // Loading state props
+  loadingStage1 = false,
+  loadingStage2 = false,
+  loadingStage3 = false,
 }) {
   const contentRef = useRef(null);
   const lastScrollTop = useRef(0);
@@ -38,6 +42,22 @@ export default function CouncilStagesView({
       lastScrollTop.current = 0;
     }
   }, [activeStage]);
+
+  // Auto-advance to appropriate stage based on available data
+  useEffect(() => {
+    // If viewing Stage 3 but it's not ready, fall back to Stage 2 or 1
+    if (activeStage === 3 && !message.stage3 && !loadingStage3) {
+      if (message.stage2 || loadingStage2) {
+        onStageChange(2);
+      } else {
+        onStageChange(1);
+      }
+    }
+    // If viewing Stage 2 but it's not ready, fall back to Stage 1
+    else if (activeStage === 2 && !message.stage2 && !loadingStage2) {
+      onStageChange(1);
+    }
+  }, [activeStage, message.stage2, message.stage3, loadingStage2, loadingStage3, onStageChange]);
 
   // Handle scroll events for auto-collapse
   const handleScroll = useCallback(() => {
@@ -109,61 +129,85 @@ export default function CouncilStagesView({
         stage1ModelCount={stage1ModelCount}
         hasStage2={hasStage2}
         hasStage3={hasStage3}
+        loadingStage1={loadingStage1}
+        loadingStage2={loadingStage2}
+        loadingStage3={loadingStage3}
       />
 
       <div className="council-stages-content" ref={contentRef}>
-        {activeStage === 1 && message.stage1 && (
-          <Stage1
-            responses={message.stage1}
-            messageIndex={messageIndex}
-            comments={comments}
-            contextSegments={contextSegments}
-            onSelectionChange={onSelectionChange}
-            onEditComment={onEditComment}
-            onDeleteComment={onDeleteComment}
-            activeCommentId={activeCommentId}
-            onSetActiveComment={onSetActiveComment}
-            onAddContextSegment={onAddContextSegment}
-            onRemoveContextSegment={onRemoveContextSegment}
-            activeTab={activeModelIndex}
-            onActiveTabChange={onModelIndexChange}
-          />
+        {activeStage === 1 && (
+          message.stage1 ? (
+            <Stage1
+              responses={message.stage1}
+              messageIndex={messageIndex}
+              comments={comments}
+              contextSegments={contextSegments}
+              onSelectionChange={onSelectionChange}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
+              activeCommentId={activeCommentId}
+              onSetActiveComment={onSetActiveComment}
+              onAddContextSegment={onAddContextSegment}
+              onRemoveContextSegment={onRemoveContextSegment}
+              activeTab={activeModelIndex}
+              onActiveTabChange={onModelIndexChange}
+            />
+          ) : loadingStage1 ? (
+            <div className="stage-loading">
+              <div className="spinner"></div>
+              <span>Stage 1: Collecting individual expert responses...</span>
+            </div>
+          ) : null
         )}
 
-        {activeStage === 2 && message.stage2 && (
-          <Stage2
-            rankings={message.stage2}
-            labelToModel={message.metadata?.label_to_model}
-            aggregateRankings={message.metadata?.aggregate_rankings}
-            messageIndex={messageIndex}
-            comments={comments}
-            contextSegments={contextSegments}
-            onSelectionChange={onSelectionChange}
-            onEditComment={onEditComment}
-            onDeleteComment={onDeleteComment}
-            activeCommentId={activeCommentId}
-            onSetActiveComment={onSetActiveComment}
-            onAddContextSegment={onAddContextSegment}
-            onRemoveContextSegment={onRemoveContextSegment}
-            activeTab={activeModelIndex}
-            onActiveTabChange={onModelIndexChange}
-          />
+        {activeStage === 2 && (
+          message.stage2 ? (
+            <Stage2
+              rankings={message.stage2}
+              labelToModel={message.metadata?.label_to_model}
+              aggregateRankings={message.metadata?.aggregate_rankings}
+              messageIndex={messageIndex}
+              comments={comments}
+              contextSegments={contextSegments}
+              onSelectionChange={onSelectionChange}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
+              activeCommentId={activeCommentId}
+              onSetActiveComment={onSetActiveComment}
+              onAddContextSegment={onAddContextSegment}
+              onRemoveContextSegment={onRemoveContextSegment}
+              activeTab={activeModelIndex}
+              onActiveTabChange={onModelIndexChange}
+            />
+          ) : loadingStage2 ? (
+            <div className="stage-loading">
+              <div className="spinner"></div>
+              <span>Stage 2: Collecting peer rankings...</span>
+            </div>
+          ) : null
         )}
 
-        {activeStage === 3 && message.stage3 && (
-          <Stage3
-            finalResponse={message.stage3}
-            messageIndex={messageIndex}
-            comments={comments}
-            contextSegments={contextSegments}
-            onSelectionChange={onSelectionChange}
-            onEditComment={onEditComment}
-            onDeleteComment={onDeleteComment}
-            activeCommentId={activeCommentId}
-            onSetActiveComment={onSetActiveComment}
-            onAddContextSegment={onAddContextSegment}
-            onRemoveContextSegment={onRemoveContextSegment}
-          />
+        {activeStage === 3 && (
+          message.stage3 ? (
+            <Stage3
+              finalResponse={message.stage3}
+              messageIndex={messageIndex}
+              comments={comments}
+              contextSegments={contextSegments}
+              onSelectionChange={onSelectionChange}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
+              activeCommentId={activeCommentId}
+              onSetActiveComment={onSetActiveComment}
+              onAddContextSegment={onAddContextSegment}
+              onRemoveContextSegment={onRemoveContextSegment}
+            />
+          ) : loadingStage3 ? (
+            <div className="stage-loading">
+              <div className="spinner"></div>
+              <span>Stage 3: Synthesizing final response...</span>
+            </div>
+          ) : null
         )}
       </div>
 
