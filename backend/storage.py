@@ -75,7 +75,8 @@ def create_conversation(
         "threads": [],  # Store follow-up threads
         "council_config": council_config,  # Store custom config if provided
         "system_prompt": system_prompt,  # Store system prompt if provided
-        "synthesizer_config": synthesizer_config  # Store synthesizer config if provided
+        "synthesizer_config": synthesizer_config,  # Store synthesizer config if provided
+        "total_cost": 0.0  # Track cumulative API cost for this conversation
     }
 
     # Save to file
@@ -165,6 +166,8 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "state": data.get("status", {}).get("state", "idle"),
                     "is_unread": data.get("status", {}).get("is_unread", False)
                 }
+                # Include total cost for display (default to 0 for backwards compat)
+                conv_meta["total_cost"] = data.get("total_cost", 0.0)
                 conversations.append(conv_meta)
 
     # Sort by creation time, newest first
@@ -293,6 +296,27 @@ def mark_conversation_read(conversation_id: str):
 
     conversation["status"]["is_unread"] = False
     conversation["status"]["last_read_at"] = datetime.utcnow().isoformat()
+
+    save_conversation(conversation)
+
+
+def update_conversation_cost(conversation_id: str, cost_to_add: float):
+    """
+    Add cost to a conversation's total_cost field.
+
+    Args:
+        conversation_id: Conversation identifier
+        cost_to_add: Amount to add to the total cost (in dollars)
+    """
+    if cost_to_add is None or cost_to_add <= 0:
+        return
+
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    current_cost = conversation.get("total_cost", 0.0)
+    conversation["total_cost"] = current_cost + cost_to_add
 
     save_conversation(conversation)
 

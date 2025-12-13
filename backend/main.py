@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -268,6 +268,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
         stage1_results = None
         stage2_results = None
         stage3_result = None
+        total_message_cost = 0.0
 
         try:
             # Add user message
@@ -310,6 +311,30 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 storage.update_conversation_title(conversation_id, title)
                 yield f"data: {json.dumps({'type': 'title_complete', 'data': {'title': title}})}\n\n"
 
+            # Accumulate costs from all generations (do this before saving)
+            try:
+                # Collect all generation IDs
+                generation_ids = []
+                for result in stage1_results:
+                    if result.get('generation_id'):
+                        generation_ids.append(result['generation_id'])
+                for result in stage2_results:
+                    if result.get('generation_id'):
+                        generation_ids.append(result['generation_id'])
+                if stage3_result.get('generation_id'):
+                    generation_ids.append(stage3_result['generation_id'])
+
+                # Fetch costs in parallel
+                if generation_ids:
+                    cost_tasks = [openrouter.get_generation_cost(gid) for gid in generation_ids]
+                    costs = await asyncio.gather(*cost_tasks)
+
+                    # Sum all valid costs
+                    total_message_cost = sum(c for c in costs if c is not None)
+            except Exception as cost_error:
+                # Log but don't fail the request if cost tracking fails
+                print(f"Error tracking cost: {cost_error}")
+
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete'})}\n\n"
 
@@ -326,6 +351,10 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                     stage2_results,
                     stage3_result
                 )
+
+                # Save accumulated cost to conversation
+                if total_message_cost > 0:
+                    storage.update_conversation_cost(conversation_id, total_message_cost)
 
     return StreamingResponse(
         event_generator(),
@@ -730,6 +759,15 @@ async def get_settings():
         "firecrawl_configured": settings.has_firecrawl_configured(),
         "firecrawl_source": settings.get_firecrawl_source(),
     }
+
+
+@app.get("/api/credits")
+async def get_credits():
+    """Get remaining OpenRouter credits."""
+    credits_data = await openrouter.get_credits()
+    if credits_data is None:
+        raise HTTPException(status_code=500, detail="Failed to fetch credits. Check your API key.")
+    return credits_data
 
 
 class UpdateApiKeyRequest(BaseModel):

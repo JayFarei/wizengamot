@@ -555,6 +555,18 @@ export const api = {
   },
 
   /**
+   * Get OpenRouter credits information.
+   * Returns: { limit, usage, remaining, is_free_tier, rate_limit }
+   */
+  async getCredits() {
+    const response = await fetch(`${API_BASE}/api/credits`);
+    if (!response.ok) {
+      throw new Error('Failed to get credits');
+    }
+    return response.json();
+  },
+
+  /**
    * Update the OpenRouter API key.
    */
   async updateApiKey(apiKey) {

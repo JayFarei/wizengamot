@@ -35,7 +35,8 @@ async def stage1_collect_responses(user_query: str, council_models: Optional[Lis
         if response is not None:  # Only include successful responses
             stage1_results.append({
                 "model": model,
-                "response": response.get('content', '')
+                "response": response.get('content', ''),
+                "generation_id": response.get('generation_id')
             })
 
     return stage1_results
@@ -119,7 +120,8 @@ Now provide your evaluation and ranking:"""
             stage2_results.append({
                 "model": model,
                 "ranking": full_text,
-                "parsed_ranking": parsed
+                "parsed_ranking": parsed,
+                "generation_id": response.get('generation_id')
             })
 
     return stage2_results, label_to_model
@@ -182,12 +184,14 @@ Provide a clear, well-reasoned final answer that represents the council's collec
         # Fallback if chairman fails
         return {
             "model": chairman_model,
-            "response": "Error: Unable to generate final synthesis."
+            "response": "Error: Unable to generate final synthesis.",
+            "generation_id": None
         }
 
     return {
         "model": chairman_model,
-        "response": response.get('content', '')
+        "response": response.get('content', ''),
+        "generation_id": response.get('generation_id')
     }
 
 
