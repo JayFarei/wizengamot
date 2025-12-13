@@ -4,6 +4,9 @@
 
 Inspired by [Karpathy's llm-council](https://github.com/karpathy/llm-council).
 
+> [!WARNING]
+> **This project is under active development.** Features may change, break, or be incomplete. Use at your own risk and expect rough edges.
+
 ## Why Wizengamot?
 
 Single-model responses give you one perspective. Wizengamot gives you a deliberation — multiple models debating, critiquing, and building on each other's ideas before synthesizing a final answer.
