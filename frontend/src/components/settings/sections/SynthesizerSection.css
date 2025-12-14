@@ -1,0 +1,21 @@
+.synthesizer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.setting-select {
+  min-width: 200px;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}

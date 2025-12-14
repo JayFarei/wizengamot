@@ -1,0 +1,100 @@
+.council-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Model Checkboxes */
+.model-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.checkbox-label:hover {
+  background: var(--bg-hover);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.checkbox-label span {
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+/* Chairman Select */
+.chairman-select {
+  width: 100%;
+  max-width: 300px;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.chairman-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* Stage Prompts */
+.stage-prompts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stage-prompt-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+}
+
+.stage-prompt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stage-prompt-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.stage-prompt-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stage-prompt-editor-wrapper {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}

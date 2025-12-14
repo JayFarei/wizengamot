@@ -1,0 +1,116 @@
+.stage-prompt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stage-prompt-loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary, #666);
+}
+
+.stage-prompt-header {
+  margin-bottom: 4px;
+}
+
+.stage-prompt-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.stage-prompt-title-row h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.custom-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #4a90e2;
+  color: white;
+  border-radius: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.stage-prompt-description {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.stage-prompt-textarea {
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  font-family: 'SF Mono', Monaco, 'Andale Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #333);
+  resize: vertical;
+}
+
+.stage-prompt-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.stage-prompt-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stage-prompt-error {
+  padding: 8px 12px;
+  background: #f8d7da;
+  color: #721c24;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.stage-prompt-success {
+  padding: 8px 12px;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.stage-prompt-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage-prompt-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* Dark mode */
+[data-theme="dark"] .stage-prompt-textarea {
+  background: var(--bg-secondary, #2a2a2a);
+  border-color: var(--border-color, #3a3a3a);
+  color: var(--text-primary, #e0e0e0);
+}
+
+[data-theme="dark"] .stage-prompt-error {
+  background: #4a1c1c;
+  color: #f8d7da;
+}
+
+[data-theme="dark"] .stage-prompt-success {
+  background: #1c4a1c;
+  color: #d4edda;
+}

@@ -1,39 +1,113 @@
-.settings-modal-full {
-  max-width: 700px;
-  min-height: 500px;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-/* Tabs */
-.settings-tabs {
+/* Settings Modal - Sidebar Layout (macOS-inspired fixed size) */
+.settings-modal-sidebar {
+  width: 900px;
+  height: 700px;
+  max-width: 95vw;
+  max-height: 90vh;
+  padding: 0;
   display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 0;
+  background: var(--bg-elevated);
+  flex-shrink: 0;
 }
 
-.settings-tab {
-  padding: 10px 20px;
-  background: none;
+.settings-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: -1px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
 }
 
-.settings-tab:hover {
-  color: var(--primary);
+.settings-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
-.settings-tab.active {
+.settings-close-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-modal-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0; /* Important for flex children to respect overflow */
+}
+
+.settings-content {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  min-height: 0; /* Important for scrolling to work */
+}
+
+.settings-section {
+  max-width: 600px;
+}
+
+/* Modal Section */
+.modal-section {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.modal-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.section-description {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.section-description a {
   color: var(--primary);
-  border-bottom-color: var(--primary);
+  text-decoration: none;
+}
+
+.section-description a:hover {
+  text-decoration: underline;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: var(--text-primary);
 }
 
 /* API Key */
@@ -160,18 +234,6 @@
 }
 
 /* Prompts */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.section-header h3 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
 .prompts-list {
   display: flex;
   flex-direction: column;
@@ -206,6 +268,12 @@
   font-family: monospace;
 }
 
+.prompt-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 .prompt-actions {
   display: flex;
   gap: 6px;
@@ -228,89 +296,7 @@
   padding: 20px;
 }
 
-/* Prompt Editor */
-.prompt-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-}
-
-.editing-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-family: monospace;
-}
-
-.prompt-title-input {
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.prompt-title-input:focus {
-  outline: none;
-  border-color: var(--border-focus);
-}
-
-.prompt-content-input {
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: monospace;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  resize: vertical;
-  min-height: 150px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.prompt-content-input:focus {
-  outline: none;
-  border-color: var(--border-focus);
-}
-
-.prompt-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-/* Messages */
-.settings-error {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: var(--error-bg);
-  color: var(--error);
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.settings-success {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: var(--success-bg);
-  color: var(--success);
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.section-description a {
-  color: var(--primary);
-  text-decoration: none;
-}
-
-.section-description a:hover {
-  text-decoration: underline;
-}
-
-/* Setting Rows (Integrations tab) */
+/* Setting Rows */
 .setting-row {
   display: flex;
   align-items: center;
@@ -338,11 +324,23 @@
   border-radius: 4px;
 }
 
-/* Style description in prompt list */
-.prompt-description {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
+/* Messages */
+.settings-error {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--error-bg);
+  color: var(--error);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.settings-success {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--success-bg);
+  color: var(--success);
+  border-radius: 4px;
+  font-size: 13px;
 }
 
 /* Style Editor Modal */
@@ -444,4 +442,14 @@
 .visualiser-model-input:focus {
   outline: none;
   border-color: var(--border-focus);
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-secondary);
 }

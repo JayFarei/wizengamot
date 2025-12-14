@@ -1,0 +1,353 @@
+.usage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.usage-header h3 {
+  margin: 0;
+}
+
+.usage-loading,
+.usage-error {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+}
+
+.usage-error {
+  color: var(--danger-color, #dc3545);
+}
+
+/* Summary Cards */
+.usage-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.usage-card {
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  min-width: 0;
+}
+
+.usage-card-label {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.usage-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary, #333);
+}
+
+.usage-card-note {
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+  margin-top: 4px;
+}
+
+.usage-card.credits .usage-card-value {
+  color: var(--success-color, #28a745);
+}
+
+/* Histogram Section */
+.usage-histogram-section h4,
+.usage-by-mode-section h4,
+.usage-top-conversations h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.histogram-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.histogram-container {
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  margin-bottom: 8px;
+}
+
+.histogram-bar-wrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  cursor: pointer;
+}
+
+.histogram-bar-wrapper:hover .histogram-bar {
+  opacity: 1;
+}
+
+.histogram-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 2px 2px 0 0;
+  overflow: hidden;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+  min-height: 2px;
+  background: var(--border-color, #e0e0e0);
+}
+
+.histogram-bar-wrapper.hovered .histogram-bar {
+  opacity: 1;
+}
+
+.histogram-segment {
+  width: 100%;
+  min-height: 0;
+  transition: height 0.2s ease;
+}
+
+.histogram-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tooltip-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 4px;
+}
+
+.tooltip-total {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #333);
+}
+
+.tooltip-breakdown {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.tooltip-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+  margin-top: 4px;
+}
+
+.tooltip-mode:first-child {
+  margin-top: 0;
+}
+
+.tooltip-mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.histogram-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+}
+
+/* Spending by Mode */
+.mode-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-bar-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 50px;
+  gap: 12px;
+  align-items: center;
+}
+
+.mode-bar-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-bar-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.mode-bar-amount {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.mode-bar-track {
+  height: 8px;
+  background: var(--bg-secondary, #f0f0f0);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mode-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.mode-bar-percent {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+  text-align: right;
+}
+
+/* Top Conversations */
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+}
+
+.top-rank {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary, #999);
+  width: 24px;
+}
+
+.top-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.top-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-mode-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.top-date {
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+}
+
+.top-cost {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+/* Dark mode */
+[data-theme='dark'] .usage-card {
+  background: var(--bg-secondary, #2a2a2a);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme='dark'] .histogram-container {
+  background: var(--bg-secondary, #2a2a2a);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme='dark'] .histogram-bar {
+  background: var(--border-color, #444);
+}
+
+[data-theme='dark'] .histogram-tooltip {
+  background: var(--bg-primary, #1a1a1a);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme='dark'] .top-item {
+  background: var(--bg-secondary, #2a2a2a);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme='dark'] .mode-bar-track {
+  background: var(--bg-tertiary, #333);
+}
