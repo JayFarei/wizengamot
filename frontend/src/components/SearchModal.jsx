@@ -2,6 +2,43 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api';
 import './SearchModal.css';
 
+// Mode icons for search results
+const MODE_ICONS = {
+  council: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="7" r="4" />
+      <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+      <circle cx="4" cy="9" r="2.5" />
+      <path d="M1 19a4 4 0 0 1 6 0" />
+      <circle cx="20" cy="9" r="2.5" />
+      <path d="M17 19a4 4 0 0 1 6 0" />
+    </svg>
+  ),
+  synthesizer: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="9" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
+  visualiser: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  ),
+};
+
+const MODE_LABELS = {
+  council: 'Council',
+  synthesizer: 'Notes',
+  visualiser: 'Diagram',
+};
+
 // Filter definitions
 const FILTERS = [
   { key: 'council', label: 'Council', description: 'Filter to council discussions' },
@@ -341,7 +378,10 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
                   <div className="search-result-header">
                     <span className="search-result-title">{result.title}</span>
                     <span className={`search-result-mode ${result.mode}`}>
-                      {result.mode === 'synthesizer' ? 'notes' : 'council'}
+                      <span className="search-result-mode-icon">
+                        {MODE_ICONS[result.mode]}
+                      </span>
+                      {MODE_LABELS[result.mode] || result.mode}
                     </span>
                   </div>
                   <div className="search-result-meta">

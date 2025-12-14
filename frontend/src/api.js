@@ -196,9 +196,13 @@ export const api = {
 
   /**
    * List all available prompts (with labels).
+   * @param {string} mode - Optional mode filter ('council' or 'synthesizer')
    */
-  async listPrompts() {
-    const response = await fetch(`${API_BASE}/api/prompts`);
+  async listPrompts(mode = null) {
+    const url = mode
+      ? `${API_BASE}/api/prompts?mode=${mode}`
+      : `${API_BASE}/api/prompts`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to list prompts');
     }
@@ -218,9 +222,14 @@ export const api = {
 
   /**
    * Get a specific prompt by filename.
+   * @param {string} filename - The prompt filename
+   * @param {string} mode - Optional mode ('council' or 'synthesizer')
    */
-  async getPrompt(filename) {
-    const response = await fetch(`${API_BASE}/api/prompts/${filename}`);
+  async getPrompt(filename, mode = null) {
+    const url = mode
+      ? `${API_BASE}/api/prompts/${filename}?mode=${mode}`
+      : `${API_BASE}/api/prompts/${filename}`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get prompt');
     }
@@ -229,14 +238,20 @@ export const api = {
 
   /**
    * Create a new prompt.
+   * @param {string} title - The prompt title
+   * @param {string} content - The prompt content
+   * @param {string} mode - Optional mode ('council' or 'synthesizer')
    */
-  async createPrompt(title, content) {
+  async createPrompt(title, content, mode = null) {
+    const body = { title, content };
+    if (mode) body.mode = mode;
+
     const response = await fetch(`${API_BASE}/api/prompts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       throw new Error('Failed to create prompt');
@@ -246,14 +261,20 @@ export const api = {
 
   /**
    * Update an existing prompt.
+   * @param {string} filename - The prompt filename
+   * @param {string} content - The new content
+   * @param {string} mode - Optional mode ('council' or 'synthesizer')
    */
-  async updatePrompt(filename, content) {
+  async updatePrompt(filename, content, mode = null) {
+    const body = { content };
+    if (mode) body.mode = mode;
+
     const response = await fetch(`${API_BASE}/api/prompts/${filename}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       throw new Error('Failed to update prompt');
@@ -263,9 +284,14 @@ export const api = {
 
   /**
    * Delete a prompt.
+   * @param {string} filename - The prompt filename
+   * @param {string} mode - Optional mode ('council' or 'synthesizer')
    */
-  async deletePrompt(filename) {
-    const response = await fetch(`${API_BASE}/api/prompts/${filename}`, {
+  async deletePrompt(filename, mode = null) {
+    const url = mode
+      ? `${API_BASE}/api/prompts/${filename}?mode=${mode}`
+      : `${API_BASE}/api/prompts/${filename}`;
+    const response = await fetch(url, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -676,6 +702,145 @@ export const api = {
   },
 
   // ==========================================================================
+  // Model Management API Methods
+  // ==========================================================================
+
+  /**
+   * Test a model with a smoke test query.
+   * @param {string} modelId - The model ID to test
+   */
+  async testModel(modelId) {
+    const response = await fetch(`${API_BASE}/api/settings/test-model`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: modelId }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to test model');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get dependencies for a model (which features use it).
+   * @param {string} modelId - The model ID to check
+   */
+  async getModelDependencies(modelId) {
+    const response = await fetch(
+      `${API_BASE}/api/settings/model-dependencies/${encodeURIComponent(modelId)}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get model dependencies');
+    }
+    return response.json();
+  },
+
+  /**
+   * Replace a model across all usages.
+   * @param {string} oldModel - The model to replace
+   * @param {string} newModel - The replacement model
+   * @param {boolean} removeOld - Whether to remove the old model from pool
+   */
+  async replaceModel(oldModel, newModel, removeOld = true) {
+    const response = await fetch(`${API_BASE}/api/settings/replace-model`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        old_model: oldModel,
+        new_model: newModel,
+        remove_old: removeOld,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to replace model');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Usage Statistics API Methods
+  // ==========================================================================
+
+  /**
+   * Get usage statistics (spending by mode, top conversations, etc.).
+   */
+  async getUsageStats() {
+    const response = await fetch(`${API_BASE}/api/usage-stats`);
+    if (!response.ok) {
+      throw new Error('Failed to get usage stats');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Stage Prompts API Methods
+  // ==========================================================================
+
+  /**
+   * List all stage prompts (ranking and chairman).
+   */
+  async listStagePrompts() {
+    const response = await fetch(`${API_BASE}/api/stage-prompts`);
+    if (!response.ok) {
+      throw new Error('Failed to list stage prompts');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific stage prompt.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   */
+  async getStagePrompt(promptType) {
+    const response = await fetch(`${API_BASE}/api/stage-prompts/${promptType}`);
+    if (!response.ok) {
+      throw new Error('Failed to get stage prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a stage prompt.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   * @param {string} content - The new prompt content
+   */
+  async updateStagePrompt(promptType, content) {
+    const response = await fetch(`${API_BASE}/api/stage-prompts/${promptType}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to update stage prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Reset a stage prompt to the built-in default.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   */
+  async resetStagePrompt(promptType) {
+    const response = await fetch(`${API_BASE}/api/stage-prompts/${promptType}/reset`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to reset stage prompt');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
   // Synthesizer API Methods
   // ==========================================================================
 
@@ -868,15 +1033,16 @@ export const api = {
    * @param {string} id - Style ID (alphanumeric and underscores)
    * @param {string} name - Display name
    * @param {string} description - Short description
+   * @param {string} icon - Lucide icon name
    * @param {string} prompt - Full prompt text
    */
-  async createDiagramStyle(id, name, description, prompt) {
+  async createDiagramStyle(id, name, description, icon, prompt) {
     const response = await fetch(`${API_BASE}/api/settings/visualiser/styles`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ id, name, description, prompt }),
+      body: JSON.stringify({ id, name, description, icon, prompt }),
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -890,15 +1056,16 @@ export const api = {
    * @param {string} styleId - The style ID
    * @param {string} name - Display name
    * @param {string} description - Short description
+   * @param {string} icon - Lucide icon name
    * @param {string} prompt - Full prompt text
    */
-  async updateDiagramStyle(styleId, name, description, prompt) {
+  async updateDiagramStyle(styleId, name, description, icon, prompt) {
     const response = await fetch(`${API_BASE}/api/settings/visualiser/styles/${styleId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, description, prompt }),
+      body: JSON.stringify({ name, description, icon, prompt }),
     });
     if (!response.ok) {
       throw new Error('Failed to update diagram style');

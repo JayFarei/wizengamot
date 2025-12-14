@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import CouncilStagesView from './CouncilStagesView';
 import CouncilConversationView from './CouncilConversationView';
+import ModelInfoPopover from './ModelInfoPopover';
 import './CouncilDiscussionView.css';
 
 export default function CouncilDiscussionView({
@@ -22,6 +23,16 @@ export default function CouncilDiscussionView({
   const [activeModelIndex, setActiveModelIndex] = useState(0); // Active model tab index
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const userManuallyCollapsedRef = useRef(false); // Track if user manually collapsed prompt
+
+  // Responsive header popover state
+  const [showModelPopover, setShowModelPopover] = useState(false);
+  const [popoverType, setPopoverType] = useState(null); // 'council' | 'chairman'
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
+  const [isCompactMode, setIsCompactMode] = useState(false);
+  const councilButtonRef = useRef(null);
+  const chairmanButtonRef = useRef(null);
+  const headerBarRef = useRef(null);
+  const headerConfigRef = useRef(null);
 
   // Get the latest assistant message with council data (or loading state)
   const latestCouncilMessage = useMemo(() => {
@@ -88,6 +99,119 @@ export default function CouncilDiscussionView({
 
   const getModelShortName = (model) => {
     return model?.split('/')[1] || model;
+  };
+
+  // Detect compact mode when header content would wrap (height exceeds single line)
+  useEffect(() => {
+    const headerConfig = headerConfigRef.current;
+    if (!headerConfig) return;
+
+    // Single line height threshold (approximate)
+    const SINGLE_LINE_HEIGHT = 30;
+
+    const checkOverflow = () => {
+      // If in compact mode, we can't measure full content height
+      // So we check if we can switch back to full mode
+      if (isCompactMode) {
+        // Try switching to full mode temporarily to measure
+        // This is handled by the resize observer - when window gets bigger
+        // we might be able to fit the full content
+        return;
+      }
+
+      // In full mode, check if content is wrapping (height > single line)
+      const configHeight = headerConfig.offsetHeight;
+      const needsCompact = configHeight > SINGLE_LINE_HEIGHT;
+
+      if (needsCompact) {
+        setIsCompactMode(true);
+      }
+    };
+
+    // Check if we can expand back to full mode
+    const checkCanExpand = () => {
+      if (!isCompactMode) return;
+
+      // Create a temporary hidden element to measure full content width
+      const headerBar = headerBarRef.current;
+      if (!headerBar) return;
+
+      const toggles = headerBar.querySelector('.council-header-toggles');
+      const promptLabel = headerBar.querySelector('.header-prompt-label');
+      const togglesWidth = toggles ? toggles.offsetWidth : 0;
+      const promptWidth = promptLabel ? promptLabel.offsetWidth + 16 : 0; // +16 for gap
+
+      const headerBarStyle = getComputedStyle(headerBar);
+      const headerBarPadding = parseFloat(headerBarStyle.paddingLeft) + parseFloat(headerBarStyle.paddingRight);
+      const gap = parseFloat(headerBarStyle.gap) || 16;
+
+      // Available space for model names
+      const availableWidth = headerBar.offsetWidth - togglesWidth - promptWidth - headerBarPadding - gap * 2;
+
+      // Estimate full content width based on model names
+      const councilConfig = conversation?.council_config;
+      if (!councilConfig) return;
+
+      const councilText = councilConfig.council_models.map(m => m.split('/')[1] || m).join(', ');
+      const chairmanText = councilConfig.chairman_model.split('/')[1] || councilConfig.chairman_model;
+
+      // Rough estimate: ~7px per character + labels + gaps
+      const estimatedWidth = (councilText.length + chairmanText.length) * 7 + 180;
+
+      if (estimatedWidth < availableWidth) {
+        setIsCompactMode(false);
+        setShowModelPopover(false);
+      }
+    };
+
+    // Initial check
+    requestAnimationFrame(() => {
+      checkOverflow();
+    });
+
+    // Watch for size changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (isCompactMode) {
+        checkCanExpand();
+      } else {
+        checkOverflow();
+      }
+    });
+
+    if (headerBarRef.current) {
+      resizeObserver.observe(headerBarRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isCompactMode, conversation?.council_config]);
+
+  // Handle opening model info popover
+  const handleOpenModelPopover = (type) => {
+    const buttonRef = type === 'council' ? councilButtonRef : chairmanButtonRef;
+    if (!buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    let left = rect.left;
+
+    // Check if popover would go off-screen
+    const popoverWidth = 320;
+    if (left + popoverWidth > window.innerWidth) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+
+    setPopoverPosition({
+      top: rect.bottom + 8,
+      left: Math.max(8, left)
+    });
+    setPopoverType(type);
+    setShowModelPopover(true);
+  };
+
+  const handleCloseModelPopover = () => {
+    setShowModelPopover(false);
+    setPopoverType(null);
   };
 
   // Get models for current stage (for mini-nav expert buttons)
@@ -166,28 +290,54 @@ export default function CouncilDiscussionView({
   return (
     <div className="council-discussion-view">
       {/* Unified header bar: config info + view toggles */}
-      <div className="council-header-bar">
-        <div className="council-header-config">
+      <div className="council-header-bar" ref={headerBarRef}>
+        <div className="council-header-config" ref={headerConfigRef}>
           {councilConfig && (
             <>
               <div className="config-info">
                 <span className="config-label">Council:</span>
-                <span className="config-value">
-                  {councilConfig.council_models.map(getModelShortName).join(', ')}
-                </span>
+                {isCompactMode ? (
+                  <button
+                    ref={councilButtonRef}
+                    className="config-value-compact"
+                    onClick={() => handleOpenModelPopover('council')}
+                    aria-label={`View ${councilConfig.council_models.length} council models`}
+                    aria-expanded={showModelPopover && popoverType === 'council'}
+                    aria-haspopup="dialog"
+                  >
+                    ({councilConfig.council_models.length})
+                  </button>
+                ) : (
+                  <span className="config-value">
+                    {councilConfig.council_models.map(getModelShortName).join(', ')}
+                  </span>
+                )}
               </div>
               <div className="config-info">
                 <span className="config-label">Chairman:</span>
-                <span className="config-value">
-                  {getModelShortName(councilConfig.chairman_model)}
-                </span>
+                {isCompactMode ? (
+                  <button
+                    ref={chairmanButtonRef}
+                    className="config-value-compact"
+                    onClick={() => handleOpenModelPopover('chairman')}
+                    aria-label="View chairman model"
+                    aria-expanded={showModelPopover && popoverType === 'chairman'}
+                    aria-haspopup="dialog"
+                  >
+                    (1)
+                  </button>
+                ) : (
+                  <span className="config-value">
+                    {getModelShortName(councilConfig.chairman_model)}
+                  </span>
+                )}
               </div>
             </>
           )}
           {conversation.prompt_title && (
             <button
               className="header-prompt-label"
-              onClick={() => onOpenSettings?.('prompts')}
+              onClick={() => onOpenSettings?.('council')}
               title="View system prompt"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -282,6 +432,21 @@ export default function CouncilDiscussionView({
         />
       )}
 
+      {/* Model info popover for compact mode */}
+      {showModelPopover && councilConfig && (
+        <ModelInfoPopover
+          isOpen={showModelPopover}
+          type={popoverType}
+          models={
+            popoverType === 'council'
+              ? councilConfig.council_models
+              : [councilConfig.chairman_model]
+          }
+          position={popoverPosition}
+          onClose={handleCloseModelPopover}
+          getModelShortName={getModelShortName}
+        />
+      )}
     </div>
   );
 }

@@ -25,7 +25,7 @@
 .council-header-config {
   display: flex;
   align-items: baseline;
-  gap: 16px;
+  gap: 12px 16px;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -34,12 +34,15 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .config-info {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .config-label {
@@ -51,6 +54,33 @@
 .config-value {
   color: var(--text-primary);
   line-height: 1.4;
+}
+
+/* Compact mode clickable value button */
+.config-value-compact {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.config-value-compact:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.config-value-compact:active {
+  transform: scale(0.98);
 }
 
 /* System prompt label */
@@ -536,38 +566,32 @@
   transform: rotate(-90deg);
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - reduce padding/fonts at smaller widths */
 @media (max-width: 768px) {
   .council-header-bar {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 8px 12px;
     gap: 10px;
-    padding: 12px 16px;
   }
 
   .council-header-config {
-    gap: 12px;
-  }
-
-  .council-header-toggles {
-    width: 100%;
+    gap: 10px;
   }
 
   .header-toggle-pill {
-    flex: 1;
-    text-align: center;
-    padding: 8px 12px;
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
   }
 
-  .council-config-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 12px 16px;
+  .header-toggle-pill svg {
+    width: 12px;
+    height: 12px;
   }
 
-  .council-view-toggle {
-    padding: 10px 16px;
+  .header-prompt-label {
+    max-width: 120px;
+    padding: 3px 8px;
+    font-size: 11px;
   }
 
   .stage-tabs {

@@ -14,7 +14,7 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 350px; /* ~10 items */
+  max-height: 455px; /* ~13 items, 30% larger */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border-primary) transparent;

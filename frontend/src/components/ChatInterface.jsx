@@ -154,22 +154,6 @@ export default function ChatInterface({
               <h1 className="brand-title">WIZENGAMOT</h1>
               <p className="brand-tagline">A personal agentic sounding board</p>
             </div>
-            {credits !== null && (
-              <div className={`credits-display ${credits < 2 ? 'warning' : ''}`}>
-                {credits < 2 ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L1 21h22L12 2zm0 3.5L19.5 19H4.5L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="6" x2="12" y2="18"/>
-                    <path d="M9 12h6"/>
-                  </svg>
-                )}
-                ${credits.toFixed(2)} remaining
-              </div>
-            )}
             <div className="author-links">
               <a href="https://github.com/jayfarei" target="_blank" rel="noopener noreferrer">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
