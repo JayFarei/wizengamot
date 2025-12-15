@@ -108,11 +108,35 @@ export default function NoteViewer({
   // Parse note body into array of sentences for keyboard navigation
   const parseSentences = useCallback((body) => {
     if (!body) return [];
+
+    // Common abbreviations that should not end sentences
+    const abbreviations = ['e\\.g\\.', 'i\\.e\\.', 'etc\\.', 'vs\\.', 'Dr\\.', 'Mr\\.', 'Mrs\\.', 'Ms\\.', 'Prof\\.', 'Sr\\.', 'Jr\\.', 'no\\.', 'vol\\.', 'pp\\.', 'cf\\.', 'al\\.'];
+
+    // Temporarily replace abbreviations with placeholders
+    let processed = body;
+    const placeholders = [];
+    abbreviations.forEach((abbr, i) => {
+      const regex = new RegExp(abbr, 'gi');
+      processed = processed.replace(regex, (match) => {
+        placeholders.push({ placeholder: `__ABBR${i}_${placeholders.length}__`, original: match });
+        return `__ABBR${i}_${placeholders.length - 1}__`;
+      });
+    });
+
     // Match sentences ending with . ! ? followed by whitespace or end of string
     const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)/g;
-    const matches = body.match(sentenceRegex);
+    const matches = processed.match(sentenceRegex);
+
     if (!matches) return [body.trim()];
-    return matches.map(s => s.trim()).filter(s => s.length > 0);
+
+    // Restore abbreviations
+    return matches.map(s => {
+      let restored = s;
+      placeholders.forEach(p => {
+        restored = restored.replace(p.placeholder, p.original);
+      });
+      return restored.trim();
+    }).filter(s => s.length > 0);
   }, []);
 
   // Helper to get the range of selected sentences
