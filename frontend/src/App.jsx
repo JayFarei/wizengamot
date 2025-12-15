@@ -1138,6 +1138,7 @@ function App() {
             setShowPromptManager(false);
             setPendingCouncilConfig(null);
           }}
+          mode="council"
         />
       )}
       <CommentModal

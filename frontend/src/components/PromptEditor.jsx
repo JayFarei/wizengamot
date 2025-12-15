@@ -5,7 +5,7 @@ import './PromptEditor.css';
 /**
  * Component for creating or editing system prompts.
  */
-export default function PromptEditor({ prompt, onSave, onCancel }) {
+export default function PromptEditor({ prompt, onSave, onCancel, mode }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -49,9 +49,9 @@ export default function PromptEditor({ prompt, onSave, onCancel }) {
       }
 
       if (isEditing) {
-        await api.updatePrompt(prompt.filename, finalContent);
+        await api.updatePrompt(prompt.filename, finalContent, mode);
       } else {
-        await api.createPrompt(title, finalContent);
+        await api.createPrompt(title, finalContent, mode);
       }
 
       onSave();

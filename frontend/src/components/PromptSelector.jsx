@@ -5,7 +5,7 @@ import './PromptSelector.css';
 /**
  * Component for selecting or managing system prompts.
  */
-export default function PromptSelector({ onSelect, onClose }) {
+export default function PromptSelector({ onSelect, onClose, mode = 'council' }) {
   const [prompts, setPrompts] = useState([]);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,7 @@ export default function PromptSelector({ onSelect, onClose }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.listPrompts();
+      const data = await api.listPrompts(mode);
       setPrompts(data);
       if (data.length > 0) {
         setSelectedPrompt(data[0]);

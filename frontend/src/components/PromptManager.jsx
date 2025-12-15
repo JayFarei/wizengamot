@@ -6,7 +6,7 @@ import './PromptManager.css';
 /**
  * Full-featured prompt management component with list, create, edit, and delete.
  */
-export default function PromptManager({ onSelect, onClose }) {
+export default function PromptManager({ onSelect, onClose, mode = 'council' }) {
   const [prompts, setPrompts] = useState([]);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export default function PromptManager({ onSelect, onClose }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.listPrompts();
+      const data = await api.listPrompts(mode);
       setPrompts(data);
       if (data.length > 0 && !selectedPrompt) {
         setSelectedPrompt(data[0]);
@@ -60,7 +60,7 @@ export default function PromptManager({ onSelect, onClose }) {
     }
 
     try {
-      await api.deletePrompt(prompt.filename);
+      await api.deletePrompt(prompt.filename, mode);
       await loadPrompts();
       if (selectedPrompt?.filename === prompt.filename) {
         setSelectedPrompt(prompts[0] || null);
@@ -87,6 +87,7 @@ export default function PromptManager({ onSelect, onClose }) {
         prompt={editingPrompt}
         onSave={handleEditorSave}
         onCancel={handleEditorCancel}
+        mode={mode}
       />
     );
   }
