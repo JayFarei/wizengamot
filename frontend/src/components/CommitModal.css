@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,9 +12,9 @@
 }
 
 .commit-modal {
-  background: white;
+  background: var(--bg-elevated);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px var(--shadow);
   width: 90%;
   max-width: 700px;
   max-height: 80vh;
@@ -25,24 +25,24 @@
 
 .commit-modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
 }
 
 .commit-modal-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .commit-modal-close {
   background: none;
   border: none;
   font-size: 28px;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -55,8 +55,8 @@
 }
 
 .commit-modal-close:hover {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .commit-modal-body {
@@ -66,17 +66,17 @@
 }
 
 .commit-context-summary {
-  background-color: #fff9e6;
+  background-color: var(--highlight-bg);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 20px;
-  border-left: 4px solid #f39c12;
+  border-left: 4px solid var(--highlight-border);
 }
 
 .commit-context-summary strong {
   display: block;
   margin-bottom: 8px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .commit-comments-list {
@@ -85,8 +85,8 @@
 }
 
 .commit-comment-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 12px;
@@ -102,12 +102,12 @@
   gap: 8px;
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .commit-comment-num {
-  background-color: #f39c12;
-  color: white;
+  background-color: var(--warning);
+  color: var(--text-inverse);
   font-weight: 600;
   font-size: 11px;
   width: 20px;
@@ -119,8 +119,8 @@
 }
 
 .commit-comment-stage {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--primary-light);
+  color: var(--primary);
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 4px;
@@ -128,7 +128,7 @@
 }
 
 .commit-comment-model {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 12px;
   font-family: 'Courier New', monospace;
 }
@@ -141,16 +141,16 @@
   display: block;
   margin-bottom: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .commit-highlight-text {
-  background-color: #fff9e6;
-  border-left: 3px solid #ffc107;
+  background-color: var(--highlight-bg);
+  border-left: 3px solid var(--highlight-border);
   padding: 8px 10px;
   margin: 0;
   font-style: italic;
-  color: #555;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -163,23 +163,23 @@
   display: block;
   margin-bottom: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .commit-comment-content p {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .commit-comment-context-note {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   font-style: italic;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-secondary);
 }
 
 .commit-model-selection {
@@ -189,24 +189,25 @@
 .commit-model-selection label {
   display: block;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .commit-model-select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-family: inherit;
   font-size: 14px;
-  background-color: white;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .commit-model-select:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 .commit-question {
@@ -216,35 +217,37 @@
 .commit-question label {
   display: block;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .commit-question-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-family: inherit;
   font-size: 14px;
   resize: vertical;
   min-height: 100px;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .commit-question-input:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 .commit-hint {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
 .commit-modal-footer {
   padding: 16px 20px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-primary);
   display: flex;
   justify-content: flex-end;
   gap: 12px;

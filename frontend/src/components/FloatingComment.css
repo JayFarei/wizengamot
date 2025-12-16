@@ -1,17 +1,17 @@
 .floating-comment {
   position: fixed;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   padding: 12px;
   width: 280px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px var(--shadow);
   z-index: 10000;
 }
 
 .floating-comment.pinned {
-  border-color: #4a90e2;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px var(--shadow);
 }
 
 .floating-comment-header {
@@ -20,12 +20,12 @@
   gap: 8px;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .floating-comment-badge {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 500;
   padding: 2px 6px;
@@ -34,7 +34,7 @@
 
 .floating-comment-model {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -44,7 +44,7 @@
 .btn-unpin {
   background: none;
   border: none;
-  color: #999;
+  color: var(--text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 0;
@@ -58,25 +58,25 @@
 }
 
 .btn-unpin:hover {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .floating-comment-selection {
-  background: #fafafa;
-  border-left: 2px solid #ddd;
+  background: var(--bg-secondary);
+  border-left: 2px solid var(--border-primary);
   padding: 6px 8px;
   margin-bottom: 8px;
   font-size: 11px;
   font-style: italic;
-  color: #666;
+  color: var(--text-secondary);
   border-radius: 0 4px 4px 0;
 }
 
 .floating-comment-content {
   font-size: 13px;
   line-height: 1.5;
-  color: #333;
+  color: var(--text-primary);
   word-break: break-word;
   padding: 4px 0;
 }
@@ -86,7 +86,7 @@
   gap: 8px;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-primary);
 }
 
 .floating-comment-actions button {
@@ -100,35 +100,35 @@
 }
 
 .btn-copy {
-  background: #eef4ff;
-  color: #1f63b7;
-  border: 1px solid #4a90e2;
+  background: var(--primary-lighter);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .btn-copy:hover {
-  background: #deebff;
-  border-color: #357abd;
+  background: var(--primary-light);
+  border-color: var(--primary-hover);
 }
 
 .btn-edit {
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #d0d0d0;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-edit:hover {
-  background: #eee;
-  border-color: #bbb;
+  background: var(--bg-active);
+  border-color: var(--border-secondary);
 }
 
 .btn-delete {
-  background: #fff;
-  color: #d9534f;
-  border: 1px solid #d9534f;
+  background: var(--bg-elevated);
+  color: var(--error);
+  border: 1px solid var(--error);
 }
 
 .btn-delete:hover {
-  background: #d9534f;
+  background: var(--error);
   color: white;
 }
 
@@ -141,18 +141,20 @@
 .floating-comment-textarea {
   width: 100%;
   padding: 8px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-family: inherit;
   font-size: 13px;
   line-height: 1.4;
   resize: vertical;
   min-height: 60px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .floating-comment-textarea:focus {
   outline: none;
-  border-color: #4a90e2;
+  border-color: var(--primary);
 }
 
 .floating-comment-edit-actions {
@@ -171,13 +173,13 @@
 }
 
 .btn-save {
-  background: #4a90e2;
+  background: var(--primary);
   color: white;
   border: none;
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #357abd;
+  background: var(--primary-hover);
 }
 
 .btn-save:disabled {
@@ -186,18 +188,18 @@
 }
 
 .btn-cancel {
-  background: #f5f5f5;
-  color: #666;
-  border: 1px solid #d0d0d0;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-cancel:hover {
-  background: #eee;
+  background: var(--bg-active);
 }
 
 .floating-comment-hint {
   font-size: 10px;
-  color: #999;
+  color: var(--text-muted);
   text-align: center;
 }
 

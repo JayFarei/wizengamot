@@ -52,16 +52,20 @@ export default function MonitorTimeline({ monitor, onSelectUpdate }) {
   };
 
   const getTagColor = (tag) => {
+    // Use CSS variables for theme-aware colors
+    const root = document.documentElement;
+    const getVar = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+
     const colors = {
-      pricing: '#ef4444',
-      security: '#8b5cf6',
-      icp: '#3b82f6',
-      high_impact: '#f59e0b',
-      value_props: '#10b981',
-      themes: '#6366f1',
-      problem: '#ec4899',
+      pricing: getVar('--error') || '#ed8796',
+      security: getVar('--visualiser-primary') || '#c6a0f6',
+      icp: getVar('--primary') || '#8aadf4',
+      high_impact: getVar('--warning') || '#eed49f',
+      value_props: getVar('--success') || '#a6da95',
+      themes: getVar('--tag-lavender') || '#b7bdf8',
+      problem: getVar('--tag-pink') || '#f5bde6',
     };
-    return colors[tag] || '#6b7280';
+    return colors[tag] || getVar('--text-muted') || '#8087a2';
   };
 
   return (

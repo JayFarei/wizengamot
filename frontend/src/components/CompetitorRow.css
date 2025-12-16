@@ -71,28 +71,28 @@
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  background: var(--visualiser-badge-bg);
+  color: var(--visualiser-badge-text);
 }
 
 .tier-badge.tier-minimum {
-  background: rgba(156, 163, 175, 0.15);
-  color: #6b7280;
+  background: var(--bg-hover);
+  color: var(--text-muted);
 }
 
 .tier-badge.tier-suggested {
-  background: rgba(16, 185, 129, 0.15);
-  color: #059669;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .tier-badge.tier-generous {
-  background: rgba(99, 102, 241, 0.15);
-  color: #6366f1;
+  background: var(--visualiser-badge-bg);
+  color: var(--visualiser-badge-text);
 }
 
 .tier-badge.tier-all {
-  background: rgba(245, 158, 11, 0.15);
-  color: #b45309;
+  background: var(--monitor-badge-bg);
+  color: var(--monitor-badge-text);
 }
 
 .competitor-actions {
@@ -126,15 +126,15 @@
 }
 
 .action-btn.edit:hover {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
+  background: var(--primary-lighter);
+  border-color: var(--primary-light);
+  color: var(--primary);
 }
 
 .action-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #dc2626;
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error);
 }
 
 .competitor-row-details {
@@ -176,8 +176,8 @@
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(245, 158, 11, 0.15);
-  color: #b45309;
+  background: var(--monitor-badge-bg);
+  color: var(--monitor-badge-text);
   min-width: 70px;
   text-align: center;
   flex-shrink: 0;
@@ -194,7 +194,7 @@
 }
 
 .page-url:hover {
-  color: #f59e0b;
+  color: var(--monitor-primary);
   text-decoration: underline;
 }
 
@@ -228,8 +228,8 @@
 }
 
 .remove-page-inline-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .remove-page-inline-btn svg {

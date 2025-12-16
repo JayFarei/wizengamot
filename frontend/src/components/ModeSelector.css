@@ -104,7 +104,7 @@
 .mode-card:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .mode-card-council:hover,
@@ -114,7 +114,7 @@
 }
 
 .mode-card-council.selected {
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .mode-card-synthesizer:hover,
@@ -124,12 +124,12 @@
 }
 
 .mode-card-synthesizer.selected {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 3px var(--success-bg);
 }
 
 .mode-card-synthesizer:focus {
   border-color: var(--success);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 3px var(--success-bg);
 }
 
 .mode-card-icon {
@@ -143,13 +143,13 @@
 }
 
 .mode-card-council .mode-card-icon {
-  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: var(--text-inverse);
 }
 
 .mode-card-synthesizer .mode-card-icon {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--success) 0%, var(--success) 100%);
+  color: var(--text-inverse);
 }
 
 .mode-card-icon svg {
@@ -202,54 +202,54 @@
 
 .mode-card-monitor:hover,
 .mode-card-monitor.selected {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--monitor-primary);
+  background: var(--monitor-badge-bg);
 }
 
 .mode-card-monitor.selected {
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 0 3px var(--monitor-badge-bg);
 }
 
 .mode-card-monitor:focus {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  border-color: var(--monitor-primary);
+  box-shadow: 0 0 0 3px var(--monitor-badge-bg);
 }
 
 .mode-card-monitor .mode-card-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--monitor-primary) 0%, var(--monitor-primary-hover) 100%);
+  color: var(--text-inverse);
 }
 
 .mode-card-monitor:hover .feature-tag,
 .mode-card-monitor.selected .feature-tag {
-  background: rgba(245, 158, 11, 0.2);
-  color: #b45309;
+  background: var(--monitor-badge-bg);
+  color: var(--monitor-badge-text);
 }
 
 .mode-card-visualiser:hover,
 .mode-card-visualiser.selected {
-  border-color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--visualiser-primary);
+  background: var(--visualiser-badge-bg);
 }
 
 .mode-card-visualiser.selected {
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 3px var(--visualiser-badge-bg);
 }
 
 .mode-card-visualiser:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  border-color: var(--visualiser-primary);
+  box-shadow: 0 0 0 3px var(--visualiser-badge-bg);
 }
 
 .mode-card-visualiser .mode-card-icon {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--visualiser-primary) 0%, var(--visualiser-primary-hover) 100%);
+  color: var(--text-inverse);
 }
 
 .mode-card-visualiser:hover .feature-tag,
 .mode-card-visualiser.selected .feature-tag {
-  background: rgba(139, 92, 246, 0.2);
-  color: #6d28d9;
+  background: var(--visualiser-badge-bg);
+  color: var(--visualiser-badge-text);
 }
 
 .mode-selector-cancel {

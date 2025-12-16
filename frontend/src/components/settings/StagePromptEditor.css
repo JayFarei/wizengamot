@@ -30,7 +30,7 @@
 .custom-badge {
   font-size: 10px;
   padding: 2px 6px;
-  background: #4a90e2;
+  background: var(--primary);
   color: white;
   border-radius: 10px;
   font-weight: 500;
@@ -61,8 +61,8 @@
 
 .stage-prompt-textarea:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
 }
 
 .stage-prompt-textarea:disabled {
@@ -72,16 +72,16 @@
 
 .stage-prompt-error {
   padding: 8px 12px;
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--error-bg);
+  color: var(--error);
   border-radius: 4px;
   font-size: 13px;
 }
 
 .stage-prompt-success {
   padding: 8px 12px;
-  background: #d4edda;
-  color: #155724;
+  background: var(--success-bg);
+  color: var(--success);
   border-radius: 4px;
   font-size: 13px;
 }
@@ -98,19 +98,3 @@
   gap: 8px;
 }
 
-/* Dark mode */
-[data-theme="dark"] .stage-prompt-textarea {
-  background: var(--bg-secondary, #2a2a2a);
-  border-color: var(--border-color, #3a3a3a);
-  color: var(--text-primary, #e0e0e0);
-}
-
-[data-theme="dark"] .stage-prompt-error {
-  background: #4a1c1c;
-  color: #f8d7da;
-}
-
-[data-theme="dark"] .stage-prompt-success {
-  background: #1c4a1c;
-  color: #d4edda;
-}

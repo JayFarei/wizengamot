@@ -16,8 +16,8 @@
   display: flex;
   gap: 12px;
   padding: 12px;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
   border-radius: 6px;
   margin-bottom: 16px;
 }
@@ -96,8 +96,8 @@
 
 .replacement-select:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
 }
 
 .no-alternatives {
@@ -111,25 +111,9 @@
 
 .replacement-error {
   padding: 8px 12px;
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--error-bg);
+  color: var(--error);
   border-radius: 4px;
   font-size: 13px;
   margin-bottom: 12px;
-}
-
-/* Dark mode */
-[data-theme="dark"] .replacement-warning {
-  background: #3d3200;
-  border-color: #665200;
-}
-
-[data-theme="dark"] .dependency-list li {
-  background: var(--bg-tertiary, #1a1a1a);
-}
-
-[data-theme="dark"] .replacement-select {
-  background: var(--bg-secondary, #2a2a2a);
-  border-color: var(--border-color, #3a3a3a);
-  color: var(--text-primary, #e0e0e0);
 }

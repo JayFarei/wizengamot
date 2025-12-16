@@ -68,7 +68,7 @@
   width: 72px;
   height: 72px;
   margin: 0 auto 20px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--success) 0%, var(--success) 100%);
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -175,7 +175,7 @@
   gap: 10px;
   width: 100%;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--success) 0%, var(--success) 100%);
   border: none;
   border-radius: 8px;
   color: white;
@@ -187,7 +187,7 @@
 
 .synthesizer-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px var(--success-bg);
 }
 
 .synthesizer-submit:disabled {
@@ -496,8 +496,8 @@
 }
 
 .synth-mode-btn.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: #059669;
+  background: linear-gradient(135deg, var(--success) 0%, var(--success) 100%);
+  border-color: var(--success);
   color: white;
 }
 

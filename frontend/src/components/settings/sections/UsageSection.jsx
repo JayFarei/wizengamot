@@ -1,12 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../../api';
 import './UsageSection.css';
 
-const MODE_COLORS = {
-  council: '#4a90e2',
-  synthesizer: '#5cb85c',
-  monitor: '#f0ad4e',
-  visualiser: '#9b59b6',
+// Get theme-aware mode colors from CSS variables
+const getModeColors = () => {
+  const root = document.documentElement;
+  const getVar = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+
+  return {
+    council: getVar('--primary') || '#8aadf4',
+    synthesizer: getVar('--success') || '#a6da95',
+    monitor: getVar('--monitor-primary') || '#f5a97f',
+    visualiser: getVar('--visualiser-primary') || '#c6a0f6',
+  };
 };
 
 const MODE_LABELS = {
@@ -22,6 +28,9 @@ export default function UsageSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hoveredBar, setHoveredBar] = useState(null);
+
+  // Get theme-aware colors (recalculates on each render to pick up theme changes)
+  const modeColors = useMemo(() => getModeColors(), []);
 
   useEffect(() => {
     loadStats();
@@ -138,7 +147,7 @@ export default function UsageSection() {
           <div className="histogram-legend">
             {Object.entries(MODE_LABELS).map(([mode, label]) => (
               <div key={mode} className="legend-item">
-                <span className="legend-color" style={{ backgroundColor: MODE_COLORS[mode] }} />
+                <span className="legend-color" style={{ backgroundColor: modeColors[mode] }} />
                 <span className="legend-label">{label}</span>
               </div>
             ))}
@@ -163,7 +172,7 @@ export default function UsageSection() {
                           className={`histogram-segment ${mode}`}
                           style={{
                             height: `${heightPercent}%`,
-                            backgroundColor: MODE_COLORS[mode],
+                            backgroundColor: modeColors[mode],
                           }}
                         />
                       );
@@ -181,7 +190,7 @@ export default function UsageSection() {
                               <div key={mode} className="tooltip-mode">
                                 <span
                                   className="tooltip-mode-dot"
-                                  style={{ backgroundColor: MODE_COLORS[mode] }}
+                                  style={{ backgroundColor: modeColors[mode] }}
                                 />
                                 {MODE_LABELS[mode]}: {formatCurrency(amount)}
                               </div>
@@ -219,7 +228,7 @@ export default function UsageSection() {
                       className="mode-bar-fill"
                       style={{
                         width: `${percentage}%`,
-                        backgroundColor: MODE_COLORS[mode],
+                        backgroundColor: modeColors[mode],
                       }}
                     />
                   </div>
@@ -246,7 +255,7 @@ export default function UsageSection() {
                   <span className="top-meta">
                     <span
                       className="top-mode-badge"
-                      style={{ backgroundColor: MODE_COLORS[conv.mode] }}
+                      style={{ backgroundColor: modeColors[conv.mode] }}
                     >
                       {MODE_LABELS[conv.mode]}
                     </span>

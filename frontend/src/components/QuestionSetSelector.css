@@ -1,13 +1,13 @@
 .question-set-selector {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-elevated);
   margin-bottom: 16px;
 }
 
 .question-set-selector.loading {
   padding: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -21,7 +21,7 @@
 }
 
 .selector-header:hover {
-  background: #f8f8f8;
+  background: var(--bg-hover);
 }
 
 .selected-info {
@@ -32,19 +32,19 @@
 
 .selected-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .selected-value {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .expand-icon {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   transition: transform 0.2s;
 }
 
@@ -53,7 +53,7 @@
 }
 
 .selector-dropdown {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-primary);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -61,17 +61,17 @@
 .question-set-option {
   padding: 12px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-primary);
   transition: background 0.15s;
 }
 
 .question-set-option:hover {
-  background: #f5f7fa;
+  background: var(--bg-hover);
 }
 
 .question-set-option.selected {
-  background: #e8f0fe;
-  border-left: 3px solid #4a90e2;
+  background: var(--primary-lighter);
+  border-left: 3px solid var(--primary);
 }
 
 .option-header {
@@ -83,56 +83,56 @@
 
 .option-title {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .option-count {
   font-size: 12px;
-  color: #666;
-  background: #f0f0f0;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
   padding: 2px 6px;
   border-radius: 10px;
 }
 
 .option-description {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .selector-actions {
   padding: 8px 12px;
-  border-top: 1px solid #eee;
-  background: #fafafa;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .edit-sets-btn {
   width: 100%;
   padding: 8px;
   background: transparent;
-  border: 1px dashed #ccc;
+  border: 1px dashed var(--border-primary);
   border-radius: 4px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
   transition: all 0.15s;
 }
 
 .edit-sets-btn:hover {
-  border-color: #4a90e2;
-  color: #4a90e2;
-  background: #f5f9ff;
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-lighter);
 }
 
 .selected-preview {
   padding: 8px 12px;
-  border-top: 1px solid #eee;
-  background: #fafafa;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .preview-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   text-transform: uppercase;
   margin-bottom: 4px;
 }
@@ -141,7 +141,7 @@
   margin: 0;
   padding-left: 16px;
   font-size: 12px;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .preview-questions li {
@@ -149,7 +149,7 @@
 }
 
 .preview-questions li.more {
-  color: #888;
+  color: var(--text-muted);
   font-style: italic;
   list-style: none;
   margin-left: -16px;

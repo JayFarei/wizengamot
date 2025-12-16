@@ -216,8 +216,13 @@
 }
 
 .search-result-mode.visualiser {
-  background: rgba(155, 89, 182, 0.15);
-  color: #9b59b6;
+  background: var(--visualiser-badge-bg);
+  color: var(--visualiser-badge-text);
+}
+
+.search-result-mode.monitor {
+  background: var(--monitor-badge-bg);
+  color: var(--monitor-badge-text);
 }
 
 .search-result-meta {

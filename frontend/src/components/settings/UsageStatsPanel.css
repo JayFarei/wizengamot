@@ -44,11 +44,11 @@
 }
 
 .usage-stat-card.credits {
-  border-left: 3px solid #28a745;
+  border-left: 3px solid var(--success);
 }
 
 .usage-stat-card.total {
-  border-left: 3px solid #4a90e2;
+  border-left: 3px solid var(--primary);
 }
 
 .stat-label {

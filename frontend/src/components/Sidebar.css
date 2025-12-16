@@ -217,12 +217,12 @@
 }
 
 .monitor-status-dot.running {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  background: var(--status-running);
+  box-shadow: 0 0 6px var(--status-running-glow);
 }
 
 .monitor-status-dot.paused {
-  background: #f59e0b;
+  background: var(--status-paused);
 }
 
 .monitor-info {
@@ -288,15 +288,15 @@
 }
 
 .monitor-action-btn.play:hover {
-  color: #22c55e;
+  color: var(--status-running);
 }
 
 .monitor-action-btn.pause:hover {
-  color: #f59e0b;
+  color: var(--status-paused);
 }
 
 .monitor-action-btn.delete:hover {
-  color: #ef4444;
+  color: var(--status-error);
 }
 
 /* Old conversation-list - keep for backwards compat */
@@ -573,16 +573,16 @@
 }
 
 .footer-credits.warning {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .footer-credits.warning svg {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 /* Collapsed sidebar warning state - amber background highlight */
 .sidebar.collapsed .footer-credits.warning {
-  background: rgba(245, 158, 11, 0.15);
+  background: var(--warning-bg);
   border-radius: 4px;
   padding: 6px 8px;
 }

@@ -12,14 +12,14 @@
 }
 
 .question-set-editor {
-  background: white;
+  background: var(--bg-elevated);
   border-radius: 8px;
   width: 600px;
   max-width: 90vw;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px var(--shadow);
 }
 
 .editor-header {
@@ -27,27 +27,28 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .editor-header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .close-btn {
   background: none;
   border: none;
   font-size: 24px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px 8px;
   line-height: 1;
 }
 
 .close-btn:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .editor-content {
@@ -64,34 +65,36 @@
   display: block;
   font-weight: 500;
   margin-bottom: 6px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .field-group input[type="text"],
 .field-group textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.15s;
   box-sizing: border-box;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .field-group input:focus,
 .field-group textarea:focus {
   outline: none;
-  border-color: #4a90e2;
+  border-color: var(--primary);
 }
 
 .field-group input:disabled {
-  background: #f5f5f5;
-  color: #888;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
 }
 
 .field-hint {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin-top: 4px;
   display: block;
 }
@@ -104,12 +107,12 @@
   display: block;
   font-weight: 500;
   margin-bottom: 4px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .section-hint {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin: 0 0 12px 0;
 }
 
@@ -137,8 +140,8 @@
   width: 28px;
   height: 28px;
   border: none;
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
@@ -149,8 +152,8 @@
 }
 
 .remove-question-btn:hover:not(:disabled) {
-  background: #fee;
-  color: #d44;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .remove-question-btn:disabled {
@@ -160,9 +163,9 @@
 
 .add-question-btn {
   background: none;
-  border: 1px dashed #ccc;
+  border: 1px dashed var(--border-primary);
   padding: 8px 16px;
-  color: #666;
+  color: var(--text-secondary);
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
@@ -171,15 +174,15 @@
 }
 
 .add-question-btn:hover {
-  border-color: #4a90e2;
-  color: #4a90e2;
-  background: #f5f9ff;
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-lighter);
 }
 
 .editor-error {
-  background: #fee;
-  border: 1px solid #fcc;
-  color: #c44;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error);
   padding: 10px 12px;
   border-radius: 4px;
   margin-top: 16px;
@@ -191,27 +194,27 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid #eee;
-  background: #fafafa;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .cancel-btn {
   padding: 10px 20px;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .cancel-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg-hover);
 }
 
 .save-btn {
   padding: 10px 20px;
-  background: #4a90e2;
+  background: var(--primary);
   border: none;
   border-radius: 4px;
   color: white;
@@ -221,7 +224,7 @@
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #3a7bc8;
+  background: var(--primary-hover);
 }
 
 .save-btn:disabled {

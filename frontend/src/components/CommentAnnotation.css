@@ -1,23 +1,23 @@
 .comment-annotations {
   margin-top: 16px;
   padding: 16px;
-  background-color: #fef9e7;
-  border-left: 4px solid #f39c12;
+  background-color: var(--highlight-bg);
+  border-left: 4px solid var(--highlight-border);
   border-radius: 4px;
 }
 
 .comment-annotations-header {
   margin-bottom: 12px;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .comment-annotation {
-  background-color: white;
+  background-color: var(--bg-elevated);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 12px;
-  border: 1px solid #f0e5d8;
+  border: 1px solid var(--border-primary);
 }
 
 .comment-annotation:last-child {
@@ -26,16 +26,16 @@
 
 .comment-annotation-selection {
   font-style: italic;
-  color: #555;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   padding: 8px;
-  background-color: #fafafa;
+  background-color: var(--bg-secondary);
   border-radius: 4px;
   font-size: 13px;
 }
 
 .comment-annotation-content {
-  color: #333;
+  color: var(--text-primary);
   line-height: 1.5;
   margin-bottom: 8px;
   font-size: 14px;
@@ -49,13 +49,13 @@
 }
 
 .comment-annotation-time {
-  color: #999;
+  color: var(--text-muted);
 }
 
 .comment-annotation-delete {
   background: none;
   border: none;
-  color: #e74c3c;
+  color: var(--error);
   cursor: pointer;
   font-size: 12px;
   padding: 4px 8px;
@@ -64,5 +64,5 @@
 }
 
 .comment-annotation-delete:hover {
-  background-color: #ffebee;
+  background-color: var(--error-bg);
 }

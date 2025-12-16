@@ -8,8 +8,8 @@
 
 /* Text highlight styles */
 .response-content .text-highlight {
-  background: rgba(255, 235, 153, 0.6);
-  border-bottom: 1px solid #e6c84c;
+  background: var(--highlight-bg);
+  border-bottom: 1px solid var(--highlight-border);
   cursor: pointer;
   user-select: text;
   padding: 0 1px;
@@ -19,25 +19,25 @@
 
 .response-content .text-highlight:hover,
 .response-content .text-highlight.hover {
-  background: rgba(255, 223, 102, 0.7);
-  border-bottom-color: #d4a84c;
+  background: var(--highlight-hover);
+  border-bottom-color: var(--highlight-active-border);
 }
 
 .response-content .text-highlight.active {
-  background: rgba(255, 204, 51, 0.8);
-  border-bottom-color: #c9922c;
+  background: var(--highlight-hover);
+  border-bottom-color: var(--highlight-active-border);
 }
 
 /* Animation for highlight appearance */
 @keyframes highlightPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(230, 200, 76, 0.4);
+    box-shadow: 0 0 0 0 var(--highlight-hover);
   }
   70% {
-    box-shadow: 0 0 0 4px rgba(230, 200, 76, 0);
+    box-shadow: 0 0 0 4px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(230, 200, 76, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 

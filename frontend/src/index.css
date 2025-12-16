@@ -8,153 +8,203 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* Catppuccin Latte - Light Mode */
+
   /* Backgrounds */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #fafafa;
-  --bg-elevated: #ffffff;
-  --bg-hover: #f0f0f0;
-  --bg-active: #e3e3e3;
+  --bg-primary: #eff1f5;
+  --bg-secondary: #e6e9ef;
+  --bg-tertiary: #dce0e8;
+  --bg-elevated: #eff1f5;
+  --bg-hover: #ccd0da;
+  --bg-active: #bcc0cc;
 
   /* Text */
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-tertiary: #888888;
-  --text-muted: #999999;
-  --text-inverse: #ffffff;
+  --text-primary: #4c4f69;
+  --text-secondary: #5c5f77;
+  --text-tertiary: #6c6f85;
+  --text-muted: #8c8fa1;
+  --text-inverse: #eff1f5;
 
   /* Borders */
-  --border-primary: #e0e0e0;
-  --border-secondary: #f0f0f0;
-  --border-focus: #4a90e2;
+  --border-primary: #ccd0da;
+  --border-secondary: #bcc0cc;
+  --border-focus: #1e66f5;
 
   /* Primary accent (blue) */
-  --primary: #4a90e2;
-  --primary-hover: #357abd;
-  --primary-light: #e8f4fd;
-  --primary-lighter: #f0f7ff;
+  --primary: #1e66f5;
+  --primary-hover: #1559d4;
+  --primary-light: rgba(30, 102, 245, 0.15);
+  --primary-lighter: rgba(30, 102, 245, 0.08);
 
   /* Semantic colors */
-  --success: #2e7d32;
-  --success-bg: #e8f5e9;
-  --error: #c62828;
-  --error-bg: #ffebee;
-  --error-border: #fecaca;
-  --warning: #d97706;
-  --warning-bg: #fff4d6;
+  --success: #40a02b;
+  --success-bg: rgba(64, 160, 43, 0.15);
+  --error: #d20f39;
+  --error-bg: rgba(210, 15, 57, 0.12);
+  --error-border: rgba(210, 15, 57, 0.25);
+  --warning: #df8e1d;
+  --warning-bg: rgba(223, 142, 29, 0.15);
 
   /* Focus glow */
-  --primary-glow: rgba(74, 144, 226, 0.15);
+  --primary-glow: rgba(30, 102, 245, 0.15);
 
   /* Context stack */
-  --context-stack-bg: #fbfcff;
-  --context-stack-border: #dbe7ff;
+  --context-stack-bg: rgba(30, 102, 245, 0.05);
+  --context-stack-border: rgba(30, 102, 245, 0.2);
 
   /* Stage 3 green */
-  --stage3-bg: #f0fff0;
-  --stage3-border: #c8e6c8;
-  --stage3-text: #2d8a2d;
+  --stage3-bg: rgba(64, 160, 43, 0.1);
+  --stage3-border: rgba(64, 160, 43, 0.3);
+  --stage3-text: #40a02b;
 
   /* Highlights (comments) */
-  --highlight-bg: #fff3cd;
-  --highlight-border: #ffc107;
-  --highlight-hover: #ffe69c;
-  --highlight-active-border: #ff9800;
+  --highlight-bg: rgba(223, 142, 29, 0.25);
+  --highlight-border: #df8e1d;
+  --highlight-hover: rgba(223, 142, 29, 0.35);
+  --highlight-active-border: #fe640b;
 
   /* Aggregate rankings */
-  --aggregate-bg: #f0f7ff;
-  --aggregate-border: #d0e7ff;
-  --aggregate-text: #2a7ae2;
+  --aggregate-bg: rgba(30, 102, 245, 0.08);
+  --aggregate-border: rgba(30, 102, 245, 0.2);
+  --aggregate-text: #1e66f5;
 
   /* Code blocks */
-  --code-bg: #f5f5f5;
+  --code-bg: #e6e9ef;
 
   /* Overlays */
-  --overlay-bg: rgba(0, 0, 0, 0.5);
-  --shadow: rgba(0, 0, 0, 0.15);
+  --overlay-bg: rgba(76, 79, 105, 0.5);
+  --shadow: rgba(76, 79, 105, 0.1);
 
   /* Mode badges */
-  --council-badge-bg: #e3f2fd;
-  --council-badge-text: #1976d2;
-  --synthesizer-badge-bg: #f3e5f5;
-  --synthesizer-badge-text: #7b1fa2;
-  --note-tag-bg: #d1fae5;
-  --note-tag-text: #10b981;
+  --council-badge-bg: rgba(30, 102, 245, 0.15);
+  --council-badge-text: #1e66f5;
+  --synthesizer-badge-bg: rgba(64, 160, 43, 0.15);
+  --synthesizer-badge-text: #40a02b;
+  --note-tag-bg: rgba(64, 160, 43, 0.15);
+  --note-tag-text: #40a02b;
+
+  /* Monitor mode (Peach) */
+  --monitor-primary: #fe640b;
+  --monitor-primary-hover: #e55a0a;
+  --monitor-badge-bg: rgba(254, 100, 11, 0.15);
+  --monitor-badge-text: #b45309;
+
+  /* Visualiser mode (Mauve) */
+  --visualiser-primary: #8839ef;
+  --visualiser-primary-hover: #7730d9;
+  --visualiser-badge-bg: rgba(136, 57, 239, 0.15);
+  --visualiser-badge-text: #6d28d9;
+
+  /* Status indicators */
+  --status-running: #40a02b;
+  --status-running-glow: rgba(64, 160, 43, 0.5);
+  --status-paused: #df8e1d;
+  --status-error: #d20f39;
+
+  /* Tag colors */
+  --tag-lavender: #7287fd;
+  --tag-pink: #ea76cb;
+  --tag-sapphire: #209fb5;
 }
 
 [data-theme="dark"] {
+  /* Catppuccin Macchiato - Dark Mode */
+
   /* Backgrounds */
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-tertiary: #1f2937;
-  --bg-elevated: #252a40;
-  --bg-hover: #2a3050;
-  --bg-active: #343b55;
+  --bg-primary: #24273a;
+  --bg-secondary: #1e2030;
+  --bg-tertiary: #181926;
+  --bg-elevated: #363a4f;
+  --bg-hover: #494d64;
+  --bg-active: #5b6078;
 
   /* Text */
-  --text-primary: #e8e8e8;
-  --text-secondary: #b0b0b0;
-  --text-tertiary: #888888;
-  --text-muted: #666666;
-  --text-inverse: #1a1a2e;
+  --text-primary: #cad3f5;
+  --text-secondary: #b8c0e0;
+  --text-tertiary: #a5adcb;
+  --text-muted: #8087a2;
+  --text-inverse: #24273a;
 
   /* Borders */
-  --border-primary: #3a4055;
-  --border-secondary: #2a3040;
-  --border-focus: #5a9cf2;
+  --border-primary: #494d64;
+  --border-secondary: #363a4f;
+  --border-focus: #8aadf4;
 
   /* Primary accent (blue) */
-  --primary: #5a9cf2;
-  --primary-hover: #6aa8ff;
-  --primary-light: #2a3550;
-  --primary-lighter: #222d45;
+  --primary: #8aadf4;
+  --primary-hover: #a4c4f9;
+  --primary-light: rgba(138, 173, 244, 0.2);
+  --primary-lighter: rgba(138, 173, 244, 0.1);
 
   /* Semantic colors */
-  --success: #66bb6a;
-  --success-bg: #1e3a2c;
-  --error: #ef5350;
-  --error-bg: #3d2424;
-  --error-border: #5a3030;
-  --warning: #f59e0b;
-  --warning-bg: #3d3520;
+  --success: #a6da95;
+  --success-bg: rgba(166, 218, 149, 0.15);
+  --error: #ed8796;
+  --error-bg: rgba(237, 135, 150, 0.15);
+  --error-border: rgba(237, 135, 150, 0.25);
+  --warning: #eed49f;
+  --warning-bg: rgba(238, 212, 159, 0.15);
 
   /* Focus glow */
-  --primary-glow: rgba(90, 156, 242, 0.2);
+  --primary-glow: rgba(138, 173, 244, 0.2);
 
   /* Context stack */
-  --context-stack-bg: #1a2535;
-  --context-stack-border: #2a3a55;
+  --context-stack-bg: rgba(138, 173, 244, 0.08);
+  --context-stack-border: rgba(138, 173, 244, 0.25);
 
   /* Stage 3 green */
-  --stage3-bg: #1a3028;
-  --stage3-border: #2a5040;
-  --stage3-text: #66bb6a;
+  --stage3-bg: rgba(166, 218, 149, 0.12);
+  --stage3-border: rgba(166, 218, 149, 0.25);
+  --stage3-text: #a6da95;
 
   /* Highlights (comments) */
-  --highlight-bg: #4a4020;
-  --highlight-border: #8a7020;
-  --highlight-hover: #5a5030;
-  --highlight-active-border: #aa8030;
+  --highlight-bg: rgba(238, 212, 159, 0.25);
+  --highlight-border: #eed49f;
+  --highlight-hover: rgba(238, 212, 159, 0.35);
+  --highlight-active-border: #f5a97f;
 
   /* Aggregate rankings */
-  --aggregate-bg: #1a2535;
-  --aggregate-border: #2a3545;
-  --aggregate-text: #6aacf2;
+  --aggregate-bg: rgba(138, 173, 244, 0.1);
+  --aggregate-border: rgba(138, 173, 244, 0.2);
+  --aggregate-text: #8aadf4;
 
   /* Code blocks */
-  --code-bg: #1f2937;
+  --code-bg: #1e2030;
 
   /* Overlays */
-  --overlay-bg: rgba(0, 0, 0, 0.7);
-  --shadow: rgba(0, 0, 0, 0.4);
+  --overlay-bg: rgba(24, 25, 38, 0.8);
+  --shadow: rgba(24, 25, 38, 0.3);
 
   /* Mode badges */
-  --council-badge-bg: #1a2f4a;
-  --council-badge-text: #6aacf2;
-  --synthesizer-badge-bg: #2a1f3a;
-  --synthesizer-badge-text: #b47fe0;
-  --note-tag-bg: #1a3028;
-  --note-tag-text: #4ade80;
+  --council-badge-bg: rgba(138, 173, 244, 0.2);
+  --council-badge-text: #8aadf4;
+  --synthesizer-badge-bg: rgba(166, 218, 149, 0.2);
+  --synthesizer-badge-text: #a6da95;
+  --note-tag-bg: rgba(166, 218, 149, 0.2);
+  --note-tag-text: #a6da95;
+
+  /* Monitor mode (Peach) */
+  --monitor-primary: #f5a97f;
+  --monitor-primary-hover: #f7b896;
+  --monitor-badge-bg: rgba(245, 169, 127, 0.2);
+  --monitor-badge-text: #f5a97f;
+
+  /* Visualiser mode (Mauve) */
+  --visualiser-primary: #c6a0f6;
+  --visualiser-primary-hover: #d4b5f8;
+  --visualiser-badge-bg: rgba(198, 160, 246, 0.2);
+  --visualiser-badge-text: #c6a0f6;
+
+  /* Status indicators */
+  --status-running: #a6da95;
+  --status-running-glow: rgba(166, 218, 149, 0.5);
+  --status-paused: #eed49f;
+  --status-error: #ed8796;
+
+  /* Tag colors */
+  --tag-lavender: #b7bdf8;
+  --tag-pink: #f5bde6;
+  --tag-sapphire: #7dc4e4;
 }
 
 * {

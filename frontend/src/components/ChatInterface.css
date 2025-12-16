@@ -86,13 +86,13 @@
 }
 
 .credits-display.warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: #f59e0b;
-  color: #f59e0b;
+  background: var(--warning-bg);
+  border-color: var(--warning);
+  color: var(--warning);
 }
 
 .credits-display.warning svg {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .author-links {
@@ -251,7 +251,7 @@
 
 .message-input:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 .message-input:disabled {
