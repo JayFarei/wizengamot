@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 16 - Catppuccin color scheme for light and dark modes
 Dec 16 - Paste raw text directly into Synthesizer when URLs block scraping
 Dec 15 - Mode-specific prompts (council/synthesizer prompt directories)
 Dec 14 - Usage statistics so that you can track spending by mode and conversation
