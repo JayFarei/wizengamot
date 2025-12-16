@@ -624,7 +624,7 @@ def add_synthesizer_message(
     raw_response: str,
     source_content: str,
     source_type: str,
-    source_url: str,
+    source_url: Optional[str],
     model: Optional[str] = None,
     source_title: Optional[str] = None
 ):

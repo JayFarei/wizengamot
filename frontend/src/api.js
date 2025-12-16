@@ -845,14 +845,15 @@ export const api = {
   // ==========================================================================
 
   /**
-   * Process a URL and generate Zettelkasten notes.
+   * Process a URL or raw text and generate Zettelkasten notes.
    * @param {string} conversationId - The conversation ID
-   * @param {string} url - URL to process
+   * @param {string} url - URL to process (null if using text)
    * @param {string} comment - Optional user comment/guidance
    * @param {string} model - Optional model override
    * @param {boolean} useCouncil - Whether to use multiple models
+   * @param {string} text - Direct text input (null if using URL)
    */
-  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false) {
+  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false, text = null) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/synthesize`,
       {
@@ -861,7 +862,8 @@ export const api = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          url,
+          url: url || null,
+          text: text || null,
           comment,
           model,
           use_council: useCouncil,

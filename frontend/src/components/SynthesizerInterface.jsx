@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
 import NoteViewer from './NoteViewer';
@@ -32,7 +32,11 @@ export default function SynthesizerInterface({
   const [processingStage, setProcessingStage] = useState('');
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('notes'); // 'notes' or 'conversation'
+  const [inputMode, setInputMode] = useState('url'); // 'url' or 'text'
+  const [textContent, setTextContent] = useState('');
   const urlInputRef = useRef(null);
+  const textInputRef = useRef(null);
+  const containerRef = useRef(null);
   const conversationEndRef = useRef(null);
 
   // Get latest synthesizer message with notes
@@ -107,54 +111,100 @@ export default function SynthesizerInterface({
       }
     };
 
-    // Only auto-paste if we don't have notes yet
-    if (!latestNotes) {
+    // Only auto-paste if we don't have notes yet and in URL mode
+    if (!latestNotes && inputMode === 'url') {
       tryPasteClipboard();
     }
-  }, [latestNotes]);
+  }, [latestNotes, inputMode]);
+
+  // Tab key handler to toggle between URL and Text modes
+  const handleGlobalKeyDown = useCallback((e) => {
+    // Tab toggles mode when not processing and no notes yet
+    if (e.key === 'Tab' && !latestNotes && !isProcessing) {
+      e.preventDefault();
+      setInputMode(prev => prev === 'url' ? 'text' : 'url');
+    }
+  }, [latestNotes, isProcessing]);
+
+  // Add global keydown listener for Tab toggle
+  useEffect(() => {
+    if (!latestNotes) {
+      window.addEventListener('keydown', handleGlobalKeyDown);
+      return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }
+  }, [latestNotes, handleGlobalKeyDown]);
+
+  // Focus appropriate input when mode changes
+  useEffect(() => {
+    if (!latestNotes && !isProcessing) {
+      if (inputMode === 'url' && urlInputRef.current) {
+        urlInputRef.current.focus();
+      } else if (inputMode === 'text' && textInputRef.current) {
+        textInputRef.current.focus();
+      }
+    }
+  }, [inputMode, latestNotes, isProcessing]);
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
-    if (!url.trim()) {
-      setError('Please enter a URL');
-      return;
+    // Validate based on input mode
+    if (inputMode === 'url') {
+      if (!url.trim()) {
+        setError('Please enter a URL');
+        return;
+      }
+    } else {
+      if (!textContent.trim()) {
+        setError('Please paste some text');
+        return;
+      }
+      if (textContent.trim().length < 50) {
+        setError('Please paste at least 50 characters of text');
+        return;
+      }
     }
 
     setIsProcessing(true);
     setError(null);
-    setProcessingStage('Detecting content type...');
 
     try {
-      // Detect URL type for stage messaging
-      const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-      const isPodcast = url.includes('pca.st') || url.includes('podcasts.apple.com') ||
-                        url.includes('open.spotify.com/episode') || url.includes('overcast.fm');
-      const isPDF = url.toLowerCase().endsWith('.pdf') ||
-                    url.includes('arxiv.org/abs/') ||
-                    url.includes('arxiv.org/pdf/');
+      if (inputMode === 'url') {
+        setProcessingStage('Detecting content type...');
 
-      if (isYouTube) {
-        setProcessingStage('Downloading and transcribing video...');
-      } else if (isPodcast) {
-        setProcessingStage('Extracting and transcribing podcast...');
-      } else if (isPDF) {
-        setProcessingStage('Parsing PDF document...');
+        // Detect URL type for stage messaging
+        const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+        const isPodcast = url.includes('pca.st') || url.includes('podcasts.apple.com') ||
+                          url.includes('open.spotify.com/episode') || url.includes('overcast.fm');
+        const isPDF = url.toLowerCase().endsWith('.pdf') ||
+                      url.includes('arxiv.org/abs/') ||
+                      url.includes('arxiv.org/pdf/');
+
+        if (isYouTube) {
+          setProcessingStage('Downloading and transcribing video...');
+        } else if (isPodcast) {
+          setProcessingStage('Extracting and transcribing podcast...');
+        } else if (isPDF) {
+          setProcessingStage('Parsing PDF document...');
+        } else {
+          setProcessingStage('Fetching article content...');
+        }
+
+        // Small delay to show the stage
+        await new Promise(resolve => setTimeout(resolve, 500));
       } else {
-        setProcessingStage('Fetching article content...');
+        setProcessingStage('Processing pasted text...');
       }
-
-      // Small delay to show the stage
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       setProcessingStage('Generating Zettelkasten notes...');
 
       const result = await api.synthesize(
         conversation.id,
-        url.trim(),
+        inputMode === 'url' ? url.trim() : null,
         comment.trim() || null,
         null, // Use default model
-        false // Single model mode
+        false, // Single model mode
+        inputMode === 'text' ? textContent.trim() : null
       );
 
       // Update conversation with new message
@@ -165,10 +215,11 @@ export default function SynthesizerInterface({
 
       // Clear inputs
       setUrl('');
+      setTextContent('');
       setComment('');
     } catch (err) {
       console.error('Synthesize error:', err);
-      setError(err.message || 'Failed to process URL');
+      setError(err.message || (inputMode === 'url' ? 'Failed to process URL' : 'Failed to process text'));
     } finally {
       setIsProcessing(false);
       setProcessingStage('');
@@ -313,24 +364,73 @@ export default function SynthesizerInterface({
               </svg>
             </div>
             <h2>Transform Content into Notes</h2>
-            <p>Paste a YouTube video, podcast episode, or article URL to generate atomic Zettelkasten notes</p>
+            <p>
+              {inputMode === 'url'
+                ? 'Paste a YouTube video, podcast episode, or article URL to generate atomic Zettelkasten notes'
+                : 'Paste text content directly when URLs block bot scraping'}
+            </p>
+          </div>
+
+          {/* Mode toggle indicator */}
+          <div className="synth-mode-toggle">
+            <div className="synth-mode-buttons">
+              <button
+                type="button"
+                className={`synth-mode-btn ${inputMode === 'url' ? 'active' : ''}`}
+                onClick={() => setInputMode('url')}
+                disabled={isProcessing}
+              >
+                URL
+              </button>
+              <button
+                type="button"
+                className={`synth-mode-btn ${inputMode === 'text' ? 'active' : ''}`}
+                onClick={() => setInputMode('text')}
+                disabled={isProcessing}
+              >
+                Text
+              </button>
+            </div>
+            <span className="synth-mode-hint">
+              <kbd>Tab</kbd> to switch
+            </span>
           </div>
 
           <form className="synthesizer-form" onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label htmlFor="url-input">URL</label>
-              <input
-                ref={urlInputRef}
-                id="url-input"
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="https://youtube.com/watch?v=... or https://pca.st/episode/... or article URL"
-                disabled={isProcessing}
-                autoFocus
-              />
-            </div>
+            {/* URL input mode */}
+            {inputMode === 'url' && (
+              <div className="input-group">
+                <label htmlFor="url-input">URL</label>
+                <input
+                  ref={urlInputRef}
+                  id="url-input"
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="https://youtube.com/watch?v=... or https://pca.st/episode/... or article URL"
+                  disabled={isProcessing}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {/* Text input mode */}
+            {inputMode === 'text' && (
+              <div className="input-group">
+                <label htmlFor="text-input">Text Content</label>
+                <textarea
+                  ref={textInputRef}
+                  id="text-input"
+                  value={textContent}
+                  onChange={(e) => setTextContent(e.target.value)}
+                  placeholder="Paste your article, transcript, or any text content here..."
+                  rows={8}
+                  disabled={isProcessing}
+                  autoFocus
+                />
+              </div>
+            )}
 
             <div className="input-group">
               <label htmlFor="comment-input">
@@ -360,7 +460,7 @@ export default function SynthesizerInterface({
             <button
               type="submit"
               className="synthesizer-submit"
-              disabled={isProcessing || !url.trim()}
+              disabled={isProcessing || (inputMode === 'url' ? !url.trim() : !textContent.trim())}
             >
               {isProcessing ? (
                 <>
@@ -392,6 +492,9 @@ export default function SynthesizerInterface({
               </li>
               <li>
                 <strong>Articles</strong> - Web pages are parsed via Firecrawl API
+              </li>
+              <li>
+                <strong>Pasted Text</strong> - Direct text input when URLs block bot scraping
               </li>
             </ul>
           </div>

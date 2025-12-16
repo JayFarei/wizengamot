@@ -1050,8 +1050,9 @@ async def update_default_prompt(request: UpdateDefaultPromptRequest):
 # =============================================================================
 
 class SynthesizeRequest(BaseModel):
-    """Request to process a URL in synthesizer mode."""
-    url: str
+    """Request to process a URL or raw text in synthesizer mode."""
+    url: Optional[str] = None
+    text: Optional[str] = None  # Direct text input when URL scraping is blocked
     comment: Optional[str] = None
     model: Optional[str] = None
     use_council: bool = False
@@ -1060,8 +1061,14 @@ class SynthesizeRequest(BaseModel):
 @app.post("/api/conversations/{conversation_id}/synthesize")
 async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     """
-    Process a URL and generate Zettelkasten notes.
+    Process a URL or raw text and generate Zettelkasten notes.
     """
+    # Validate input: either url OR text must be provided, not both
+    if not request.url and not request.text:
+        raise HTTPException(status_code=400, detail="Either URL or text must be provided")
+    if request.url and request.text:
+        raise HTTPException(status_code=400, detail="Provide either URL or text, not both")
+
     # Verify conversation exists and is synthesizer mode
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
@@ -1073,11 +1080,22 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     # Check if this is the first message (for title generation)
     is_first_message = len(conversation.get("messages", [])) == 0
 
-    # Add user message
-    storage.add_synthesizer_user_message(conversation_id, request.url, request.comment)
+    # Add user message (use text preview for text input, url for url input)
+    source_label = request.url if request.url else f"[Pasted text: {len(request.text)} chars]"
+    storage.add_synthesizer_user_message(conversation_id, source_label, request.comment)
 
-    # Fetch content from URL
-    content_result = await content.fetch_content(request.url)
+    # Get content either from URL or direct text input
+    if request.text:
+        # Direct text input, skip URL fetching
+        content_result = {
+            "source_type": "text",
+            "content": request.text,
+            "title": "Pasted Text",
+            "error": None
+        }
+    else:
+        # Fetch content from URL
+        content_result = await content.fetch_content(request.url)
 
     if content_result.get("error"):
         raise HTTPException(status_code=400, detail=content_result["error"])
