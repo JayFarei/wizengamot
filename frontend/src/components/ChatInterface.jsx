@@ -21,9 +21,12 @@ export default function ChatInterface({
   onSetActiveComment,
   onAddContextSegment,
   onRemoveContextSegment,
+  onContinueThread,
+  onSelectThread,
 }) {
   const [input, setInput] = useState('');
   const [credits, setCredits] = useState(null);
+  const [threadInputs, setThreadInputs] = useState({}); // { threadId: inputValue }
   const messagesEndRef = useRef(null);
 
   // Fetch credits on mount when showing empty state
@@ -61,6 +64,50 @@ export default function ChatInterface({
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  // Thread continuation handlers
+  const handleThreadInputChange = (threadId, value) => {
+    setThreadInputs((prev) => ({ ...prev, [threadId]: value }));
+  };
+
+  const handleThreadSubmit = (threadId) => {
+    const inputValue = threadInputs[threadId]?.trim();
+    if (!inputValue || isLoading) return;
+
+    onContinueThread(threadId, inputValue);
+    setThreadInputs((prev) => ({ ...prev, [threadId]: '' }));
+  };
+
+  const handleThreadKeyDown = (e, threadId) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleThreadSubmit(threadId);
+    }
+  };
+
+  // Check if a message is the last message of its thread
+  const isLastMessageOfThread = (messages, index, threadId) => {
+    if (!threadId) return false;
+
+    // Look at all subsequent messages
+    for (let i = index + 1; i < messages.length; i++) {
+      if (messages[i].thread_id === threadId) {
+        return false; // There's another message in this thread after
+      }
+    }
+    return true;
+  };
+
+  // Handle clicking on follow-up-user to open context sidebar
+  const handleFollowUpClick = (msg) => {
+    if (!onSelectThread || !msg.thread_id) return;
+
+    onSelectThread(msg.thread_id, {
+      model: msg.model,
+      comments: msg.comments || [],
+      contextSegments: msg.context_segments || [],
+    });
   };
 
   if (!conversation) {
@@ -225,8 +272,15 @@ export default function ChatInterface({
                 </div>
               ) : msg.role === 'follow-up-user' ? (
                 <div className="user-message follow-up-message">
-                  <div className="message-label">
+                  <div
+                    className="message-label clickable"
+                    onClick={() => handleFollowUpClick(msg)}
+                    title="Click to view thread context"
+                  >
                     You <span className="follow-up-badge">Follow-up to {getModelShortName(msg.model)}</span>
+                    {(msg.comments?.length > 0 || msg.context_segments?.length > 0) && (
+                      <span className="context-indicator">View context</span>
+                    )}
                   </div>
                   <div className="message-content">
                     {msg.comments && msg.comments.length > 0 && (
@@ -278,19 +332,47 @@ export default function ChatInterface({
                   </div>
                 </div>
               ) : msg.role === 'follow-up-assistant' ? (
-                <div className="assistant-message follow-up-response">
-                  <div className="message-label">{getModelShortName(msg.model)}</div>
-                  {msg.loading ? (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Thinking...</span>
-                    </div>
-                  ) : (
-                    <div className="follow-up-content markdown-content">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <>
+                  <div className="assistant-message follow-up-response">
+                    <div className="message-label">{getModelShortName(msg.model)}</div>
+                    {msg.loading ? (
+                      <div className="stage-loading">
+                        <div className="spinner"></div>
+                        <span>Thinking...</span>
+                      </div>
+                    ) : (
+                      <div className="follow-up-content markdown-content">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                  {/* Thread continuation input - shows after last message of each thread */}
+                  {!msg.loading && msg.thread_id && isLastMessageOfThread(conversation.messages, index, msg.thread_id) && (
+                    <div className="thread-continue-input">
+                      <div className="thread-continue-label">
+                        Continue with {getModelShortName(msg.model)}
+                      </div>
+                      <div className="thread-continue-form">
+                        <textarea
+                          className="thread-continue-textarea"
+                          placeholder="Type your follow-up..."
+                          value={threadInputs[msg.thread_id] || ''}
+                          onChange={(e) => handleThreadInputChange(msg.thread_id, e.target.value)}
+                          onKeyDown={(e) => handleThreadKeyDown(e, msg.thread_id)}
+                          disabled={isLoading}
+                          rows={2}
+                        />
+                        <button
+                          className="thread-continue-submit"
+                          onClick={() => handleThreadSubmit(msg.thread_id)}
+                          disabled={!threadInputs[msg.thread_id]?.trim() || isLoading}
+                        >
+                          Send
+                        </button>
+                      </div>
                     </div>
                   )}
-                </div>
+                </>
               ) : (
                 <div className="assistant-message">
                   <div className="message-label">LLM Council</div>

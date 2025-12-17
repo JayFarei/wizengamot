@@ -17,6 +17,9 @@ export default function CouncilDiscussionView({
   onAddContextSegment,
   onRemoveContextSegment,
   onOpenSettings,
+  onContinueThread,
+  onSelectThread,
+  isLoading,
 }) {
   const [viewMode, setViewMode] = useState('stages');
   const [activeStage, setActiveStage] = useState(3); // Default to final answer
@@ -429,6 +432,9 @@ export default function CouncilDiscussionView({
         <CouncilConversationView
           messages={conversation.messages}
           getModelShortName={getModelShortName}
+          onContinueThread={onContinueThread}
+          onSelectThread={onSelectThread}
+          isLoading={isLoading}
         />
       )}
 

@@ -415,3 +415,104 @@
 .follow-up-response .follow-up-content p:last-child {
   margin-bottom: 0;
 }
+
+/* Clickable message label for opening context sidebar */
+.message-label.clickable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-label.clickable:hover {
+  color: var(--primary);
+}
+
+.context-indicator {
+  font-size: 11px;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.message-label.clickable:hover .context-indicator {
+  opacity: 1;
+}
+
+/* Thread continuation input */
+.thread-continue-input {
+  margin-top: 12px;
+  margin-left: 48px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+
+.thread-continue-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.thread-continue-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.thread-continue-textarea {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 42px;
+  max-height: 120px;
+  transition: border-color 0.2s;
+}
+
+.thread-continue-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.thread-continue-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.thread-continue-submit {
+  padding: 10px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.thread-continue-submit:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.thread-continue-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.thread-continue-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

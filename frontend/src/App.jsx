@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
 import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
+import ThreadContextSidebar from './components/ThreadContextSidebar';
 import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
@@ -47,6 +48,10 @@ function App() {
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [contextSegments, setContextSegments] = useState([]);
+
+  // Thread continuation state
+  const [activeThreadContext, setActiveThreadContext] = useState(null);
+  // Structure: { threadId, model, comments: [], contextSegments: [] }
 
   // Sidebar collapse states
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
@@ -942,13 +947,20 @@ function App() {
         }
       );
 
-      // Update the assistant message with the actual response
+      // Update both messages with the thread_id and actual response
       setCurrentConversation((prev) => {
         const messages = [...prev.messages];
+        // Find and update the follow-up-user message (second to last)
+        const userMsgIdx = messages.length - 2;
+        if (messages[userMsgIdx]?.role === 'follow-up-user') {
+          messages[userMsgIdx].thread_id = thread.id;
+        }
+        // Update the assistant message (last)
         const lastMsg = messages[messages.length - 1];
         if (lastMsg.role === 'follow-up-assistant') {
           lastMsg.content = thread.messages[1]?.content || 'No response received';
           lastMsg.loading = false;
+          lastMsg.thread_id = thread.id;
         }
         return { ...prev, messages };
       });
@@ -967,6 +979,89 @@ function App() {
       }));
       setIsLoading(false);
     }
+  };
+
+  // Continue an existing thread with a new message
+  const handleContinueThread = async (threadId, question) => {
+    if (!currentConversationId || !threadId || !question.trim()) return;
+
+    setIsLoading(true);
+    try {
+      // Find the thread's model from existing messages
+      const existingMessages = currentConversation?.messages || [];
+      const threadMessage = existingMessages.find(
+        (m) => m.thread_id === threadId && m.role === 'follow-up-assistant'
+      );
+      const model = threadMessage?.model || 'unknown';
+
+      // Optimistically add user message
+      const followUpUserMessage = {
+        role: 'follow-up-user',
+        content: question,
+        thread_id: threadId,
+        model: model,
+      };
+
+      setCurrentConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, followUpUserMessage],
+      }));
+
+      // Add loading placeholder for assistant response
+      const followUpAssistantMessage = {
+        role: 'follow-up-assistant',
+        content: null,
+        model: model,
+        thread_id: threadId,
+        loading: true,
+      };
+
+      setCurrentConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, followUpAssistantMessage],
+      }));
+
+      // Call the API to continue the thread
+      const updatedThread = await api.continueThread(
+        currentConversationId,
+        threadId,
+        question
+      );
+
+      // Update the assistant message with the actual response
+      setCurrentConversation((prev) => {
+        const messages = [...prev.messages];
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.role === 'follow-up-assistant' && lastMsg.thread_id === threadId) {
+          // Get the last assistant message from the thread response
+          const assistantMessages = updatedThread.messages.filter((m) => m.role === 'assistant');
+          const lastAssistantMsg = assistantMessages[assistantMessages.length - 1];
+          lastMsg.content = lastAssistantMsg?.content || 'No response received';
+          lastMsg.loading = false;
+        }
+        return { ...prev, messages };
+      });
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to continue thread:', error);
+      // Remove the optimistic messages on error
+      setCurrentConversation((prev) => ({
+        ...prev,
+        messages: prev.messages.filter(
+          (m) => !(m.thread_id === threadId && m.loading)
+        ),
+      }));
+      setIsLoading(false);
+    }
+  };
+
+  // Open thread context sidebar
+  const handleSelectThread = (threadId, context) => {
+    setActiveThreadContext({
+      threadId,
+      ...context,
+    });
   };
 
   // Get available models for thread creation
@@ -1090,6 +1185,9 @@ function App() {
             setSettingsDefaultTab(tab || 'api');
             setShowSettingsModal(true);
           }}
+          onContinueThread={handleContinueThread}
+          onSelectThread={handleSelectThread}
+          isLoading={isLoading}
         />
       ) : (
         <ChatInterface
@@ -1105,6 +1203,8 @@ function App() {
           onSetActiveComment={handleSetActiveComment}
           onAddContextSegment={handleAddContextSegment}
           onRemoveContextSegment={handleRemoveContextSegment}
+          onContinueThread={handleContinueThread}
+          onSelectThread={handleSelectThread}
         />
       )}
       {showModeSelector && (
@@ -1167,6 +1267,14 @@ function App() {
           onToggleContextPreview={() => setShowContextPreview(!showContextPreview)}
           activeCommentId={activeCommentId}
           onRemoveContextSegment={handleRemoveContextSegment}
+        />
+      )}
+      {activeThreadContext && (
+        <ThreadContextSidebar
+          context={activeThreadContext}
+          allComments={comments}
+          onClose={() => setActiveThreadContext(null)}
+          onCommentClick={handleSelectComment}
         />
       )}
       {!showCommitSidebar && hasContextItems && (
