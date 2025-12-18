@@ -14,6 +14,7 @@ import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
 import ImageGallery from './components/ImageGallery';
+import ConversationGallery from './components/ConversationGallery';
 import SearchModal from './components/SearchModal';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
@@ -63,6 +64,10 @@ function App() {
 
   // Image gallery state
   const [showImageGallery, setShowImageGallery] = useState(false);
+
+  // Conversation gallery states (Council and Notes)
+  const [showCouncilGallery, setShowCouncilGallery] = useState(false);
+  const [showNotesGallery, setShowNotesGallery] = useState(false);
 
   // Title animation state
   const [animatingTitleId, setAnimatingTitleId] = useState(null);
@@ -204,6 +209,9 @@ function App() {
         } else if (e.key === 'd') {
           e.preventDefault();
           handleNewConversation();
+        } else if (e.key === '.') {
+          e.preventDefault();
+          setShowSettingsModal(s => !s);
         }
       }
     };
@@ -341,14 +349,59 @@ function App() {
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
     setShowImageGallery(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
   };
 
   const handleOpenImageGallery = () => {
     setShowImageGallery(true);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+  };
+
+  const handleOpenCouncilGallery = () => {
+    setShowCouncilGallery(true);
+    setShowNotesGallery(false);
+    setShowImageGallery(false);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
+  };
+
+  const handleOpenNotesGallery = () => {
+    setShowNotesGallery(true);
+    setShowCouncilGallery(false);
+    setShowImageGallery(false);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
+  };
+
+  const handleNewCouncilFromGallery = () => {
+    setShowCouncilGallery(false);
+    setShowConfigModal(true);
+  };
+
+  const handleNewNoteFromGallery = async () => {
+    setShowNotesGallery(false);
+    try {
+      const newConv = await api.createConversation(null, null, 'synthesizer', null);
+      setConversations([
+        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'synthesizer' },
+        ...conversations,
+      ]);
+      setCurrentConversationId(newConv.id);
+      setCurrentMonitorId(null);
+      setCurrentMonitor(null);
+    } catch (error) {
+      console.error('Failed to create synthesizer conversation:', error);
+    }
   };
 
   const handleModeSelect = async (mode) => {
@@ -1204,6 +1257,8 @@ function App() {
         onDeleteMonitor={handleDeleteMonitor}
         visualiserSettings={visualiserSettings}
         onOpenImageGallery={handleOpenImageGallery}
+        onOpenCouncilGallery={handleOpenCouncilGallery}
+        onOpenNotesGallery={handleOpenNotesGallery}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
@@ -1221,7 +1276,30 @@ function App() {
           />
         )}
       </div>
-      {showImageGallery ? (
+      {showCouncilGallery ? (
+        <ConversationGallery
+          mode="council"
+          items={conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')}
+          onSelectConversation={(id) => {
+            setShowCouncilGallery(false);
+            handleSelectConversation(id);
+          }}
+          onClose={() => setShowCouncilGallery(false)}
+          onNewItem={handleNewCouncilFromGallery}
+          promptLabels={promptLabels}
+        />
+      ) : showNotesGallery ? (
+        <ConversationGallery
+          mode="synthesizer"
+          items={conversations.filter(c => c.mode === 'synthesizer')}
+          onSelectConversation={(id) => {
+            setShowNotesGallery(false);
+            handleSelectConversation(id);
+          }}
+          onClose={() => setShowNotesGallery(false)}
+          onNewItem={handleNewNoteFromGallery}
+        />
+      ) : showImageGallery ? (
         <ImageGallery
           onSelectConversation={(id) => {
             setShowImageGallery(false);

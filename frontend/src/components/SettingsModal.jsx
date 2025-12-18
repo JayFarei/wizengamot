@@ -44,6 +44,18 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
     }
   }, [isOpen, defaultTab]);
 
+  // Handle Escape key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   const loadAllSettings = async () => {
     try {
       const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData] = await Promise.all([
