@@ -1569,6 +1569,150 @@ def extract_conversation_content(conversation: Dict) -> str:
     return "\n\n".join(parts)
 
 
+def compile_highlighted_content(
+    source_conv: Dict,
+    comments: List[Dict],
+    context_segments: List[Dict]
+) -> str:
+    """
+    Compile content for visualisation with emphasis on highlighted sections.
+    Places highlights first with explicit instructions to feature them prominently.
+    """
+    parts = []
+
+    # Section 1: User Highlights (most important, placed first)
+    if comments:
+        parts.append("## USER HIGHLIGHTS AND ANNOTATIONS")
+        parts.append("")
+        parts.append("The user has marked these specific sections as important.")
+        parts.append("These should feature PROMINENTLY in the visualization:")
+        parts.append("")
+
+        for i, comment in enumerate(comments, 1):
+            parts.append(f"### Highlight {i}")
+            selection = comment.get("selection", "")
+            if selection:
+                parts.append(f'Selected text: "{selection}"')
+            annotation = comment.get("content", "")
+            if annotation:
+                parts.append(f'User annotation: "{annotation}"')
+            parts.append("")
+
+    # Section 2: Context Stack
+    if context_segments:
+        parts.append("## ADDITIONAL CONTEXT SEGMENTS")
+        parts.append("")
+        parts.append("The user also pinned these larger sections for reference:")
+        parts.append("")
+
+        for i, segment in enumerate(context_segments, 1):
+            label = segment.get("label", f"Segment {i}")
+            content = segment.get("content", "")
+            parts.append(f"### {label}")
+            parts.append(content.strip())
+            parts.append("")
+
+    # Section 3: Source conversation summary
+    conv_content = extract_conversation_content(source_conv)
+    parts.append("## SOURCE CONVERSATION")
+    parts.append("")
+    parts.append(conv_content)
+
+    return "\n".join(parts)
+
+
+class VisualiseFromContextRequest(BaseModel):
+    """Request to create visualisation from highlighted context."""
+    comments: List[Dict[str, Any]]
+    context_segments: List[Dict[str, Any]] = []
+    style: str = "bento"
+    model: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/visualise-context")
+async def visualise_from_context(conversation_id: str, request: VisualiseFromContextRequest):
+    """Create a visualisation from highlighted context in a conversation."""
+
+    # Verify source conversation exists
+    source_conv = storage.get_conversation(conversation_id)
+    if source_conv is None:
+        raise HTTPException(status_code=404, detail="Source conversation not found")
+
+    # Validate style
+    available_styles = diagram_styles.list_diagram_styles()
+    if request.style not in available_styles:
+        raise HTTPException(status_code=400, detail=f"Invalid style. Must be one of: {list(available_styles.keys())}")
+
+    # Compile context with emphasis on highlights
+    source_content = compile_highlighted_content(
+        source_conv,
+        request.comments,
+        request.context_segments
+    )
+
+    # Create new visualiser conversation
+    new_conv_id = str(uuid.uuid4())
+    storage.create_conversation(new_conv_id, mode='visualiser')
+
+    # Add user message
+    source_title = source_conv.get('title', 'Highlighted Content')
+    storage.add_visualiser_user_message(
+        new_conv_id,
+        source_type='conversation',
+        source_id=conversation_id,
+        source_url=None,
+        source_text=None,
+        source_title=source_title,
+        style=request.style
+    )
+
+    # Generate diagram
+    result = await visualiser.generate_diagram(
+        source_content,
+        request.style,
+        request.model
+    )
+
+    if result.get("error"):
+        # Clean up the conversation we created
+        storage.delete_conversation(new_conv_id)
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    # Save assistant message
+    storage.add_visualiser_message(
+        new_conv_id,
+        result["image_id"],
+        result["image_path"],
+        request.style,
+        source_content,
+        result.get("model")
+    )
+
+    # Generate title
+    generated_title = await generate_visualiser_title(source_content)
+    storage.update_conversation_title(new_conv_id, generated_title)
+
+    # Track cost
+    gen_id = result.get("generation_id")
+    if gen_id:
+        try:
+            await asyncio.sleep(1.5)
+            cost = await openrouter.get_generation_cost(gen_id)
+            if cost and cost > 0:
+                storage.update_conversation_cost(new_conv_id, cost)
+        except Exception as e:
+            print(f"Error tracking visualise-context cost: {e}")
+
+    return {
+        "conversation_id": new_conv_id,
+        "conversation_title": generated_title,
+        "image_id": result["image_id"],
+        "image_url": f"/api/images/{result['image_id']}",
+        "style": request.style,
+        "model": result.get("model")
+    }
+
+
 @app.get("/api/images")
 async def list_all_images(limit: int = 100, offset: int = 0):
     """List all visualiser images with metadata for the gallery view."""

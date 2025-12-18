@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { computeTokenBreakdown } from '../utils/tokenizer';
+import { api } from '../api';
 import './CommitSidebar.css';
 
 /**
  * Sidebar for managing comments and creating follow-up threads
  * Shows all comments, allows editing/deletion, jumping to highlights,
- * and includes councilor selector with input box
+ * and includes councilor selector with input box.
+ * Also supports creating visualisations from highlighted context.
  */
 function CommitSidebar({
   comments,
@@ -22,6 +24,7 @@ function CommitSidebar({
   onToggleContextPreview,
   activeCommentId,
   onRemoveContextSegment,
+  onVisualise,
 }) {
   const [selectedModel, setSelectedModel] = useState(defaultChairman || '');
   const [followUpQuestion, setFollowUpQuestion] = useState('');
@@ -31,8 +34,14 @@ function CommitSidebar({
   const [isStackCollapsed, setIsStackCollapsed] = useState(false);
   const [stackToggledManually, setStackToggledManually] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Visualisation state
+  const [selectedStyle, setSelectedStyle] = useState('bento');
+  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
+  const [diagramStyles, setDiagramStyles] = useState([]);
+  const [isVisualising, setIsVisualising] = useState(false);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const styleDropdownRef = useRef(null);
   const editTextareaRef = useRef(null);
 
   useEffect(() => {
@@ -43,10 +52,13 @@ function CommitSidebar({
   }, [defaultChairman, selectedModel]);
 
   useEffect(() => {
-    // Close dropdown when clicking outside
+    // Close dropdowns when clicking outside
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowModelDropdown(false);
+      }
+      if (styleDropdownRef.current && !styleDropdownRef.current.contains(e.target)) {
+        setShowStyleDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -60,10 +72,38 @@ function CommitSidebar({
     }
   }, [editingCommentId]);
 
+  // Load diagram styles on mount
+  useEffect(() => {
+    const loadStyles = async () => {
+      try {
+        const styles = await api.getDiagramStyles();
+        const styleList = Object.entries(styles).map(([id, s]) => ({
+          id,
+          name: s.name,
+          icon: s.icon,
+        }));
+        setDiagramStyles(styleList);
+      } catch (err) {
+        console.error('Failed to load diagram styles:', err);
+      }
+    };
+    loadStyles();
+  }, []);
+
   const handleSubmit = () => {
     if (followUpQuestion.trim() && selectedModel) {
       onCommit(selectedModel, followUpQuestion.trim());
       setFollowUpQuestion('');
+    }
+  };
+
+  const handleVisualise = async () => {
+    if (!onVisualise || !hasContext) return;
+    setIsVisualising(true);
+    try {
+      await onVisualise(selectedStyle);
+    } finally {
+      setIsVisualising(false);
     }
   };
 
@@ -457,13 +497,56 @@ function CommitSidebar({
           <div className="input-hint">
             ⌘/Ctrl+Enter to send
           </div>
-          <button
-            className="btn-commit"
-            onClick={handleSubmit}
-            disabled={!followUpQuestion.trim() || !selectedModel || !hasContext}
-          >
-            Start Conversation
-          </button>
+          <div className="input-actions-buttons">
+            {onVisualise && (
+              <div className="visualise-action">
+                <div className="style-selector" ref={styleDropdownRef}>
+                  <button
+                    className="style-selector-button"
+                    onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+                    title="Select diagram style"
+                    disabled={isVisualising}
+                  >
+                    <span className="style-name">
+                      {diagramStyles.find(s => s.id === selectedStyle)?.name || 'Bento'}
+                    </span>
+                    <span className="dropdown-arrow">▼</span>
+                  </button>
+                  {showStyleDropdown && (
+                    <div className="style-dropdown">
+                      {diagramStyles.map((style) => (
+                        <div
+                          key={style.id}
+                          className={`style-option ${selectedStyle === style.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedStyle(style.id);
+                            setShowStyleDropdown(false);
+                          }}
+                        >
+                          {style.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="btn-visualise"
+                  onClick={handleVisualise}
+                  disabled={isVisualising || !hasContext}
+                  title="Create a visual diagram from your highlights"
+                >
+                  {isVisualising ? 'Creating...' : 'Visualise'}
+                </button>
+              </div>
+            )}
+            <button
+              className="btn-commit"
+              onClick={handleSubmit}
+              disabled={!followUpQuestion.trim() || !selectedModel || !hasContext}
+            >
+              Start Conversation
+            </button>
+          </div>
         </div>
       </div>
 

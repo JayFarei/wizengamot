@@ -966,6 +966,40 @@ export const api = {
   },
 
   /**
+   * Create a visualisation from highlighted context in a conversation.
+   * @param {string} conversationId - The source conversation ID
+   * @param {Array} comments - Array of comment/highlight objects
+   * @param {Array} contextSegments - Array of pinned context segments
+   * @param {string} style - Diagram style (default: 'bento')
+   * @param {string} [model] - Optional model override
+   * @returns {Promise<{conversation_id, conversation_title, image_id, image_url, style, model}>}
+   */
+  async visualiseFromContext(conversationId, comments, contextSegments = [], style = 'bento', model = null) {
+    const body = {
+      comments,
+      context_segments: contextSegments,
+      style,
+    };
+    if (model) body.model = model;
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/visualise-context`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to create visualisation from context');
+    }
+    return response.json();
+  },
+
+  /**
    * Edit/regenerate a diagram to create a new version.
    * @param {string} conversationId - The conversation ID
    * @param {string} editPrompt - Description of changes to make

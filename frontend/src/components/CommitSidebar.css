@@ -756,6 +756,116 @@
   cursor: not-allowed;
 }
 
+/* Visualise action styles */
+.input-actions-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.visualise-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.style-selector {
+  position: relative;
+}
+
+.style-selector-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px 0 0 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.style-selector-button:hover:not(:disabled) {
+  border-color: var(--border-secondary);
+  background: var(--bg-hover);
+}
+
+.style-selector-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.style-name {
+  flex: 1;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.style-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  box-shadow: 0 -2px 8px var(--shadow);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.style-option {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.style-option:last-child {
+  border-bottom: none;
+}
+
+.style-option:hover {
+  background: var(--bg-hover);
+}
+
+.style-option.selected {
+  background: var(--primary-lighter);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.btn-visualise {
+  padding: 8px 12px;
+  background: var(--success);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-visualise:hover:not(:disabled) {
+  background: var(--success-dark);
+}
+
+.btn-visualise:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .context-preview {
   border-top: 1px solid var(--border-primary);
   padding: 12px 14px;

@@ -1006,6 +1006,52 @@ function App() {
     }
   };
 
+  // Create a visualisation from highlighted context
+  const handleVisualiseFromContext = async (style) => {
+    if (!currentConversationId || (comments.length === 0 && contextSegments.length === 0 && autoContextSegments.length === 0)) return;
+
+    setIsLoading(true);
+    try {
+      // Combine context segments
+      const combinedSegments = [...contextSegments, ...autoContextSegments];
+
+      // Call the new API endpoint
+      const result = await api.visualiseFromContext(
+        currentConversationId,
+        comments,
+        combinedSegments,
+        style
+      );
+
+      // Create conversation object for the new visualiser conversation
+      const newConv = {
+        id: result.conversation_id,
+        created_at: new Date().toISOString(),
+        message_count: 1,
+        title: result.conversation_title || 'Visualisation',
+        mode: 'visualiser',
+      };
+
+      // Add to conversations list
+      setConversations((prev) => [newConv, ...prev]);
+
+      // Clear context and close sidebar
+      setShowCommitSidebar(false);
+      setComments([]);
+      setContextSegments([]);
+      setActiveCommentId(null);
+
+      // Navigate to the new visualiser conversation
+      setCurrentConversationId(result.conversation_id);
+      setCurrentConversation(null); // Will be fetched by useEffect
+
+    } catch (error) {
+      console.error('Failed to create visualisation:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Continue an existing thread with a new message
   const handleContinueThread = async (threadId, question) => {
     if (!currentConversationId || !threadId || !question.trim()) return;
@@ -1319,6 +1365,7 @@ function App() {
           onToggleContextPreview={() => setShowContextPreview(!showContextPreview)}
           activeCommentId={activeCommentId}
           onRemoveContextSegment={handleRemoveContextSegment}
+          onVisualise={handleVisualiseFromContext}
         />
       )}
       {activeThreadContext && (
