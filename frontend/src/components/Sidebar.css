@@ -186,6 +186,34 @@
   height: 14px;
 }
 
+/* Section header action button (e.g., gallery icon) */
+.sidebar .section-header-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0.6;
+}
+
+.sidebar .section-header-action:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.sidebar .section-header-action svg {
+  width: 14px;
+  height: 14px;
+}
+
 .section-list {
   padding: 0 8px 4px;
 }

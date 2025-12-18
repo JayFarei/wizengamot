@@ -12,6 +12,7 @@ import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
+import ImageGallery from './components/ImageGallery';
 import SearchModal from './components/SearchModal';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
@@ -58,6 +59,9 @@ function App() {
 
   // Search modal state
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // Image gallery state
+  const [showImageGallery, setShowImageGallery] = useState(false);
 
   // Title animation state
   const [animatingTitleId, setAnimatingTitleId] = useState(null);
@@ -319,6 +323,15 @@ function App() {
     setCurrentConversation(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+    setShowImageGallery(false);
+  };
+
+  const handleOpenImageGallery = () => {
+    setShowImageGallery(true);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
   };
 
   const handleModeSelect = async (mode) => {
@@ -398,9 +411,10 @@ function App() {
   const handleSelectConversation = async (idOrResult) => {
     // Accept either an ID string or a result object with .id
     const id = typeof idOrResult === 'string' ? idOrResult : idOrResult?.id;
-    // Clear monitor selection when selecting a conversation
+    // Clear monitor selection and gallery when selecting a conversation
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+    setShowImageGallery(false);
     setCurrentConversationId(id);
     setActiveCommentId(null);
     setContextSegments([]);
@@ -1116,6 +1130,7 @@ function App() {
         onResumeMonitor={handleResumeMonitor}
         onDeleteMonitor={handleDeleteMonitor}
         visualiserSettings={visualiserSettings}
+        onOpenImageGallery={handleOpenImageGallery}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
@@ -1133,7 +1148,19 @@ function App() {
           />
         )}
       </div>
-      {currentMonitor ? (
+      {showImageGallery ? (
+        <ImageGallery
+          onSelectConversation={(id) => {
+            setShowImageGallery(false);
+            handleSelectConversation(id);
+          }}
+          onClose={() => setShowImageGallery(false)}
+          onNewVisualisation={() => {
+            setShowImageGallery(false);
+            handleModeSelect('visualiser');
+          }}
+        />
+      ) : currentMonitor ? (
         <MonitorInterface
           monitor={currentMonitor}
           onMonitorUpdate={(updatedMonitor) => {

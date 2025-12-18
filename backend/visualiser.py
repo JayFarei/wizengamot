@@ -404,6 +404,60 @@ def delete_image(image_id: str) -> bool:
     return False
 
 
+def list_all_images_with_metadata(limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+    """
+    List all images across all visualiser conversations with full metadata.
+
+    Returns paginated list of images with conversation context.
+    """
+    from . import storage
+
+    images = []
+    conversations = storage.list_conversations()
+
+    for conv in conversations:
+        if conv.get("mode") != "visualiser":
+            continue
+
+        full_conv = storage.get_conversation(conv["id"])
+        if not full_conv:
+            continue
+
+        versions = []
+        for msg in full_conv.get("messages", []):
+            if msg.get("role") == "assistant" and msg.get("image_id"):
+                versions.append({
+                    "image_id": msg["image_id"],
+                    "style": msg.get("style"),
+                    "edit_prompt": msg.get("edit_prompt"),
+                    "created_at": msg.get("created_at")
+                })
+
+        if versions:
+            latest = versions[-1]
+            images.append({
+                "conversation_id": conv["id"],
+                "title": conv.get("title", "Untitled"),
+                "latest_image_id": latest["image_id"],
+                "latest_image_url": f"/api/images/{latest['image_id']}",
+                "style": latest.get("style"),
+                "version_count": len(versions),
+                "created_at": conv.get("created_at"),
+                "total_cost": conv.get("total_cost", 0)
+            })
+
+    # Sort by created_at descending
+    images.sort(key=lambda x: x["created_at"], reverse=True)
+
+    # Apply pagination
+    return {
+        "images": images[offset:offset + limit],
+        "total": len(images),
+        "limit": limit,
+        "offset": offset
+    }
+
+
 # Spell check prompt for Stage 1 (error detection)
 SPELL_CHECK_PROMPT = """You are a meticulous proofreader whose ONLY job is to find textual errors in an attached image.
 

@@ -923,6 +923,20 @@ export const api = {
   },
 
   /**
+   * List all visualiser images with metadata for gallery view.
+   * @param {number} limit - Maximum images to return (default 100)
+   * @param {number} offset - Offset for pagination (default 0)
+   * @returns {Promise<{images: Array, total: number, limit: number, offset: number}>}
+   */
+  async listImages(limit = 100, offset = 0) {
+    const response = await fetch(`${API_BASE}/api/images?limit=${limit}&offset=${offset}`);
+    if (!response.ok) {
+      throw new Error('Failed to list images');
+    }
+    return response.json();
+  },
+
+  /**
    * Generate a diagram from content.
    * @param {string} conversationId - The conversation ID
    * @param {Object} options - Visualisation options

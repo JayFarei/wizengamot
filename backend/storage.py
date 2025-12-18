@@ -155,7 +155,7 @@ def list_conversations() -> List[Dict[str, Any]]:
                         if msg.get("role") == "assistant" and msg.get("source_type"):
                             conv_meta["source_type"] = msg["source_type"]
                             break
-                # For visualiser, extract source_type and diagram_style from first user message
+                # For visualiser, extract source_type, diagram_style, and latest image_id
                 if conv_meta["mode"] == "visualiser":
                     for msg in data.get("messages", []):
                         if msg.get("role") == "user":
@@ -163,6 +163,15 @@ def list_conversations() -> List[Dict[str, Any]]:
                                 conv_meta["source_type"] = msg["source_type"]
                             if msg.get("style"):
                                 conv_meta["diagram_style"] = msg["style"]
+                            break
+                    # Get the latest image_id from assistant messages
+                    for msg in reversed(data.get("messages", [])):
+                        if msg.get("role") == "assistant" and msg.get("image_id"):
+                            conv_meta["latest_image_id"] = msg["image_id"]
+                            conv_meta["image_count"] = sum(
+                                1 for m in data.get("messages", [])
+                                if m.get("role") == "assistant" and m.get("image_id")
+                            )
                             break
                 # Include status in metadata (with defaults for existing conversations)
                 conv_meta["status"] = {

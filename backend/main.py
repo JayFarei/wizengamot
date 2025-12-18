@@ -1569,6 +1569,12 @@ def extract_conversation_content(conversation: Dict) -> str:
     return "\n\n".join(parts)
 
 
+@app.get("/api/images")
+async def list_all_images(limit: int = 100, offset: int = 0):
+    """List all visualiser images with metadata for the gallery view."""
+    return visualiser.list_all_images_with_metadata(limit, offset)
+
+
 @app.get("/api/images/{image_id}")
 async def get_image(image_id: str):
     """Serve a generated image."""
