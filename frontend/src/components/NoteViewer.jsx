@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import ResponseWithComments from './ResponseWithComments';
 import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
+import FloatingComment from './FloatingComment';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
@@ -43,6 +44,11 @@ export default function NoteViewer({
   const [selectionEnd, setSelectionEnd] = useState(null);
   const [keyboardSelection, setKeyboardSelection] = useState(null);
   const [showKeyboardCommentModal, setShowKeyboardCommentModal] = useState(false);
+
+  // Focus mode floating comment state
+  const [focusModeComment, setFocusModeComment] = useState(null);
+  const [focusModeCommentPosition, setFocusModeCommentPosition] = useState(null);
+  const focusModeHoverTimeoutRef = useRef(null);
 
   // Close source info dropdown when clicking outside
   useEffect(() => {
@@ -256,6 +262,8 @@ export default function NoteViewer({
       setSentenceCursor(0);
       setSelectionStart(null);
       setSelectionEnd(null);
+      setFocusModeComment(null);
+      setFocusModeCommentPosition(null);
       return;
     }
 
@@ -415,6 +423,69 @@ export default function NoteViewer({
     (noteId) => comments.filter((c) => c.note_id === noteId),
     [comments]
   );
+
+  // Apply highlights to keyboard sentence container in focus mode
+  useEffect(() => {
+    if (!focusMode || !currentNoteComments.length) return;
+
+    const container = document.querySelector('.keyboard-sentence-container');
+    if (!container) return;
+
+    // Clear existing highlights
+    const existingHighlights = container.querySelectorAll('.text-highlight');
+    existingHighlights.forEach(highlight => {
+      const parent = highlight.parentNode;
+      while (highlight.firstChild) {
+        parent.insertBefore(highlight.firstChild, highlight);
+      }
+      parent.removeChild(highlight);
+      parent.normalize();
+    });
+
+    // Apply highlights after DOM settles
+    const timer = setTimeout(() => {
+      currentNoteComments.forEach(comment => {
+        const highlight = SelectionHandler.createHighlight(
+          container,
+          comment.selection,
+          comment.id
+        );
+
+        if (highlight) {
+          // Hover handlers
+          highlight.addEventListener('mouseenter', (e) => {
+            clearTimeout(focusModeHoverTimeoutRef.current);
+            const rect = e.target.getBoundingClientRect();
+            setFocusModeCommentPosition({ top: rect.bottom + 8, left: rect.left });
+            setFocusModeComment(comment);
+            highlight.classList.add('hover');
+          });
+
+          highlight.addEventListener('mouseleave', () => {
+            highlight.classList.remove('hover');
+            focusModeHoverTimeoutRef.current = setTimeout(() => {
+              setFocusModeComment(null);
+              setFocusModeCommentPosition(null);
+            }, 200);
+          });
+
+          // Click to pin
+          highlight.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = e.target.getBoundingClientRect();
+            setFocusModeCommentPosition({ top: rect.bottom + 8, left: rect.left });
+            setFocusModeComment(comment);
+            onSetActiveComment?.(comment.id);
+          });
+        }
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(focusModeHoverTimeoutRef.current);
+    };
+  }, [focusMode, currentNoteComments, onSetActiveComment]);
 
   // Extra safety check
   if (!currentNote) {
@@ -646,11 +717,19 @@ export default function NoteViewer({
 
       {/* Focus Mode Overlay */}
       {focusMode && currentNote && (
-        <div className="focus-overlay" onClick={() => setFocusMode(false)}>
+        <div className="focus-overlay" onClick={() => {
+          setFocusMode(false);
+          setFocusModeComment(null);
+          setFocusModeCommentPosition(null);
+        }}>
           <div className="focus-container" onClick={(e) => e.stopPropagation()}>
             <button
               className="focus-close-btn"
-              onClick={() => setFocusMode(false)}
+              onClick={() => {
+                setFocusMode(false);
+                setFocusModeComment(null);
+                setFocusModeCommentPosition(null);
+              }}
               title="Exit focus mode (Esc)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -751,6 +830,27 @@ export default function NoteViewer({
             <p className="focus-hint">
               <kbd>J</kbd>/<kbd>K</kbd> notes, <kbd>↑</kbd>/<kbd>↓</kbd> sentences, <kbd>Shift+↑↓</kbd> multi-select, <kbd>H</kbd> highlight, <kbd>C</kbd> copy, <kbd>X</kbd> tweet, <kbd>Esc</kbd> exit
             </p>
+
+            {/* Floating comment for focus mode highlights */}
+            {focusModeComment && focusModeCommentPosition && (
+              <FloatingComment
+                comment={focusModeComment}
+                position={focusModeCommentPosition}
+                onDelete={onDeleteComment}
+                isPinned={false}
+                onClose={() => {
+                  setFocusModeComment(null);
+                  setFocusModeCommentPosition(null);
+                }}
+                onMouseEnter={() => clearTimeout(focusModeHoverTimeoutRef.current)}
+                onMouseLeave={() => {
+                  focusModeHoverTimeoutRef.current = setTimeout(() => {
+                    setFocusModeComment(null);
+                    setFocusModeCommentPosition(null);
+                  }, 200);
+                }}
+              />
+            )}
           </div>
         </div>
       )}

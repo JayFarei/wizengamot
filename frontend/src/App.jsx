@@ -6,6 +6,7 @@ import ConfigModal from './components/ConfigModal';
 import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
 import CommentModal from './components/CommentModal';
+import CommentButton from './components/CommentButton';
 import CommitSidebar from './components/CommitSidebar';
 import ThreadContextSidebar from './components/ThreadContextSidebar';
 import ModeSelector from './components/ModeSelector';
@@ -1297,6 +1298,10 @@ function App() {
           setCommentButtonPosition(null);
           SelectionHandler.clearSelection();
         }}
+      />
+      <CommentButton
+        position={commentButtonPosition}
+        onComment={handleCommentButtonClick}
       />
       {showCommitSidebar && (
         <CommitSidebar
