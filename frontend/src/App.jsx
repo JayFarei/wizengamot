@@ -614,8 +614,8 @@ function App() {
             break;
 
           case 'complete':
-            // Stream complete, reload conversations list
-            loadConversations();
+            // Stream complete - title already updated via title_complete event
+            // Skip loadConversations to avoid race condition that overwrites title
             setIsLoading(false);
             break;
 
@@ -1144,8 +1144,10 @@ function App() {
                 prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
               );
               setAnimatingTitleId(updatedConv.id);
+              // Skip loadConversations - title already persisted and optimistically updated
+            } else {
+              loadConversations();
             }
-            loadConversations();
           }}
           comments={comments}
           onSelectionChange={handleSelectionChange}
@@ -1165,8 +1167,10 @@ function App() {
                 prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
               );
               setAnimatingTitleId(updatedConv.id);
+              // Skip loadConversations - title already persisted and optimistically updated
+            } else {
+              loadConversations();
             }
-            loadConversations();
           }}
         />
       ) : currentConversation?.mode === 'council' && currentConversation?.messages?.some(m => m.role === 'assistant') ? (
@@ -1237,6 +1241,12 @@ function App() {
           onClose={() => {
             setShowPromptManager(false);
             setPendingCouncilConfig(null);
+          }}
+          onOpenSettings={() => {
+            setShowPromptManager(false);
+            setPendingCouncilConfig(null);
+            setSettingsDefaultTab('council');
+            setShowSettingsModal(true);
           }}
           mode="council"
         />
