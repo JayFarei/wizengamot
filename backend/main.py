@@ -1065,6 +1065,9 @@ class SynthesizeRequest(BaseModel):
     comment: Optional[str] = None
     model: Optional[str] = None
     use_council: bool = False
+    use_deliberation: bool = False  # Enable full 3-stage council deliberation
+    council_models: Optional[List[str]] = None  # Models for deliberation mode
+    chairman_model: Optional[str] = None  # Chairman for deliberation mode
 
 
 @app.post("/api/conversations/{conversation_id}/synthesize")
@@ -1117,12 +1120,47 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     # Generate zettels
     model = request.model or settings.get_synthesizer_model()
 
-    if request.use_council:
+    if request.use_deliberation:
+        # Full 3-stage council deliberation
+        result = await synthesizer.generate_zettels_deliberation(
+            content_result["content"],
+            system_prompt,
+            council_models=request.council_models,
+            chairman_model=request.chairman_model,
+            user_comment=request.comment
+        )
+        # Save deliberation message with full metadata
+        storage.add_synthesizer_deliberation_message(
+            conversation_id,
+            result["notes"],
+            result.get("deliberation", {}),
+            result.get("stage3_raw", ""),
+            content_result["content"] or "",
+            content_result["source_type"],
+            request.url,
+            result.get("models", []),
+            result.get("chairman_model", ""),
+            content_result.get("title")
+        )
+        generation_ids = result.get("generation_ids", [])
+    elif request.use_council:
         result = await synthesizer.generate_zettels_council(
             content_result["content"],
             system_prompt,
             user_comment=request.comment
         )
+        # Save synthesizer message
+        storage.add_synthesizer_message(
+            conversation_id,
+            result["notes"],
+            result.get("raw_response", ""),
+            content_result["content"] or "",
+            content_result["source_type"],
+            request.url,
+            result.get("model"),
+            content_result.get("title")
+        )
+        generation_ids = result.get("generation_ids", [])
     else:
         result = await synthesizer.generate_zettels_single(
             content_result["content"],
@@ -1130,27 +1168,19 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
             model=model,
             user_comment=request.comment
         )
-
-    # Save synthesizer message
-    storage.add_synthesizer_message(
-        conversation_id,
-        result["notes"],
-        result.get("raw_response", ""),
-        content_result["content"] or "",
-        content_result["source_type"],
-        request.url,
-        result.get("model"),
-        content_result.get("title")
-    )
-
-    # Track costs (wait briefly for OpenRouter to process costs)
-    generation_ids = []
-    if request.use_council:
-        generation_ids = result.get("generation_ids", [])
-    else:
+        # Save synthesizer message
+        storage.add_synthesizer_message(
+            conversation_id,
+            result["notes"],
+            result.get("raw_response", ""),
+            content_result["content"] or "",
+            content_result["source_type"],
+            request.url,
+            result.get("model"),
+            content_result.get("title")
+        )
         gen_id = result.get("generation_id")
-        if gen_id:
-            generation_ids.append(gen_id)
+        generation_ids = [gen_id] if gen_id else []
 
     if generation_ids:
         try:
@@ -1169,13 +1199,23 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         generated_title = await generate_synthesizer_title(result["notes"])
         storage.update_conversation_title(conversation_id, generated_title)
 
-    return {
+    response_data = {
         "notes": result["notes"],
         "source_type": content_result["source_type"],
         "source_title": content_result.get("title"),
         "model": result.get("model"),
         "conversation_title": generated_title
     }
+
+    # Include deliberation metadata when using deliberation mode
+    if request.use_deliberation:
+        response_data["deliberation"] = result.get("deliberation")
+        response_data["stage3_raw"] = result.get("stage3_raw")
+        response_data["models"] = result.get("models")
+        response_data["chairman_model"] = result.get("chairman_model")
+        response_data["mode"] = "deliberation"
+
+    return response_data
 
 
 # Synthesizer Settings Endpoints

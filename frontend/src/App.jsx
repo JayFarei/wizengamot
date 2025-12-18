@@ -319,7 +319,23 @@ function App() {
     setShowModeSelector(true);
   };
 
-  const handleGoHome = () => {
+  // Cleanup empty synthesizer conversations when navigating away
+  const cleanupEmptyConversation = async (convId) => {
+    if (!convId) return;
+    const conv = conversations.find(c => c.id === convId);
+    // Only cleanup synthesizer conversations with no messages
+    if (conv?.mode === 'synthesizer' && conv.message_count === 0) {
+      try {
+        await api.deleteConversation(convId);
+        setConversations(prev => prev.filter(c => c.id !== convId));
+      } catch (error) {
+        console.error('Failed to cleanup empty conversation:', error);
+      }
+    }
+  };
+
+  const handleGoHome = async () => {
+    await cleanupEmptyConversation(currentConversationId);
     setCurrentConversationId(null);
     setCurrentConversation(null);
     setCurrentMonitorId(null);
@@ -338,6 +354,9 @@ function App() {
   const handleModeSelect = async (mode) => {
     setShowModeSelector(false);
     setShowImageGallery(false);
+
+    // Cleanup empty conversation before creating new one
+    await cleanupEmptyConversation(currentConversationId);
 
     if (mode === 'council') {
       // Show council config modal for model selection
@@ -413,6 +432,12 @@ function App() {
   const handleSelectConversation = async (idOrResult) => {
     // Accept either an ID string or a result object with .id
     const id = typeof idOrResult === 'string' ? idOrResult : idOrResult?.id;
+
+    // Cleanup empty conversation before switching (but not if selecting the same one)
+    if (currentConversationId && currentConversationId !== id) {
+      await cleanupEmptyConversation(currentConversationId);
+    }
+
     // Clear monitor selection and gallery when selecting a conversation
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
@@ -1222,15 +1247,21 @@ function App() {
           conversation={currentConversation}
           onConversationUpdate={(updatedConv, newTitle) => {
             setCurrentConversation(updatedConv);
+            // Always update the conversations list with full metadata
+            setConversations((prev) =>
+              prev.map((c) => c.id === updatedConv.id
+                ? {
+                    ...c,
+                    title: newTitle || c.title,
+                    source_type: updatedConv.synthesizer_config?.source_type || c.source_type,
+                    total_cost: updatedConv.total_cost ?? c.total_cost,
+                    is_deliberation: updatedConv.messages?.some(m => m.mode === 'deliberation') || false,
+                  }
+                : c
+              )
+            );
             if (newTitle) {
-              // Update title in conversations list immediately and trigger animation
-              setConversations((prev) =>
-                prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
-              );
               setAnimatingTitleId(updatedConv.id);
-              // Skip loadConversations - title already persisted and optimistically updated
-            } else {
-              loadConversations();
             }
           }}
           comments={comments}

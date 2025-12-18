@@ -672,6 +672,60 @@ def add_synthesizer_message(
     save_conversation(conversation)
 
 
+def add_synthesizer_deliberation_message(
+    conversation_id: str,
+    notes: List[Dict[str, Any]],
+    deliberation: Dict[str, Any],
+    stage3_raw: str,
+    source_content: str,
+    source_type: str,
+    source_url: Optional[str],
+    models: List[str],
+    chairman_model: str,
+    source_title: Optional[str] = None
+):
+    """
+    Add a synthesizer assistant message with deliberation details.
+
+    This stores the full 3-stage council deliberation process results.
+
+    Args:
+        conversation_id: Conversation identifier
+        notes: Final synthesized Zettel notes
+        deliberation: Deliberation metadata containing:
+            - stage1: List of per-model results with notes
+            - stage2: List of rankings with parsed_ranking
+            - label_to_model: Mapping for de-anonymization
+            - aggregate_rankings: Sorted rankings by avg position
+        stage3_raw: Chairman's raw response
+        source_content: Full source content
+        source_type: Type of source ("youtube", "podcast", "article", "text")
+        source_url: Original URL (if any)
+        models: List of models used in deliberation
+        chairman_model: Model used for final synthesis
+        source_title: Title of the source content
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    conversation["messages"].append({
+        "role": "assistant",
+        "notes": notes,
+        "mode": "deliberation",  # Distinguish from single/parallel modes
+        "deliberation": deliberation,
+        "stage3_raw": stage3_raw,
+        "source_content": source_content,
+        "source_type": source_type,
+        "source_url": source_url,
+        "source_title": source_title,
+        "models": models,
+        "chairman_model": chairman_model
+    })
+
+    save_conversation(conversation)
+
+
 # =============================================================================
 # Visualiser-specific storage functions
 # =============================================================================

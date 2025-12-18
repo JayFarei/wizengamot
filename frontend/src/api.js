@@ -852,8 +852,28 @@ export const api = {
    * @param {string} model - Optional model override
    * @param {boolean} useCouncil - Whether to use multiple models
    * @param {string} text - Direct text input (null if using URL)
+   * @param {boolean} useDeliberation - Whether to use full 3-stage council deliberation
+   * @param {Array<string>} councilModels - Optional models for deliberation mode
+   * @param {string} chairmanModel - Optional chairman for deliberation mode
    */
-  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false, text = null) {
+  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false, text = null, useDeliberation = false, councilModels = null, chairmanModel = null) {
+    const body = {
+      url: url || null,
+      text: text || null,
+      comment,
+      model,
+      use_council: useCouncil,
+      use_deliberation: useDeliberation,
+    };
+
+    // Only include council config if deliberation mode is enabled
+    if (useDeliberation && councilModels) {
+      body.council_models = councilModels;
+    }
+    if (useDeliberation && chairmanModel) {
+      body.chairman_model = chairmanModel;
+    }
+
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/synthesize`,
       {
@@ -861,13 +881,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: url || null,
-          text: text || null,
-          comment,
-          model,
-          use_council: useCouncil,
-        }),
+        body: JSON.stringify(body),
       }
     );
     if (!response.ok) {
