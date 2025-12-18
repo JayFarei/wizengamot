@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import sbd from 'sbd';
 import ResponseWithComments from './ResponseWithComments';
 import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
@@ -120,72 +121,18 @@ export default function NoteViewer({
   }, []);
 
   // Parse note body into array of sentences for keyboard navigation
+  // Uses sbd (Sentence Boundary Detection) library for robust parsing
   const parseSentences = useCallback((body) => {
     if (!body) return [];
 
-    let processed = body;
-    const placeholders = [];
-
-    // Helper to add placeholder
-    const addPlaceholder = (match, prefix) => {
-      const placeholder = `__${prefix}${placeholders.length}__`;
-      placeholders.push({ placeholder, original: match });
-      return placeholder;
-    };
-
-    // 1. Protect ellipsis (must come before other period handling)
-    processed = processed.replace(/\.{3}/g, (m) => addPlaceholder(m, 'ELLIP'));
-
-    // 2. Protect initials/acronyms (U.S., Ph.D., A.I., etc.)
-    // Matches: single letter followed by period, repeated 2+ times
-    processed = processed.replace(/\b([A-Z]\.){2,}/g, (m) => addPlaceholder(m, 'INIT'));
-
-    // 3. Protect decimal numbers (24.4, 3.14159, ~26.5%)
-    processed = processed.replace(/\d+\.\d+/g, (m) => addPlaceholder(m, 'NUM'));
-
-    // 4. Protect common abbreviations
-    const abbreviations = [
-      'e\\.g\\.', 'i\\.e\\.', 'etc\\.', 'vs\\.', 'Dr\\.', 'Mr\\.', 'Mrs\\.',
-      'Ms\\.', 'Prof\\.', 'Sr\\.', 'Jr\\.', 'no\\.', 'vol\\.', 'pp\\.',
-      'cf\\.', 'al\\.', 'ref\\.', 'approx\\.'
-    ];
-    abbreviations.forEach((abbr) => {
-      const regex = new RegExp(abbr, 'gi');
-      processed = processed.replace(regex, (m) => addPlaceholder(m, 'ABBR'));
+    const sentences = sbd.sentences(body, {
+      newline_boundaries: false,
+      html_boundaries: false,
+      sanitize: false,
+      allowed_tags: false,
     });
 
-    // Match sentences: non-punctuation chars + punctuation + (whitespace or end)
-    const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)/g;
-    const matches = processed.match(sentenceRegex);
-
-    if (!matches) return [body.trim()];
-
-    // Restore placeholders
-    let sentences = matches.map(s => {
-      let restored = s;
-      placeholders.forEach(p => {
-        restored = restored.replace(p.placeholder, p.original);
-      });
-      return restored.trim();
-    }).filter(s => s.length > 0);
-
-    // Merge invalid fragments with previous sentence
-    const MIN_SENTENCE_LENGTH = 25;
-    const merged = [];
-
-    for (const sentence of sentences) {
-      const isFragment =
-        sentence.length < MIN_SENTENCE_LENGTH &&
-        !/^[A-Z"'\u201C]/.test(sentence); // Doesn't start with capital, quote, or smart quote
-
-      if (isFragment && merged.length > 0) {
-        merged[merged.length - 1] += ' ' + sentence;
-      } else {
-        merged.push(sentence);
-      }
-    }
-
-    return merged;
+    return sentences.filter(s => s.trim().length > 0);
   }, []);
 
   // Helper to get the range of selected sentences

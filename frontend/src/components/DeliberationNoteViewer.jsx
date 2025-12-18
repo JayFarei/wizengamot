@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NoteViewer from './NoteViewer';
 import Stage1Notes from './Stage1Notes';
 import Stage2Reviews from './Stage2Reviews';
@@ -29,6 +29,17 @@ export default function DeliberationNoteViewer({
 }) {
   const [showDeliberation, setShowDeliberation] = useState(false);
   const [deliberationTab, setDeliberationTab] = useState('stage1');
+
+  // ESC key to close panel
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showDeliberation) {
+        setShowDeliberation(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDeliberation]);
 
   // Helper to get short model name
   const getModelShortName = (model) => model?.split('/').pop() || model;
@@ -88,8 +99,14 @@ export default function DeliberationNoteViewer({
           {/* Expanded full-screen panel */}
           {showDeliberation && (
             <div className="deliberation-fullscreen">
-              {/* Panel header */}
-              <div className="panel-header">
+              {/* Panel header - clickable to close */}
+              <div
+                className="panel-header clickable"
+                onClick={() => setShowDeliberation(false)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setShowDeliberation(false)}
+              >
                 <h3>Deliberation Process</h3>
                 {deliberation.stage1 && (
                   <span className="panel-summary">

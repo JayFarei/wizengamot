@@ -60,6 +60,7 @@ export default function Stage1Notes({ responses, labelToModel }) {
           <div className="mini-notes-grid">
             {activeResponse.notes.map((note, idx) => (
               <div key={idx} className="mini-note-card">
+                <span className="note-order-badge">{idx + 1}</span>
                 <h5 className="mini-note-title">{note.title}</h5>
                 {note.tags && note.tags.length > 0 && (
                   <div className="mini-note-tags">

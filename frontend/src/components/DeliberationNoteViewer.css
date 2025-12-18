@@ -144,6 +144,16 @@
   color: var(--text-primary);
 }
 
+/* Clickable header */
+.panel-header.clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.panel-header.clickable:hover {
+  background: var(--bg-hover);
+}
+
 .panel-close svg {
   width: 20px;
   height: 20px;
