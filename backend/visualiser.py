@@ -141,7 +141,11 @@ Remember: Output the actual image, not a description."""
 
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error generating diagram: {e.response.status_code} - {e.response.text}")
-        return {"error": f"API error: {e.response.status_code}"}
+        try:
+            error_msg = e.response.json().get("error", {}).get("message")
+        except Exception:
+            error_msg = None
+        return {"error": error_msg or f"API error: {e.response.status_code}"}
     except Exception as e:
         logger.error(f"Failed to generate diagram: {e}")
         return {"error": str(e)}
@@ -272,7 +276,11 @@ Generate a new version of the infographic with the requested changes applied. Ou
 
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error editing diagram: {e.response.status_code} - {e.response.text}")
-        return {"error": f"API error: {e.response.status_code}", "generation_id": None}
+        try:
+            error_msg = e.response.json().get("error", {}).get("message")
+        except Exception:
+            error_msg = None
+        return {"error": error_msg or f"API error: {e.response.status_code}", "generation_id": None}
     except Exception as e:
         logger.error(f"Failed to edit diagram: {e}")
         return {"error": str(e), "generation_id": None}
@@ -732,7 +740,11 @@ async def spell_check_diagram(
 
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error during spell check: {e.response.status_code} - {e.response.text}")
-        return {"error": f"API error: {e.response.status_code}"}
+        try:
+            error_msg = e.response.json().get("error", {}).get("message")
+        except Exception:
+            error_msg = None
+        return {"error": error_msg or f"API error: {e.response.status_code}"}
     except Exception as e:
         logger.error(f"Failed to spell check diagram: {e}")
         return {"error": str(e)}
