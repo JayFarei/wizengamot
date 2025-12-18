@@ -16,6 +16,24 @@ export default function ConfigModal({ isOpen, onClose, onSubmit, availableModels
     }
   }, [isOpen, availableModels, defaultSelectedModels, defaultChairman]);
 
+  // Enter key handler to submit, Escape to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && selectedModels.length > 0 && chairmanModel) {
+        e.preventDefault();
+        onSubmit({
+          council_models: selectedModels,
+          chairman_model: chairmanModel
+        });
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, selectedModels, chairmanModel, onSubmit, onClose]);
+
   if (!isOpen) return null;
 
   const handleToggleModel = (model) => {
