@@ -384,7 +384,7 @@ function App() {
     try {
       const newConv = await api.createConversation(pendingCouncilConfig, systemPrompt, 'council', null);
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'council' },
+        { ...newConv, message_count: 0 },  // Spread full response to include prompt_title, etc.
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
@@ -611,6 +611,15 @@ function App() {
             ));
             // Trigger title animation
             setAnimatingTitleId(currentConversationId);
+            break;
+
+          case 'cost_complete':
+            // Update conversation's total_cost in sidebar
+            setConversations(prev => prev.map(conv =>
+              conv.id === currentConversationId
+                ? { ...conv, total_cost: (conv.total_cost || 0) + event.data.cost }
+                : conv
+            ));
             break;
 
           case 'complete':

@@ -165,6 +165,11 @@ async def create_conversation(request: CreateConversationRequest):
         mode=request.mode,
         synthesizer_config=synthesizer_config
     )
+
+    # Add prompt_title for display if system_prompt exists
+    if conversation.get("system_prompt"):
+        conversation["prompt_title"] = storage.extract_prompt_title(conversation["system_prompt"])
+
     return conversation
 
 
@@ -341,6 +346,10 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
                     # Sum all valid costs
                     total_message_cost = sum(c for c in costs if c is not None)
+
+                    # Send cost event so frontend can update sidebar immediately
+                    if total_message_cost > 0:
+                        yield f"data: {json.dumps({'type': 'cost_complete', 'data': {'cost': total_message_cost}})}\n\n"
             except Exception as cost_error:
                 # Log but don't fail the request if cost tracking fails
                 print(f"Error tracking cost: {cost_error}")
