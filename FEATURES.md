@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - Create diagrams from highlights in Review Context sidebar
 Dec 18 - Image gallery grid view for browsing generated visualizations
 Dec 18 - Real-time cost and prompt label updates in sidebar
 Dec 18 - Keyboard shortcuts for council configuration modal
