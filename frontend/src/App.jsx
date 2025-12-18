@@ -336,6 +336,7 @@ function App() {
 
   const handleModeSelect = async (mode) => {
     setShowModeSelector(false);
+    setShowImageGallery(false);
 
     if (mode === 'council') {
       // Show council config modal for model selection
