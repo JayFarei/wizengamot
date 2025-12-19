@@ -45,11 +45,13 @@
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  line-height: 1;
 }
 
 .conversation-gallery-count {
   font-size: 13px;
   color: var(--text-muted);
+  line-height: 1;
 }
 
 /* Loading and Error States */
