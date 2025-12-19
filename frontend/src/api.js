@@ -46,9 +46,11 @@ export const api = {
   /**
    * Get version info for OTA updates.
    * Returns local commit, remote commit, and how many commits behind.
+   * @param {boolean} force - If true, bypass cache and fetch fresh data
    */
-  async getVersion() {
-    const response = await fetch(`${API_BASE}/api/version`);
+  async getVersion(force = false) {
+    const url = force ? `${API_BASE}/api/version?force=true` : `${API_BASE}/api/version`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to get version');
     }

@@ -149,9 +149,28 @@ def _parse_git_log(output: str) -> dict:
     return {"commit": "", "full_commit": "", "date": "", "message": ""}
 
 
+# Version check cache to avoid slow git fetch on every page load
+_version_cache = {
+    "data": None,
+    "timestamp": None
+}
+VERSION_CACHE_TTL = 15 * 60  # 15 minutes in seconds
+
+
 @app.get("/api/version")
-async def get_version():
-    """Get local and remote git version info for OTA updates."""
+async def get_version(force: bool = False):
+    """Get local and remote git version info for OTA updates.
+
+    Results are cached for 15 minutes. Use force=true to bypass cache.
+    """
+    now = time.time()
+
+    # Return cached result if fresh and not forcing refresh
+    if not force and _version_cache["data"] and _version_cache["timestamp"]:
+        age = now - _version_cache["timestamp"]
+        if age < VERSION_CACHE_TTL:
+            return _version_cache["data"]
+
     # Get local commit info
     success, local_output = _run_git_command(["log", "-1", "--format=%H|%ai|%s"])
     if not success:
@@ -165,24 +184,33 @@ async def get_version():
     success, remote_output = _run_git_command(["log", "-1", "origin/master", "--format=%H|%ai|%s"])
     if not success:
         # Remote might not exist, return local only
-        return {
+        result = {
             "local": local,
             "remote": None,
             "behind": 0,
             "up_to_date": True
         }
+        _version_cache["data"] = result
+        _version_cache["timestamp"] = now
+        return result
     remote = _parse_git_log(remote_output)
 
     # Count commits behind
     success, count_output = _run_git_command(["rev-list", "HEAD..origin/master", "--count"])
     behind = int(count_output) if success and count_output.isdigit() else 0
 
-    return {
+    result = {
         "local": local,
         "remote": remote,
         "behind": behind,
         "up_to_date": behind == 0
     }
+
+    # Cache the result
+    _version_cache["data"] = result
+    _version_cache["timestamp"] = now
+
+    return result
 
 
 @app.post("/api/update")
