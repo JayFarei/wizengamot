@@ -3,7 +3,7 @@ import { api } from '../api';
 import SearchModal from './SearchModal';
 import './VisualiserInterface.css';
 
-export default function VisualiserInterface({ conversation, onConversationUpdate }) {
+export default function VisualiserInterface({ conversation, conversations, onConversationUpdate }) {
   // Diagram styles loaded from API
   const [diagramStyles, setDiagramStyles] = useState([]);
   const [sourceType, setSourceType] = useState(null);
@@ -883,6 +883,7 @@ export default function VisualiserInterface({ conversation, onConversationUpdate
           onSelectConversation={handleConversationSelect}
           onNewConversation={() => setShowConversationSearch(false)}
           selectMode={true}
+          conversations={conversations}
         />
       )}
     </div>

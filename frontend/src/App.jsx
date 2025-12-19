@@ -1362,6 +1362,7 @@ function App() {
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface
           conversation={currentConversation}
+          conversations={conversations}
           onConversationUpdate={(updatedConv, newTitle) => {
             setCurrentConversation(updatedConv);
             if (newTitle) {
