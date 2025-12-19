@@ -109,11 +109,35 @@ export default function VisualiserInterface({ conversation, conversations, onCon
           handleDownload();
         }
       }
+
+      // 's' for spell check (only when not typing in an input)
+      if (event.key === 's' && !event.metaKey && !event.ctrlKey) {
+        const activeElement = document.activeElement;
+        const isTyping = activeElement?.tagName === 'INPUT' ||
+                         activeElement?.tagName === 'TEXTAREA' ||
+                         activeElement?.isContentEditable;
+        if (!isTyping && currentImage && !isSpellChecking) {
+          event.preventDefault();
+          handleSpellCheck();
+        }
+      }
+
+      // 'n' for new diagram (only when not typing in an input)
+      if (event.key === 'n' && !event.metaKey && !event.ctrlKey) {
+        const activeElement = document.activeElement;
+        const isTyping = activeElement?.tagName === 'INPUT' ||
+                         activeElement?.tagName === 'TEXTAREA' ||
+                         activeElement?.isContentEditable;
+        if (!isTyping && currentImage) {
+          event.preventDefault();
+          handleNewDiagram();
+        }
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [fullscreenMode, showPromptModal, currentImage]);
+  }, [fullscreenMode, showPromptModal, currentImage, isSpellChecking]);
 
   // Focus source options for keyboard navigation when no image exists
   useEffect(() => {
@@ -551,6 +575,7 @@ export default function VisualiserInterface({ conversation, conversations, onCon
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 Download
+                <kbd>d</kbd>
               </button>
               <button
                 onClick={handleSpellCheck}
@@ -569,11 +594,13 @@ export default function VisualiserInterface({ conversation, conversations, onCon
                       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                     </svg>
                     Spell Check
+                    <kbd>s</kbd>
                   </>
                 )}
               </button>
               <button onClick={handleNewDiagram} className="visualiser-new-btn">
-                Create New Diagram
+                New
+                <kbd>n</kbd>
               </button>
             </div>
 
@@ -610,6 +637,7 @@ export default function VisualiserInterface({ conversation, conversations, onCon
             {/* Edit prompt section - always visible */}
             <div className="visualiser-edit-section">
               <input
+                id="visualiser-edit-input"
                 type="text"
                 value={editPrompt}
                 onChange={(e) => setEditPrompt(e.target.value)}

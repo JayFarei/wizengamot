@@ -609,6 +609,26 @@
   background: var(--visualiser-badge-bg);
 }
 
+/* Keyboard Shortcut Keys in Buttons */
+.visualiser-actions kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  margin-left: 6px;
+  font-size: 10px;
+  font-family: inherit;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.visualiser-new-btn kbd {
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+  color: var(--text-muted);
+}
+
 /* Version Navigation */
 .version-nav {
   display: flex;
