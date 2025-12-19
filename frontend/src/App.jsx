@@ -495,6 +495,8 @@ function App() {
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
     setShowImageGallery(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
     setCurrentConversationId(id);
     setActiveCommentId(null);
     setContextSegments([]);
@@ -1231,6 +1233,10 @@ function App() {
   const totalContextItems = comments.length + contextSegments.length + autoContextSegments.length;
   const hasContextItems = totalContextItems > 0;
 
+  // Detect navigation transition state to prevent flash to home screen
+  const isNavigatingToConversation = currentConversationId &&
+    (!currentConversation || currentConversation.id !== currentConversationId);
+
   return (
     <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''} ${showCommitSidebar ? 'right-open' : ''}`}>
       <Sidebar
@@ -1276,7 +1282,9 @@ function App() {
           />
         )}
       </div>
-      {showCouncilGallery ? (
+      {isNavigatingToConversation ? (
+        <div className="loading-navigation" />
+      ) : showCouncilGallery ? (
         <ConversationGallery
           mode="council"
           items={conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')}

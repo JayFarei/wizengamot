@@ -75,3 +75,9 @@
   background: var(--primary-hover);
   border-color: var(--primary-hover);
 }
+
+/* Loading state during navigation transition */
+.loading-navigation {
+  flex: 1;
+  background: var(--bg-primary);
+}
