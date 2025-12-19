@@ -1342,6 +1342,7 @@ function App() {
                     source_type: updatedConv.synthesizer_config?.source_type || c.source_type,
                     total_cost: updatedConv.total_cost ?? c.total_cost,
                     is_deliberation: updatedConv.messages?.some(m => m.mode === 'deliberation') || false,
+                    message_count: updatedConv.messages?.length || c.message_count,
                   }
                 : c
               )
