@@ -25,10 +25,10 @@
   background: var(--bg-elevated);
   border-radius: 16px;
   padding: 32px;
-  max-width: 1000px;
-  width: 90%;
+  max-width: 1200px;
+  width: 95%;
   box-shadow: 0 20px 60px var(--shadow);
-  animation: slideUp 0.3s ease-out;
+  animation: fadeIn 0.25s ease-out;
 }
 
 @keyframes slideUp {
@@ -76,7 +76,7 @@
 
 .mode-cards {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
@@ -85,7 +85,7 @@
   background: var(--bg-tertiary);
   border: 2px solid var(--border-primary);
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s ease;
@@ -252,6 +252,32 @@
   color: var(--visualiser-badge-text);
 }
 
+.mode-card-podcast:hover,
+.mode-card-podcast.selected {
+  border-color: var(--podcast-primary, #8b5cf6);
+  background: var(--podcast-badge-bg, #f3e8ff);
+}
+
+.mode-card-podcast.selected {
+  box-shadow: 0 0 0 3px var(--podcast-badge-bg, #f3e8ff);
+}
+
+.mode-card-podcast:focus {
+  border-color: var(--podcast-primary, #8b5cf6);
+  box-shadow: 0 0 0 3px var(--podcast-badge-bg, #f3e8ff);
+}
+
+.mode-card-podcast .mode-card-icon {
+  background: linear-gradient(135deg, var(--podcast-primary, #8b5cf6) 0%, var(--podcast-primary-hover, #7c3aed) 100%);
+  color: var(--text-inverse);
+}
+
+.mode-card-podcast:hover .feature-tag,
+.mode-card-podcast.selected .feature-tag {
+  background: var(--podcast-badge-bg, #f3e8ff);
+  color: var(--podcast-badge-text, #6b21a8);
+}
+
 .mode-selector-cancel {
   display: block;
   width: 100%;
@@ -272,7 +298,7 @@
 }
 
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 900px) {
   .mode-selector-container {
     padding: 24px;
   }

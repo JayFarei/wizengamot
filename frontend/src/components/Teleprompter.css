@@ -1,0 +1,232 @@
+.teleprompter {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  contain: layout style;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.teleprompter-content {
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 32px;
+  scroll-behavior: smooth;
+  line-height: 1.8;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.teleprompter-content.auto-scrolling {
+  scroll-behavior: smooth;
+}
+
+.teleprompter-content.manual-scrolling {
+  scroll-behavior: auto;
+}
+
+/* Individual words */
+.teleprompter-word {
+  display: inline;
+  padding: 2px 0;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.teleprompter-word:hover {
+  background: var(--bg-hover);
+}
+
+/* Past words - slightly dimmed */
+.teleprompter-word.past {
+  opacity: 0.5;
+}
+
+/* Current word - highlighted */
+.teleprompter-word.active {
+  background: var(--highlight-bg, rgba(223, 142, 29, 0.25));
+  color: var(--text-primary);
+  transform: scale(1.02);
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--shadow, rgba(0, 0, 0, 0.1));
+}
+
+/* Upcoming words - normal */
+.teleprompter-word.upcoming {
+  opacity: 1;
+}
+
+/* Segment breaks */
+.teleprompter-segment {
+  margin-bottom: 24px;
+  padding-left: 12px;
+  border-left: 3px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.teleprompter-segment:last-child {
+  margin-bottom: 0;
+}
+
+/* Speaker labels */
+.speaker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.speaker-label svg {
+  opacity: 0.9;
+}
+
+.segment-text {
+  line-height: 2;
+}
+
+/* Host speaker styling */
+.teleprompter-segment.speaker-host {
+  border-left-color: var(--podcast-host, #3b82f6);
+}
+
+.teleprompter-segment.speaker-host .speaker-label {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--podcast-host, #3b82f6);
+}
+
+/* Expert speaker styling */
+.teleprompter-segment.speaker-expert {
+  border-left-color: var(--podcast-expert, #10b981);
+}
+
+.teleprompter-segment.speaker-expert .speaker-label {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--podcast-expert, #10b981);
+}
+
+/* Empty state */
+.teleprompter-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 32px;
+}
+
+.teleprompter-empty svg {
+  opacity: 0.5;
+  color: var(--text-muted);
+}
+
+.teleprompter-empty p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.teleprompter-empty .hint {
+  font-size: 0.875rem;
+  opacity: 0.7;
+  color: var(--text-muted);
+}
+
+/* Jump to live button */
+.jump-to-live-btn {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--podcast-primary, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  transition: all 0.2s;
+  animation: slideUp 0.2s ease-out;
+  z-index: 10;
+}
+
+.jump-to-live-btn:hover {
+  background: var(--podcast-primary-hover, #7c3aed);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Scroll indicator */
+.teleprompter-scroll-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--bg-tertiary);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+  z-index: 5;
+  contain: layout paint;
+}
+
+.teleprompter-scroll-progress {
+  height: 100%;
+  background: var(--podcast-primary);
+  transition: width 0.1s linear;
+  border-radius: 0 3px 3px 0;
+}
+
+/* Loading state */
+.teleprompter-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.teleprompter-loading .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Dark mode - uses Catpuccin variables from index.css */

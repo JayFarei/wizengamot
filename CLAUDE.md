@@ -34,11 +34,12 @@ docker compose up -d             # Run container on port 8080
 
 Wizengamot is a multi-LLM deliberation system where multiple models collaboratively answer questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
 
-**Four Modes:**
+**Five Modes:**
 - **Council**: Multi-model deliberation with peer ranking (Stage 1 → Stage 2 → Stage 3)
 - **Synthesizer**: Transform URLs (YouTube, podcasts, articles, PDFs) into Zettelkasten notes
 - **Monitor**: Track entities/competitors across multiple sources with scheduled analysis
 - **Visualiser**: Generate diagrams and flowcharts from content using AI image generation
+- **Podcast**: Generate live audio explanations of Synthesizer notes via LiveKit + xAI real-time voice
 
 ## Architecture
 
@@ -129,6 +130,13 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
 - Supports multiple styles: bento, whiteboard, system_diagram, napkin, cheatsheet, cartoon
 - Images stored in `data/images/`
 
+**Podcast System (`podcast*.py`)**
+- `podcast.py`: Session management, note compilation, script generation from Synthesizer notes
+- `podcast_storage.py`: JSON storage for sessions in `data/podcasts/`
+- `podcast_agent.py`: LiveKit agent for real-time audio streaming with xAI voice
+- Features: Live audio streaming, interactive Q&A interruptions, karaoke-style teleprompter
+- Requires: xAI API key and LiveKit credentials (configured in Settings > Podcast)
+
 **`content.py`**
 - Content extraction from various URL types (YouTube, podcasts, PDFs, web pages)
 - Integrates with Firecrawl for web scraping
@@ -199,7 +207,7 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
   - First option always "New Conversation" (opens ModeSelector)
   - Arrow keys to navigate, Enter to select, Escape to close
   - 200ms debounced search with real-time results
-- **`ModeSelector.jsx`**: Choose between Council and Synthesizer modes
+- **`ModeSelector.jsx`**: Choose between Council, Synthesizer, Monitor, Visualiser, and Podcast modes
   - Left/right arrows to switch, Enter to confirm
   - Visual selection highlight
 
@@ -220,6 +228,11 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
 **Visualiser & Question Set Components**
 - **`VisualiserInterface.jsx`**: Diagram generation interface
 - **`QuestionSetManager.jsx`**, **`QuestionSetEditor.jsx`**, **`QuestionSetSelector.jsx`**: Question set CRUD
+
+**Podcast Components**
+- **`PodcastInterface.jsx`**: Main podcast mode UI with setup and player views
+- **`Teleprompter.jsx`**: Karaoke-style synced text display with word-level highlighting
+- **`settings/sections/PodcastSection.jsx`**: Settings for xAI + LiveKit API keys
 
 **Theme & Utilities**
 - **`contexts/ThemeContext.jsx`**: Dark/light mode toggle (supports both themes)
@@ -331,6 +344,8 @@ The entire flow is async/parallel where possible to minimize latency.
 ### Environment Variables
 - `OPENROUTER_API_KEY`: Can also be set via UI at runtime
 - `FIRECRAWL_API_KEY`: Required for monitor web crawling functionality
+- `XAI_API_KEY`: Required for podcast real-time voice generation
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`: Required for podcast audio streaming
 - `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`, `QUESTION_SETS_DIR`: Paths for Docker volume mounts
 
 ## Comment & Annotation System

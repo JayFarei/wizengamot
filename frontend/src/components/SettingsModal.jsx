@@ -7,6 +7,7 @@ import CouncilSection from './settings/sections/CouncilSection';
 import SynthesizerSection from './settings/sections/SynthesizerSection';
 import MonitorSection from './settings/sections/MonitorSection';
 import VisualiserSection from './settings/sections/VisualiserSection';
+import PodcastSection from './settings/sections/PodcastSection';
 import './SettingsModal.css';
 
 // Map old tab names to new section names for backwards compatibility
@@ -17,6 +18,7 @@ const TAB_TO_SECTION = {
   synthesizer: 'synthesizer',
   questionsets: 'monitor',
   visualiser: 'visualiser',
+  podcast: 'podcast',
   // New section names map to themselves
   general: 'general',
   usage: 'usage',
@@ -31,6 +33,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
   const [prompts, setPrompts] = useState([]);
   const [synthesizerSettings, setSynthesizerSettings] = useState(null);
   const [visualiserSettings, setVisualiserSettings] = useState(null);
+  const [podcastSettings, setPodcastSettings] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -58,13 +61,14 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
 
   const loadAllSettings = async () => {
     try {
-      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData] = await Promise.all([
+      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData, podData] = await Promise.all([
         api.getSettings(),
         api.getModelSettings(),
         api.listPrompts('council'),
         api.listPrompts('synthesizer'),
         api.getSynthesizerSettings(),
         api.getVisualiserSettings(),
+        api.getPodcastSettings(),
       ]);
       setSettings(settingsData);
       setModelSettings(modelData);
@@ -72,6 +76,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
       setPrompts([...councilPrompts, ...synthPrompts]);
       setSynthesizerSettings(synthData);
       setVisualiserSettings(visData);
+      setPodcastSettings(podData);
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -126,6 +131,17 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
         return (
           <VisualiserSection
             visualiserSettings={visualiserSettings}
+            loading={loading}
+            setLoading={setLoading}
+            setError={setError}
+            setSuccess={setSuccess}
+            onReload={loadAllSettings}
+          />
+        );
+      case 'podcast':
+        return (
+          <PodcastSection
+            podcastSettings={podcastSettings}
             loading={loading}
             setLoading={setLoading}
             setError={setError}

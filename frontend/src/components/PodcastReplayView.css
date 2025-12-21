@@ -1,0 +1,581 @@
+.podcast-replay-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+/* Loading and Error States */
+.replay-loading,
+.replay-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.replay-loading .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.replay-error button {
+  padding: 10px 20px;
+  background: var(--primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.replay-error button:hover {
+  background: var(--primary-hover);
+}
+
+/* Header */
+.replay-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.replay-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.replay-back-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.replay-back-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.replay-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.replay-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.replay-radio-icon {
+  color: var(--podcast-primary);
+  flex-shrink: 0;
+}
+
+.replay-title-row h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replay-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.replay-style-badge {
+  padding: 2px 8px;
+  background: var(--podcast-badge-bg);
+  color: var(--podcast-primary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.replay-date,
+.replay-duration {
+  color: var(--text-tertiary);
+}
+
+.replay-source-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.replay-source-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--primary);
+}
+
+.replay-source-btn svg:last-child {
+  opacity: 0.6;
+}
+
+/* Main Content - Two Column Layout */
+.replay-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 24px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+/* Left Column - Cover & Info */
+.replay-left-column {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.replay-cover-container {
+  width: 100%;
+}
+
+.replay-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.replay-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--podcast-primary) 0%, var(--visualiser-primary) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-inverse);
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.replay-cover-placeholder svg {
+  opacity: 0.8;
+}
+
+.replay-cover-placeholder span {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+/* Info Card */
+.replay-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  border: 1px solid var(--border-primary);
+}
+
+.replay-info-card .info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.replay-info-card .info-item svg {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.reactions-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.reaction-emoji-small {
+  font-size: 1rem;
+}
+
+.reaction-count {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+}
+
+/* Right Column - Teleprompter */
+.replay-right-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.replay-teleprompter-wrapper {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  position: relative;
+}
+
+.replay-teleprompter-wrapper .teleprompter-wrapper {
+  height: 100%;
+}
+
+.replay-no-transcript {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border-primary);
+  color: var(--text-tertiary);
+}
+
+.replay-no-transcript svg {
+  opacity: 0.5;
+}
+
+.replay-no-transcript p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+/* Player Controls - Bottom */
+.replay-player {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px 20px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+/* Progress Bar */
+.replay-progress-container {
+  position: relative;
+  height: 32px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.replay-progress-bar {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  right: 4px;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  transform: translateY(-50%);
+  overflow: hidden;
+}
+
+.replay-progress-fill {
+  height: 100%;
+  background: var(--podcast-primary);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+/* Reaction Markers on Progress Bar */
+.replay-reaction-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  z-index: 2;
+  line-height: 1;
+}
+
+.replay-reaction-marker:hover {
+  transform: translateX(-50%) scale(1.3);
+}
+
+/* Controls Row */
+.replay-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* Time Display */
+.replay-time-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 100px;
+}
+
+.replay-time-display .current-time {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.replay-time-display .time-separator {
+  color: var(--text-tertiary);
+}
+
+.replay-time-display .total-time {
+  color: var(--text-tertiary);
+}
+
+/* Playback Controls */
+.replay-playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.replay-skip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.replay-skip-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.replay-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--podcast-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.replay-play-btn:hover {
+  background: var(--podcast-primary-hover);
+  transform: scale(1.05);
+}
+
+/* Right Controls - Volume & Speed */
+.replay-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 100px;
+  justify-content: flex-end;
+}
+
+.replay-volume-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.replay-volume-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.replay-volume-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.replay-volume-slider {
+  width: 80px;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--podcast-primary);
+}
+
+/* Speed Control */
+.replay-speed-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.replay-speed-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.replay-speed-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.replay-speed-btn.active {
+  background: var(--podcast-primary);
+  border-color: var(--podcast-primary);
+  color: var(--text-inverse);
+}
+
+/* No Audio State */
+.replay-no-audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-primary);
+  color: var(--text-tertiary);
+  font-size: 0.9375rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .replay-main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .replay-left-column {
+    width: 100%;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .replay-cover-container {
+    width: 180px;
+    flex-shrink: 0;
+  }
+
+  .replay-info-card {
+    flex: 1;
+  }
+
+  .replay-right-column {
+    min-height: 300px;
+  }
+
+  .replay-teleprompter-wrapper {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .replay-header {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .replay-source-btn span {
+    display: none;
+  }
+
+  .replay-main {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .replay-left-column {
+    flex-direction: column;
+  }
+
+  .replay-cover-container {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+
+  .replay-player {
+    padding: 12px 16px 16px;
+  }
+
+  .replay-volume-control {
+    display: none;
+  }
+
+  .replay-speed-control {
+    gap: 2px;
+  }
+
+  .replay-speed-btn {
+    padding: 3px 6px;
+    font-size: 0.6875rem;
+  }
+}

@@ -1,6 +1,7 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -17,7 +18,18 @@ from . import storage, config, prompts, threads, settings, content, synthesizer,
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
-app = FastAPI(title="LLM Council API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan - startup and shutdown."""
+    # Startup: Start background tasks
+    monitor_scheduler.start_scheduler()
+    yield
+    # Shutdown: Clean up
+    monitor_scheduler.stop_scheduler()
+
+
+app = FastAPI(title="LLM Council API", lifespan=lifespan)
 
 # Enable CORS for local development
 app.add_middleware(
@@ -27,19 +39,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on app startup."""
-    # Start the monitor scheduler
-    monitor_scheduler.start_scheduler()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up on app shutdown."""
-    monitor_scheduler.stop_scheduler()
 
 
 class CouncilConfig(BaseModel):
@@ -2584,6 +2583,590 @@ async def create_monitor_digest(monitor_id: str, period: str = "weekly"):
     if not digest:
         raise HTTPException(status_code=404, detail="Monitor not found")
     return digest
+
+
+# =============================================================================
+# Podcast Endpoints
+# =============================================================================
+
+from . import podcast, podcast_storage, podcast_styles
+
+
+class CreatePodcastSessionRequest(BaseModel):
+    """Request to create a podcast session."""
+    conversation_id: str
+    note_ids: Optional[List[str]] = None
+    style: str = "conversational"
+
+
+class SpeakerConfigRequest(BaseModel):
+    """Request to update host or expert speaker config."""
+    voice_id: Optional[str] = None
+    model: Optional[str] = None
+    stability: Optional[float] = None
+    similarity_boost: Optional[float] = None
+    style: Optional[float] = None
+    speed: Optional[float] = None
+    system_prompt: Optional[str] = None
+
+
+@app.get("/api/settings/podcast")
+async def get_podcast_settings_endpoint():
+    """Get podcast settings and configuration status."""
+    return settings.get_podcast_settings()
+
+
+class ElevenLabsApiKeyRequest(BaseModel):
+    """Request to set ElevenLabs API key."""
+    api_key: str
+
+
+@app.post("/api/settings/podcast/elevenlabs-api-key")
+async def set_elevenlabs_api_key_endpoint(request: ElevenLabsApiKeyRequest):
+    """Set the ElevenLabs API key."""
+    settings.set_elevenlabs_api_key(request.api_key)
+    return {"success": True, "source": "settings"}
+
+
+@app.delete("/api/settings/podcast/elevenlabs-api-key")
+async def clear_elevenlabs_api_key_endpoint():
+    """Clear the ElevenLabs API key from settings."""
+    settings.clear_elevenlabs_api_key()
+    return {"success": True}
+
+
+@app.put("/api/settings/podcast/host")
+async def update_host_config(request: SpeakerConfigRequest):
+    """Update host speaker configuration."""
+    voice_settings = None
+    if any([request.stability is not None, request.similarity_boost is not None,
+            request.style is not None, request.speed is not None]):
+        current = settings.get_host_voice_config()
+        voice_settings = current["voice_settings"].copy()
+        if request.stability is not None:
+            voice_settings["stability"] = request.stability
+        if request.similarity_boost is not None:
+            voice_settings["similarity_boost"] = request.similarity_boost
+        if request.style is not None:
+            voice_settings["style"] = request.style
+        if request.speed is not None:
+            voice_settings["speed"] = request.speed
+
+    settings.set_host_voice_config(
+        voice_id=request.voice_id,
+        model=request.model,
+        voice_settings=voice_settings,
+        system_prompt=request.system_prompt,
+    )
+    return settings.get_podcast_settings()
+
+
+@app.put("/api/settings/podcast/expert")
+async def update_expert_config(request: SpeakerConfigRequest):
+    """Update expert speaker configuration."""
+    voice_settings = None
+    if any([request.stability is not None, request.similarity_boost is not None,
+            request.style is not None, request.speed is not None]):
+        current = settings.get_expert_voice_config()
+        voice_settings = current["voice_settings"].copy()
+        if request.stability is not None:
+            voice_settings["stability"] = request.stability
+        if request.similarity_boost is not None:
+            voice_settings["similarity_boost"] = request.similarity_boost
+        if request.style is not None:
+            voice_settings["style"] = request.style
+        if request.speed is not None:
+            voice_settings["speed"] = request.speed
+
+    settings.set_expert_voice_config(
+        voice_id=request.voice_id,
+        model=request.model,
+        voice_settings=voice_settings,
+        system_prompt=request.system_prompt,
+    )
+    return settings.get_podcast_settings()
+
+
+class CoverPromptRequest(BaseModel):
+    prompt: str
+
+
+@app.post("/api/settings/podcast/cover-prompt")
+async def set_cover_prompt_endpoint(request: CoverPromptRequest):
+    """Set the podcast cover art prompt."""
+    settings.set_podcast_cover_prompt(request.prompt)
+    return {"success": True}
+
+
+class CoverModelRequest(BaseModel):
+    model: str
+
+
+@app.get("/api/settings/podcast/cover-model")
+async def get_cover_model_endpoint():
+    """Get the podcast cover art model."""
+    return {"model": settings.get_podcast_cover_model()}
+
+
+@app.post("/api/settings/podcast/cover-model")
+async def set_cover_model_endpoint(request: CoverModelRequest):
+    """Set the podcast cover art model."""
+    settings.set_podcast_cover_model(request.model)
+    return {"success": True, "model": request.model}
+
+
+# =============================================================================
+# Podcast Narration Styles Endpoints
+# =============================================================================
+
+@app.get("/api/settings/podcast/styles")
+async def list_podcast_styles_endpoint():
+    """List all podcast narration styles."""
+    return podcast_styles.list_podcast_styles()
+
+
+@app.get("/api/settings/podcast/styles/{style_id}")
+async def get_podcast_style_endpoint(style_id: str):
+    """Get a specific podcast style."""
+    style = podcast_styles.get_podcast_style(style_id)
+    if not style:
+        raise HTTPException(status_code=404, detail="Style not found")
+    return {"id": style_id, **style}
+
+
+class CreatePodcastStyleRequest(BaseModel):
+    """Request to create a new podcast style."""
+    id: str
+    name: str
+    description: str
+    prompt: str
+
+
+@app.post("/api/settings/podcast/styles")
+async def create_podcast_style_endpoint(request: CreatePodcastStyleRequest):
+    """Create a new podcast narration style."""
+    # Validate ID format (alphanumeric, hyphens, and underscores only)
+    if not request.id or not all(c.isalnum() or c in '-_' for c in request.id):
+        raise HTTPException(status_code=400, detail="Style ID must contain only letters, numbers, hyphens, and underscores")
+
+    success = podcast_styles.create_podcast_style(
+        request.id,
+        request.name,
+        request.description,
+        request.prompt
+    )
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Style ID already exists")
+
+    return {
+        "success": True,
+        "style": {
+            "id": request.id,
+            "name": request.name,
+            "description": request.description,
+            "prompt": request.prompt
+        }
+    }
+
+
+class UpdatePodcastStyleRequest(BaseModel):
+    """Request to update a podcast style."""
+    name: str
+    description: str
+    prompt: str
+
+
+@app.put("/api/settings/podcast/styles/{style_id}")
+async def update_podcast_style_endpoint(style_id: str, request: UpdatePodcastStyleRequest):
+    """Update an existing podcast narration style."""
+    # Check if style exists
+    existing = podcast_styles.get_podcast_style(style_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Style not found")
+
+    podcast_styles.update_podcast_style(
+        style_id,
+        request.name,
+        request.description,
+        request.prompt
+    )
+
+    return {
+        "success": True,
+        "style": {
+            "id": style_id,
+            "name": request.name,
+            "description": request.description,
+            "prompt": request.prompt
+        }
+    }
+
+
+@app.delete("/api/settings/podcast/styles/{style_id}")
+async def delete_podcast_style_endpoint(style_id: str):
+    """Delete a podcast narration style."""
+    success = podcast_styles.delete_podcast_style(style_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Cannot delete style (not found or is the last style)")
+    return {"success": True}
+
+
+def _generate_metadata_and_cover_background_sync(session_id: str):
+    """
+    Sync wrapper for background metadata and cover generation.
+
+    FastAPI BackgroundTasks runs sync functions in a thread pool,
+    so we create a new event loop for the async operations.
+
+    This function:
+    1. Generates title and summary using LLM
+    2. Generates cover art using the summary for better context
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting background metadata generation for session {session_id}")
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        # Step 1: Generate metadata (title + summary)
+        metadata_result = loop.run_until_complete(podcast.update_session_metadata(session_id))
+        if metadata_result.get("error"):
+            logger.error(f"Metadata generation failed for {session_id}: {metadata_result['error']}")
+        else:
+            logger.info(f"Metadata generated for {session_id}: {metadata_result.get('title')}")
+
+        # Step 2: Generate cover (can now use the summary)
+        logger.info(f"Starting cover generation for session {session_id}")
+        cover_result = loop.run_until_complete(podcast.generate_podcast_cover(session_id))
+        if cover_result.get("error"):
+            logger.error(f"Cover generation failed for {session_id}: {cover_result['error']}")
+        else:
+            logger.info(f"Cover generated successfully for {session_id}: {cover_result.get('cover_url')}")
+    except Exception as e:
+        logger.exception(f"Failed to generate metadata/cover for session {session_id}: {e}")
+    finally:
+        loop.close()
+
+
+def _generate_podcast_audio_background_sync(session_id: str):
+    """
+    Sync wrapper for background podcast audio generation.
+
+    FastAPI BackgroundTasks runs sync functions in a thread pool,
+    so we create a new event loop for the async operations.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[PODCAST] Background audio generation starting for session {session_id}")
+
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(podcast.generate_podcast_audio(session_id))
+        if result.get("error"):
+            logger.error(f"[PODCAST] Generation failed: {result['error']}")
+        else:
+            logger.info(f"[PODCAST] Generation complete for session {session_id}")
+    except Exception as e:
+        logger.exception(f"[PODCAST] Background generation failed: {e}")
+        # Update session with error status
+        sess = podcast_storage.get_podcast_session(session_id)
+        if sess:
+            sess["status"] = "error"
+            sess["error"] = str(e)
+            podcast_storage.save_podcast_session(sess)
+    finally:
+        loop.close()
+
+
+@app.post("/api/podcast/sessions")
+async def create_podcast_session_endpoint(
+    request: CreatePodcastSessionRequest,
+    background_tasks: BackgroundTasks
+):
+    """Create a new podcast session from synthesizer notes."""
+    try:
+        session = podcast.create_podcast_session(
+            request.conversation_id,
+            request.note_ids,
+            request.style
+        )
+
+        # Trigger metadata + cover generation in background using FastAPI BackgroundTasks
+        # This runs in a thread pool and survives after response is sent
+        # First generates title/summary, then uses summary for cover generation
+        background_tasks.add_task(_generate_metadata_and_cover_background_sync, session["session_id"])
+
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/podcast/sessions")
+async def list_podcast_sessions_endpoint(
+    conversation_id: Optional[str] = None,
+    limit: int = 50
+):
+    """List podcast sessions."""
+    return podcast_storage.list_podcast_sessions(conversation_id, limit)
+
+
+@app.get("/api/podcast/sessions/{session_id}")
+async def get_podcast_session_endpoint(session_id: str):
+    """Get a specific podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.get("/api/podcast/sessions/by-prefix/{prefix}")
+async def get_session_by_prefix_endpoint(prefix: str):
+    """Get a session by ID prefix (for agent room matching)."""
+    session = podcast_storage.get_session_by_prefix(prefix)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+class PodcastReactionRequest(BaseModel):
+    emoji: str
+    timestamp_ms: int
+
+
+@app.post("/api/podcast/sessions/{session_id}/reactions")
+async def add_podcast_reaction_endpoint(session_id: str, request: PodcastReactionRequest):
+    """Add an emoji reaction to a podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    podcast_storage.add_session_reaction(session_id, request.emoji, request.timestamp_ms)
+    return {"success": True}
+
+
+@app.get("/api/podcast/sessions/{session_id}/reactions")
+async def get_podcast_reactions_endpoint(session_id: str):
+    """Get all reactions for a podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"reactions": podcast_storage.get_session_reactions(session_id)}
+
+
+@app.post("/api/podcast/sessions/{session_id}/generate")
+async def generate_podcast_audio_endpoint(session_id: str, background_tasks: BackgroundTasks):
+    """
+    Start audio generation for a podcast session.
+
+    Generation runs in the background. Poll the session status
+    or use the SSE endpoint for progress updates.
+    """
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.get("status") == "ready":
+        return {
+            "status": "ready",
+            "audio_url": f"/api/podcast/sessions/{session_id}/audio"
+        }
+
+    if session.get("status") == "generating":
+        return {
+            "status": "generating",
+            "progress": session.get("generation_progress", 0)
+        }
+
+    # Start background generation using sync wrapper with BackgroundTasks
+    # This runs in a thread pool and survives after response is sent
+    background_tasks.add_task(_generate_podcast_audio_background_sync, session_id)
+
+    return {"status": "generating", "progress": 0}
+
+
+@app.get("/api/podcast/sessions/{session_id}/generate/stream")
+async def stream_generation_progress(session_id: str):
+    """SSE endpoint for generation progress updates."""
+    from fastapi.responses import StreamingResponse
+    import json as json_module
+
+    async def event_generator():
+        while True:
+            session = podcast_storage.get_podcast_session(session_id)
+            if not session:
+                yield f"data: {json_module.dumps({'error': 'Session not found'})}\n\n"
+                break
+
+            status = session.get("status", "created")
+            progress = session.get("generation_progress", 0)
+            message = session.get("generation_message", "Starting...")
+            step = session.get("generation_step", "starting")
+            audio_current = session.get("audio_current_segment", 0)
+            audio_total = session.get("audio_total_segments", 0)
+
+            if status == "ready":
+                yield f"data: {json_module.dumps({'status': 'ready', 'progress': 1.0, 'message': 'Complete!', 'step': 'complete', 'audio_url': f'/api/podcast/sessions/{session_id}/audio'})}\n\n"
+                break
+            elif status == "error":
+                yield f"data: {json_module.dumps({'status': 'error', 'error': session.get('error', 'Unknown error')})}\n\n"
+                break
+            else:
+                yield f"data: {json_module.dumps({'status': status, 'progress': progress, 'message': message, 'step': step, 'audio_current': audio_current, 'audio_total': audio_total})}\n\n"
+
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/podcast/sessions/{session_id}/end")
+async def end_podcast_session_endpoint(session_id: str):
+    """End a podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    podcast_storage.mark_session_ended(session_id)
+    return {"success": True}
+
+
+@app.get("/api/podcast/sessions/{session_id}/transcript")
+async def get_podcast_transcript_endpoint(session_id: str):
+    """Get the transcript for a podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "session_id": session_id,
+        "transcript": session.get("transcript", []),
+        "status": session.get("status", "created")
+    }
+
+
+@app.get("/api/podcast/sessions/{session_id}/word-timings")
+async def get_podcast_word_timings_endpoint(session_id: str):
+    """
+    Get word timings for teleprompter sync during replay.
+
+    Returns word-level timing data for accurate text highlighting
+    synchronized with audio playback at any speed.
+    """
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "session_id": session_id,
+        "word_timings": session.get("word_timings", [])
+    }
+
+
+@app.get("/api/podcast/sessions/{session_id}/cover")
+async def get_podcast_cover_endpoint(session_id: str):
+    """Serve the cover image for a podcast session from its folder."""
+    from fastapi.responses import FileResponse
+
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get cover path from new folder structure
+    cover_path = podcast_storage.get_podcast_cover_path(session_id)
+
+    if cover_path.exists():
+        return FileResponse(str(cover_path), media_type="image/png")
+
+    raise HTTPException(status_code=404, detail="Cover not found")
+
+
+@app.post("/api/podcast/sessions/{session_id}/cover/generate")
+async def regenerate_podcast_cover_endpoint(session_id: str):
+    """Regenerate cover art for an existing podcast session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    result = await podcast.generate_podcast_cover(session_id)
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return {
+        "success": True,
+        "cover_url": result.get("cover_url")
+    }
+
+
+@app.delete("/api/podcast/sessions/{session_id}")
+async def delete_podcast_session_endpoint(session_id: str):
+    """Delete a podcast session."""
+    if not podcast_storage.delete_podcast_session(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True}
+
+
+from fastapi import UploadFile, File
+from pathlib import Path
+
+
+@app.post("/api/podcast/sessions/{session_id}/audio")
+async def upload_podcast_audio_endpoint(session_id: str, audio: UploadFile = File(...)):
+    """Upload recorded podcast audio for a session."""
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get audio path from new folder structure
+    audio_path = podcast_storage.get_podcast_audio_path(session_id)
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        content = await audio.read()
+        with open(audio_path, "wb") as f:
+            f.write(content)
+
+        # Update session with audio path
+        podcast_storage.update_session_audio_path(session_id, str(audio_path))
+
+        return {"success": True, "audio_path": str(audio_path)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save audio: {str(e)}")
+
+
+@app.get("/api/podcast/sessions/{session_id}/audio")
+async def get_podcast_audio_endpoint(session_id: str):
+    """Serve the generated audio file for a podcast session."""
+    from fastapi.responses import FileResponse
+    from .podcast_elevenlabs import get_podcast_audio_path
+
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # First check session's stored path (for backwards compatibility)
+    audio_path = session.get("audio_path")
+    if audio_path:
+        # Handle relative paths from data directory
+        if not audio_path.startswith("/"):
+            audio_path = Path("data") / audio_path
+        else:
+            audio_path = Path(audio_path)
+
+        if audio_path.exists():
+            # Determine media type from extension
+            media_type = "audio/mpeg" if audio_path.suffix == ".mp3" else "audio/webm"
+            return FileResponse(str(audio_path), media_type=media_type)
+
+    # Check new ElevenLabs audio location
+    elevenlabs_path = get_podcast_audio_path(session_id)
+    if elevenlabs_path and elevenlabs_path.exists():
+        return FileResponse(str(elevenlabs_path), media_type="audio/mpeg")
+
+    raise HTTPException(status_code=404, detail="No audio generated for this session")
 
 
 if __name__ == "__main__":

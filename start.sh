@@ -30,6 +30,30 @@ for arg in "$@"; do
     esac
 done
 
+# Prevent multiple start.sh instances (and port collisions)
+PID_FILE="/tmp/wizengamot.pid"
+if [ -f "$PID_FILE" ]; then
+    OLD_PID="$(cat "$PID_FILE" 2>/dev/null)"
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "Wizengamot already running (PID $OLD_PID)."
+        echo "If this is stale, remove $PID_FILE and retry."
+        exit 1
+    fi
+fi
+echo $$ > "$PID_FILE"
+
+# Guard against port conflicts
+if lsof -nP -iTCP:8001 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "Port 8001 already in use. Stop the existing backend before starting."
+    rm -f "$PID_FILE"
+    exit 1
+fi
+if lsof -nP -iTCP:5173 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "Port 5173 already in use. Stop the existing frontend before starting."
+    rm -f "$PID_FILE"
+    exit 1
+fi
+
 echo ""
 echo "Starting Wizengamot..."
 echo ""
@@ -91,16 +115,17 @@ echo -e "${GREEN}Wizengamot is running!${NC}"
 echo "  Backend:  http://localhost:8001"
 echo "  Frontend: http://localhost:5173"
 echo ""
-echo "Press Ctrl+C to stop both servers"
+echo "Press Ctrl+C to stop all servers"
 
 # Cleanup on exit
 cleanup() {
     echo ""
     echo "Shutting down..."
-    # Kill process groups to ensure child processes (Python backend) are also terminated
+    # Kill process groups to ensure child processes are also terminated
     kill -- -$BACKEND_PID 2>/dev/null || kill $BACKEND_PID 2>/dev/null
     kill $FRONTEND_PID 2>/dev/null
     wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    rm -f "$PID_FILE"
     echo "Done."
     exit 0
 }

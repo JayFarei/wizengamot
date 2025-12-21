@@ -1,0 +1,71 @@
+/* EmojiReactions Component - inline style for controls row */
+.emoji-reactions {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.emoji-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.emoji-btn {
+  font-size: 1.25rem;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.emoji-btn:hover {
+  background: var(--bg-hover);
+  transform: scale(1.1);
+}
+
+.emoji-btn.active {
+  transform: scale(1.2);
+  background: var(--podcast-badge-bg);
+  border-color: var(--podcast-primary);
+}
+
+/* Floating emoji animation container */
+.floating-emojis {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 200px;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 100;
+}
+
+.floating-emoji {
+  position: absolute;
+  bottom: 0;
+  font-size: 2rem;
+  animation: floatUp 1.5s ease-out forwards;
+  filter: drop-shadow(0 2px 4px var(--shadow));
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-180px) scale(1.5) rotate(15deg);
+    opacity: 0;
+  }
+}
+
+/* Dark mode - uses Catpuccin variables from index.css */

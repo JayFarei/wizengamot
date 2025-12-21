@@ -13,8 +13,11 @@ import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
+import PodcastInterface from './components/PodcastInterface';
+import PodcastReplayView from './components/PodcastReplayView';
 import ImageGallery from './components/ImageGallery';
 import ConversationGallery from './components/ConversationGallery';
+import PodcastGallery from './components/PodcastGallery';
 import SearchModal from './components/SearchModal';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
@@ -77,6 +80,13 @@ function App() {
 
   // Visualiser settings for style icons in sidebar
   const [visualiserSettings, setVisualiserSettings] = useState(null);
+
+  // Podcast sessions for sidebar
+  const [podcastSessions, setPodcastSessions] = useState([]);
+  const [showPodcastGallery, setShowPodcastGallery] = useState(false);
+  const [showPodcastSetup, setShowPodcastSetup] = useState(false);
+  const [currentPodcastId, setCurrentPodcastId] = useState(null);
+  const [podcastSourceConvId, setPodcastSourceConvId] = useState(null);
 
   // API key status for warnings
   const [apiKeyStatus, setApiKeyStatus] = useState(null);
@@ -168,6 +178,7 @@ function App() {
     loadApiKeyStatus();
     loadCredits();
     loadVisualiserSettings();
+    loadPodcasts();
   }, []);
 
   const loadApiKeyStatus = async () => {
@@ -243,6 +254,15 @@ function App() {
       setVisualiserSettings(settings);
     } catch (error) {
       console.error('Failed to load visualiser settings:', error);
+    }
+  };
+
+  const loadPodcasts = async () => {
+    try {
+      const sessions = await api.listPodcastSessions(null, 50);
+      setPodcastSessions(sessions);
+    } catch (error) {
+      console.error('Failed to load podcast sessions:', error);
     }
   };
 
@@ -351,36 +371,48 @@ function App() {
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setCurrentPodcastId(null);
   };
 
   const handleOpenImageGallery = () => {
     setShowImageGallery(true);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+    setCurrentPodcastId(null);
   };
 
   const handleOpenCouncilGallery = () => {
     setShowCouncilGallery(true);
     setShowNotesGallery(false);
     setShowImageGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+    setCurrentPodcastId(null);
   };
 
   const handleOpenNotesGallery = () => {
     setShowNotesGallery(true);
     setShowCouncilGallery(false);
     setShowImageGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+    setCurrentPodcastId(null);
   };
 
   const handleNewCouncilFromGallery = () => {
@@ -457,7 +489,28 @@ function App() {
       } catch (error) {
         console.error('Failed to create visualiser conversation:', error);
       }
+    } else if (mode === 'podcast') {
+      // Show podcast gallery instead of creating a conversation
+      setShowPodcastGallery(true);
+      setCurrentConversationId(null);
+      setCurrentPodcastId(null);
+      setCurrentMonitorId(null);
+      setCurrentMonitor(null);
+      loadPodcasts();
     }
+  };
+
+  // Navigate to podcast mode with pre-selected source conversation
+  const handleNavigateToPodcast = (sourceConversationId) => {
+    // Store the source conversation ID for pre-selection
+    setPodcastSourceConvId(sourceConversationId);
+    // Show podcast setup interface directly (skip gallery)
+    setShowPodcastSetup(true);
+    setShowPodcastGallery(false);
+    setCurrentConversationId(null);
+    setCurrentPodcastId(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
   };
 
   const handleConfigSubmit = async (config) => {
@@ -491,12 +544,15 @@ function App() {
       await cleanupEmptyConversation(currentConversationId);
     }
 
-    // Clear monitor selection and gallery when selecting a conversation
+    // Clear monitor selection and galleries when selecting a conversation
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setCurrentPodcastId(null);
     setCurrentConversationId(id);
     setActiveCommentId(null);
     setContextSegments([]);
@@ -530,9 +586,15 @@ function App() {
 
   // Monitor handlers
   const handleSelectMonitor = async (id) => {
-    // Clear conversation selection when selecting a monitor
+    // Clear conversation and gallery selections when selecting a monitor
     setCurrentConversationId(null);
     setCurrentConversation(null);
+    setShowImageGallery(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setCurrentPodcastId(null);
     setCurrentMonitorId(id);
     try {
       const monitor = await api.getMonitor(id);
@@ -1265,6 +1327,7 @@ function App() {
         onOpenImageGallery={handleOpenImageGallery}
         onOpenCouncilGallery={handleOpenCouncilGallery}
         onOpenNotesGallery={handleOpenNotesGallery}
+        onOpenPodcastGallery={() => setShowPodcastGallery(true)}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
@@ -1307,6 +1370,32 @@ function App() {
           onClose={() => setShowNotesGallery(false)}
           onNewItem={handleNewNoteFromGallery}
         />
+      ) : showPodcastGallery ? (
+        <PodcastGallery
+          podcasts={podcastSessions}
+          onSelectPodcast={(id) => {
+            setCurrentPodcastId(id);
+            setCurrentConversationId(null);
+            setCurrentMonitorId(null);
+            setShowPodcastGallery(false);
+            setShowImageGallery(false);
+            setShowCouncilGallery(false);
+            setShowNotesGallery(false);
+          }}
+          onClose={() => setShowPodcastGallery(false)}
+          onNewPodcast={() => {
+            setShowPodcastGallery(false);
+            setShowPodcastSetup(true);
+          }}
+          onDeletePodcast={async (id) => {
+            await api.deletePodcastSession(id);
+            loadPodcasts();
+            if (currentPodcastId === id) {
+              setCurrentPodcastId(null);
+            }
+          }}
+          onRefresh={loadPodcasts}
+        />
       ) : showImageGallery ? (
         <ImageGallery
           onSelectConversation={async (id) => {
@@ -1317,6 +1406,36 @@ function App() {
           onNewVisualisation={() => {
             setShowImageGallery(false);
             handleModeSelect('visualiser');
+          }}
+        />
+      ) : showPodcastSetup ? (
+        <PodcastInterface
+          onOpenSettings={(tab) => {
+            setSettingsDefaultTab(tab || 'podcast');
+            setShowSettingsModal(true);
+          }}
+          onSelectConversation={handleSelectConversation}
+          conversations={conversations}
+          preSelectedConversationId={podcastSourceConvId}
+          onClose={() => {
+            setShowPodcastSetup(false);
+            setPodcastSourceConvId(null);
+            setShowPodcastGallery(true);
+          }}
+          onPodcastCreated={(sessionId) => {
+            setShowPodcastSetup(false);
+            setPodcastSourceConvId(null);
+            setCurrentPodcastId(sessionId);
+            loadPodcasts();
+          }}
+        />
+      ) : currentPodcastId ? (
+        <PodcastReplayView
+          sessionId={currentPodcastId}
+          onClose={() => setCurrentPodcastId(null)}
+          onNavigateToNote={(id) => {
+            setCurrentPodcastId(null);
+            handleSelectConversation(id);
           }}
         />
       ) : currentMonitor ? (
@@ -1334,19 +1453,25 @@ function App() {
           onConversationUpdate={(updatedConv, newTitle) => {
             setCurrentConversation(updatedConv);
             // Always update the conversations list with full metadata
-            setConversations((prev) =>
-              prev.map((c) => c.id === updatedConv.id
-                ? {
-                    ...c,
-                    title: newTitle || c.title,
-                    source_type: updatedConv.synthesizer_config?.source_type || c.source_type,
-                    total_cost: updatedConv.total_cost ?? c.total_cost,
-                    is_deliberation: updatedConv.messages?.some(m => m.mode === 'deliberation') || false,
-                    message_count: updatedConv.messages?.length || c.message_count,
-                  }
-                : c
-              )
-            );
+            setConversations((prev) => {
+              const exists = prev.some((c) => c.id === updatedConv.id);
+              const updatedMeta = {
+                id: updatedConv.id,
+                created_at: updatedConv.created_at,
+                title: newTitle || updatedConv.title || 'Untitled',
+                source_type: updatedConv.synthesizer_config?.source_type,
+                total_cost: updatedConv.total_cost,
+                is_deliberation: updatedConv.messages?.some(m => m.mode === 'deliberation') || false,
+                message_count: updatedConv.messages?.length || 0,
+                mode: 'synthesizer',
+              };
+              if (exists) {
+                return prev.map((c) => c.id === updatedConv.id ? { ...c, ...updatedMeta } : c);
+              } else {
+                // Conversation not in list yet - add it at the top
+                return [updatedMeta, ...prev];
+              }
+            });
             if (newTitle) {
               setAnimatingTitleId(updatedConv.id);
             }
@@ -1358,6 +1483,7 @@ function App() {
           onDeleteComment={handleDeleteComment}
           activeCommentId={activeCommentId}
           onSetActiveComment={handleSetActiveComment}
+          onNavigateToPodcast={() => handleNavigateToPodcast(currentConversationId)}
         />
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface
@@ -1375,6 +1501,16 @@ function App() {
               loadConversations();
             }
           }}
+        />
+      ) : currentConversation?.mode === 'podcast' ? (
+        <PodcastInterface
+          onOpenSettings={(tab) => {
+            setSettingsDefaultTab(tab || 'podcast');
+            setShowSettingsModal(true);
+          }}
+          onSelectConversation={handleSelectConversation}
+          conversations={conversations}
+          preSelectedConversationId={podcastSourceConvId}
         />
       ) : currentConversation?.mode === 'council' && currentConversation?.messages?.some(m => m.role === 'assistant') ? (
         <CouncilDiscussionView

@@ -1688,4 +1688,444 @@ export const api = {
     }
     return response.json();
   },
+
+  // ==========================================================================
+  // Podcast API Methods
+  // ==========================================================================
+
+  /**
+   * Get podcast settings and configuration status.
+   * Returns ElevenLabs config with host and expert speaker settings.
+   */
+  async getPodcastSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/podcast`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Set the ElevenLabs API key for TTS voice generation.
+   * @param {string} apiKey - The ElevenLabs API key
+   */
+  async updateElevenLabsApiKey(apiKey) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-api-key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update ElevenLabs API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear the ElevenLabs API key from settings.
+   */
+  async clearElevenLabsApiKey() {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-api-key`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear ElevenLabs API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update ElevenLabs voice settings.
+   * @param {Object} settings - Voice settings
+   * @param {string} [settings.voice_id] - Voice ID
+   * @param {string} [settings.model] - Model ID
+   * @param {number} [settings.stability] - Stability (0-1)
+   * @param {number} [settings.similarity_boost] - Similarity boost (0-1)
+   * @param {number} [settings.style] - Style (0-1)
+   * @param {number} [settings.speed] - Speed (0.5-2)
+   */
+  async updateElevenLabsVoiceSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-voice`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update ElevenLabs voice settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Set the OpenAI API key for TTS voice generation.
+   * @param {string} apiKey - The OpenAI API key
+   */
+  async updateOpenaiApiKey(apiKey) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/openai-api-key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update OpenAI API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear the OpenAI API key from settings.
+   */
+  async clearOpenaiApiKey() {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/openai-api-key`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear OpenAI API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update host speaker configuration.
+   * @param {Object} config - Host config (voice_id, model, stability, similarity_boost, style, speed, system_prompt)
+   */
+  async updateHostConfig(config) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/host`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update host configuration');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update expert speaker configuration.
+   * @param {Object} config - Expert config (voice_id, model, stability, similarity_boost, style, speed, system_prompt)
+   */
+  async updateExpertConfig(config) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/expert`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update expert configuration');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the podcast cover art prompt.
+   * @param {string} prompt - The cover art generation prompt
+   */
+  async updatePodcastCoverPrompt(prompt) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/cover-prompt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update cover prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the podcast cover art model.
+   * @param {string} model - The OpenRouter model ID for cover generation
+   */
+  async updatePodcastCoverModel(model) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/cover-model`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update cover model');
+    }
+    return response.json();
+  },
+
+  /**
+   * List all podcast narration styles.
+   */
+  async listPodcastStyles() {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/styles`);
+    if (!response.ok) {
+      throw new Error('Failed to list podcast styles');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific podcast narration style.
+   * @param {string} styleId - The style ID
+   */
+  async getPodcastStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/styles/${styleId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new podcast narration style.
+   * @param {Object} style - Style data with id, name, description, prompt
+   */
+  async createPodcastStyle(style) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/styles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(style),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to create podcast style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an existing podcast narration style.
+   * @param {string} styleId - The style ID
+   * @param {Object} updates - Updated name, description, prompt
+   */
+  async updatePodcastStyle(styleId, updates) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/styles/${styleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update podcast style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a podcast narration style.
+   * @param {string} styleId - The style ID
+   */
+  async deletePodcastStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/settings/podcast/styles/${styleId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to delete podcast style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new podcast session from Synthesizer notes.
+   * @param {string} conversationId - The synthesizer conversation ID
+   * @param {Array<string>} noteIds - Optional specific note IDs to include (null = all)
+   * @param {string} style - Narration style: 'conversational', 'educational', 'storytelling'
+   */
+  async createPodcastSession(conversationId, noteIds = null, style = 'conversational') {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        note_ids: noteIds,
+        style,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to create podcast session');
+    }
+    return response.json();
+  },
+
+  /**
+   * List podcast sessions.
+   * @param {string} conversationId - Optional filter by source conversation
+   * @param {number} limit - Maximum sessions to return
+   */
+  async listPodcastSessions(conversationId = null, limit = 50) {
+    let url = `${API_BASE}/api/podcast/sessions?limit=${limit}`;
+    if (conversationId) {
+      url += `&conversation_id=${encodeURIComponent(conversationId)}`;
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to list podcast sessions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific podcast session.
+   * @param {string} sessionId - The session ID
+   */
+  async getPodcastSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Start audio generation for a podcast session.
+   * @param {string} sessionId - The session ID
+   * @returns {Object} Status and progress info
+   */
+  async startPodcastGeneration(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/generate`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to start podcast generation');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get SSE URL for generation progress updates.
+   * @param {string} sessionId - The session ID
+   * @returns {string} SSE endpoint URL
+   */
+  getPodcastGenerationStreamUrl(sessionId) {
+    return `${API_BASE}/api/podcast/sessions/${sessionId}/generate/stream`;
+  },
+
+  /**
+   * End a podcast session.
+   * @param {string} sessionId - The session ID
+   */
+  async endPodcastSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/end`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to end podcast session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get the transcript for a podcast session.
+   * @param {string} sessionId - The session ID
+   */
+  async getPodcastTranscript(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/transcript`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast transcript');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get word timings for teleprompter sync during replay.
+   * Returns word-level timing data for accurate text highlighting
+   * synchronized with audio playback at any speed.
+   * @param {string} sessionId - The session ID
+   */
+  async getPodcastWordTimings(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/word-timings`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast word timings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a podcast session.
+   * @param {string} sessionId - The session ID
+   */
+  async deletePodcastSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete podcast session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Add an emoji reaction to a podcast session.
+   * @param {string} sessionId - The session ID
+   * @param {string} emoji - The emoji character
+   * @param {number} timestampMs - Playback position in milliseconds
+   */
+  async addPodcastReaction(sessionId, emoji, timestampMs) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/reactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ emoji, timestamp_ms: timestampMs }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add podcast reaction');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get all reactions for a podcast session.
+   * @param {string} sessionId - The session ID
+   */
+  async getPodcastReactions(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/reactions`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast reactions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Upload recorded podcast audio.
+   * @param {string} sessionId - The session ID
+   * @param {Blob} audioBlob - The audio data as a Blob
+   */
+  async uploadPodcastAudio(sessionId, audioBlob) {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `${sessionId}.webm`);
+
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/audio`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to upload podcast audio');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get the audio URL for a podcast session.
+   * @param {string} sessionId - The session ID
+   * @returns {string} The audio URL
+   */
+  getPodcastAudioUrl(sessionId) {
+    return `${API_BASE}/api/podcast/sessions/${sessionId}/audio`;
+  },
 };

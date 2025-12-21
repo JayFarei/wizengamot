@@ -26,6 +26,8 @@ export default function SynthesizerInterface({
   onDeleteComment,
   activeCommentId,
   onSetActiveComment,
+  // Podcast navigation
+  onNavigateToPodcast,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -379,6 +381,7 @@ export default function SynthesizerInterface({
                 onDeleteComment={onDeleteComment}
                 activeCommentId={activeCommentId}
                 onSetActiveComment={onSetActiveComment}
+                onNavigateToPodcast={onNavigateToPodcast}
               />
             )
           )}

@@ -31,12 +31,21 @@ const MODE_ICONS = {
       <line x1="15" y1="3" x2="15" y2="21" />
     </svg>
   ),
+  podcast: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  ),
 };
 
 const MODE_LABELS = {
   council: 'Council',
   synthesizer: 'Notes',
   visualiser: 'Diagram',
+  podcast: 'Podcast',
 };
 
 // Filter definitions
@@ -45,6 +54,7 @@ const FILTERS = [
   { key: 'notes', label: 'Notes', description: 'Filter to synthesizer notes' },
   { key: 'monitors', label: 'Monitors', description: 'Filter to monitors' },
   { key: 'diagrams', label: 'Diagrams', description: 'Filter to visualiser diagrams' },
+  { key: 'podcasts', label: 'Podcasts', description: 'Filter to podcast sessions' },
 ];
 
 // Parse @prefix filters from query
@@ -81,6 +91,7 @@ function applyTypeFilter(results, filter) {
     if (filter === 'notes') return r.mode === 'synthesizer';
     if (filter === 'monitors') return r.type === 'monitor';
     if (filter === 'diagrams') return r.mode === 'visualiser';
+    if (filter === 'podcasts') return r.mode === 'podcast';
     return true;
   });
 }

@@ -518,6 +518,17 @@
   margin-left: 8px;
 }
 
+/* Podcast Button */
+.podcast-btn {
+  margin-left: 8px;
+  color: var(--accent-primary, #4a90e2);
+}
+
+.podcast-btn:hover {
+  color: var(--primary);
+  background: var(--bg-elevated);
+}
+
 /* Focus Mode Overlay */
 .focus-overlay {
   position: fixed;

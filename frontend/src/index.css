@@ -95,6 +95,12 @@
   --visualiser-badge-bg: rgba(136, 57, 239, 0.15);
   --visualiser-badge-text: #6d28d9;
 
+  /* Podcast mode (Purple/Violet) */
+  --podcast-primary: #8b5cf6;
+  --podcast-primary-hover: #7c3aed;
+  --podcast-badge-bg: rgba(139, 92, 246, 0.15);
+  --podcast-badge-text: #6b21a8;
+
   /* Status indicators */
   --status-running: #40a02b;
   --status-running-glow: rgba(64, 160, 43, 0.5);
@@ -204,6 +210,12 @@
   --visualiser-primary-hover: #d4b5f8;
   --visualiser-badge-bg: rgba(198, 160, 246, 0.2);
   --visualiser-badge-text: #c6a0f6;
+
+  /* Podcast mode (Purple/Violet) */
+  --podcast-primary: #a78bfa;
+  --podcast-primary-hover: #b8a3fb;
+  --podcast-badge-bg: rgba(167, 139, 250, 0.2);
+  --podcast-badge-text: #a78bfa;
 
   /* Status indicators */
   --status-running: #a6da95;
