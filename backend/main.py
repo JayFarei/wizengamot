@@ -1821,34 +1821,34 @@ def compile_highlighted_content(
     context_segments: List[Dict]
 ) -> str:
     """
-    Compile content for visualisation with emphasis on highlighted sections.
-    Places highlights first with explicit instructions to feature them prominently.
+    Compile content for visualisation with clear separation between
+    required elements (highlights) and background context (full notes).
     """
     parts = []
 
-    # Section 1: User Highlights (most important, placed first)
+    # Section 1: Required Elements - MUST appear in visualization
     if comments:
-        parts.append("## USER HIGHLIGHTS AND ANNOTATIONS")
+        parts.append("## REQUIRED ELEMENTS")
         parts.append("")
-        parts.append("The user has marked these specific sections as important.")
-        parts.append("These should feature PROMINENTLY in the visualization:")
+        parts.append("The user has explicitly selected these items to appear in the visualization.")
+        parts.append("Each of these MUST be prominently featured in the final image:")
         parts.append("")
 
         for i, comment in enumerate(comments, 1):
-            parts.append(f"### Highlight {i}")
+            parts.append(f"### Required Element {i}")
             selection = comment.get("selection", "")
             if selection:
-                parts.append(f'Selected text: "{selection}"')
+                parts.append(f'Content: "{selection}"')
             annotation = comment.get("content", "")
             if annotation:
-                parts.append(f'User annotation: "{annotation}"')
+                parts.append(f'User note: "{annotation}"')
             parts.append("")
 
-    # Section 2: Context Stack
+    # Section 2: Pinned Context Segments
     if context_segments:
-        parts.append("## ADDITIONAL CONTEXT SEGMENTS")
+        parts.append("## PINNED CONTENT")
         parts.append("")
-        parts.append("The user also pinned these larger sections for reference:")
+        parts.append("The user pinned these larger sections as particularly relevant:")
         parts.append("")
 
         for i, segment in enumerate(context_segments, 1):
@@ -1858,9 +1858,13 @@ def compile_highlighted_content(
             parts.append(content.strip())
             parts.append("")
 
-    # Section 3: Source conversation summary
+    # Section 3: Background Context - for understanding, not direct inclusion
     conv_content = extract_conversation_content(source_conv)
-    parts.append("## SOURCE CONVERSATION")
+    parts.append("## BACKGROUND CONTEXT")
+    parts.append("")
+    parts.append("The following provides background context to help you understand the subject matter.")
+    parts.append("Use this to inform the visualization's accuracy and coherence,")
+    parts.append("but focus the actual visual content on the REQUIRED ELEMENTS above.")
     parts.append("")
     parts.append(conv_content)
 
