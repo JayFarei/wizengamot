@@ -104,6 +104,7 @@ class Conversation(BaseModel):
     prompt_title: Optional[str] = None
     mode: str = "council"
     synthesizer_config: Optional[Dict[str, Any]] = None
+    linked_visualisations: List[Dict[str, Any]] = []
 
 
 @app.get("/")
@@ -1610,6 +1611,11 @@ async def visualise_content(conversation_id: str, request: VisualiseRequest):
         generated_title = await generate_visualiser_title(source_content)
         storage.update_conversation_title(conversation_id, generated_title)
 
+    # Link visualisation to source conversation
+    if request.source_type == "conversation" and request.source_id:
+        vis_title = generated_title or f"Diagram ({request.style})"
+        storage.link_visualisation(request.source_id, conversation_id, vis_title)
+
     return {
         "image_id": result["image_id"],
         "image_url": f"/api/images/{result['image_id']}",
@@ -1941,6 +1947,9 @@ async def visualise_from_context(conversation_id: str, request: VisualiseFromCon
     # Generate title
     generated_title = await generate_visualiser_title(source_content)
     storage.update_conversation_title(new_conv_id, generated_title)
+
+    # Link visualisation to source conversation
+    storage.link_visualisation(conversation_id, new_conv_id, generated_title)
 
     # Track cost
     gen_id = result.get("generation_id")
@@ -3171,6 +3180,18 @@ async def get_podcast_audio_endpoint(session_id: str):
         return FileResponse(str(elevenlabs_path), media_type="audio/mpeg")
 
     raise HTTPException(status_code=404, detail="No audio generated for this session")
+
+
+# ===== Migration Endpoints =====
+
+@app.post("/api/migrate/visualisation-links")
+async def migrate_visualisation_links():
+    """
+    Migrate existing visualiser conversations to create bidirectional links
+    with their source conversations.
+    """
+    count = storage.migrate_visualisation_links()
+    return {"migrated": count, "message": f"Created {count} visualisation link(s)"}
 
 
 if __name__ == "__main__":

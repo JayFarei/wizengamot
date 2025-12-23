@@ -5,6 +5,7 @@ import ResponseWithComments from './ResponseWithComments';
 import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
 import FloatingComment from './FloatingComment';
+import ActionMenu from './ActionMenu';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
@@ -35,6 +36,11 @@ export default function NoteViewer({
   chairmanModel,
   // Podcast navigation
   onNavigateToPodcast,
+  // Visualiser navigation
+  onNavigateToVisualiser,
+  // Linked visualisations
+  linkedVisualisations = [],
+  onSelectConversation,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
 
@@ -187,6 +193,12 @@ export default function NoteViewer({
     parts.push('### Up');
     parts.push('');
     parts.push('### Down');
+    if (sourceUrl) {
+      const linkText = sourceTitle?.trim() ? sourceTitle.trim() : sourceUrl;
+      parts.push(`[${linkText}](${sourceUrl})`);
+    } else {
+      parts.push('');
+    }
     parts.push('');
 
     const formattedNote = parts.join('\n');
@@ -199,7 +211,7 @@ export default function NoteViewer({
       setCopyFeedback('Failed to copy');
       setTimeout(() => setCopyFeedback(null), 2000);
     }
-  }, [currentIndex, notes, formatNoteBody]);
+  }, [currentIndex, notes, formatNoteBody, sourceTitle, sourceUrl]);
 
   // Open tweet modal
   const openTweetModal = useCallback(() => {
@@ -515,69 +527,6 @@ export default function NoteViewer({
           )}
 
           {sourceTitle && <span className="source-title">{sourceTitle}</span>}
-
-          {/* Info Button - contains council details and source actions */}
-          {(sourceUrl || sourceContent || isDeliberation) && (
-            <div className="source-info-container" ref={sourceInfoRef}>
-              <button
-                className="source-info-btn"
-                onClick={() => setShowSourceInfo(!showSourceInfo)}
-                title="View info"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-              </button>
-
-              {showSourceInfo && (
-                <div className="source-info-dropdown">
-                  {/* Council deliberation info */}
-                  {isDeliberation && (
-                    <div className="source-info-section council-info">
-                      {modelCount && <span className="model-count">{modelCount} models</span>}
-                      {chairmanModel && (
-                        <span className="chairman-info">Chairman: {getModelShortName(chairmanModel)}</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Source URL link */}
-                  {sourceUrl && (
-                    <a
-                      href={sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="source-info-item"
-                      onClick={() => setShowSourceInfo(false)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                      Open Source URL
-                    </a>
-                  )}
-
-                  {/* Copy source content */}
-                  {sourceContent && (
-                    <button
-                      className="source-info-item"
-                      onClick={handleCopySource}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      {copyFeedback || `Copy ${getSourceTypeLabel()}`}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="note-viewer-controls">
@@ -615,20 +564,101 @@ export default function NoteViewer({
               </svg>
             </button>
           )}
-          {onNavigateToPodcast && (
-            <button
-              className="toggle-btn podcast-btn"
-              onClick={onNavigateToPodcast}
-              title="Generate podcast from these notes"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
-          )}
+          <ActionMenu>
+            {onNavigateToPodcast && (
+              <ActionMenu.Item
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                }
+                label="Generate Podcast"
+                onClick={onNavigateToPodcast}
+              />
+            )}
+            {onNavigateToVisualiser && (
+              <ActionMenu.Item
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                  </svg>
+                }
+                label="Create Diagram"
+                onClick={onNavigateToVisualiser}
+              />
+            )}
+            {linkedVisualisations.length > 0 && onSelectConversation && (
+              <ActionMenu.Submenu
+                id="linked-diagrams"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                }
+                label="View Linked Diagrams"
+                badge={linkedVisualisations.length}
+              >
+                {linkedVisualisations.map((vis) => (
+                  <ActionMenu.Item
+                    key={vis.id}
+                    icon={
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <line x1="9" y1="3" x2="9" y2="21" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                      </svg>
+                    }
+                    label={vis.title}
+                    onClick={() => onSelectConversation(vis.id)}
+                  />
+                ))}
+              </ActionMenu.Submenu>
+            )}
+            {(onNavigateToPodcast || onNavigateToVisualiser || linkedVisualisations.length > 0) && <ActionMenu.Divider />}
+            <ActionMenu.Item
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              }
+              label={copyFeedback || "Copy Note"}
+              onClick={copyNoteToClipboard}
+            />
+            {sourceContent && (
+              <ActionMenu.Item
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                }
+                label={`Copy ${getSourceTypeLabel()}`}
+                onClick={handleCopySource}
+              />
+            )}
+            {sourceUrl && (
+              <ActionMenu.Item
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                }
+                label="Open Source URL"
+                onClick={() => window.open(sourceUrl, '_blank')}
+              />
+            )}
+          </ActionMenu>
         </div>
       </div>
 

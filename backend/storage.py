@@ -76,7 +76,8 @@ def create_conversation(
         "council_config": council_config,  # Store custom config if provided
         "system_prompt": system_prompt,  # Store system prompt if provided
         "synthesizer_config": synthesizer_config,  # Store synthesizer config if provided
-        "total_cost": 0.0  # Track cumulative API cost for this conversation
+        "total_cost": 0.0,  # Track cumulative API cost for this conversation
+        "linked_visualisations": []  # List of visualisations created from this conversation
     }
 
     # Save to file
@@ -953,3 +954,69 @@ def get_usage_stats() -> Dict[str, Any]:
         "top_conversations": top_conversations,
         "daily_spending": daily_spending
     }
+
+
+def link_visualisation(source_conv_id: str, visualiser_conv_id: str, title: str) -> bool:
+    """
+    Add a visualisation link to the source conversation.
+
+    Args:
+        source_conv_id: ID of the source conversation (synthesizer/council)
+        visualiser_conv_id: ID of the visualiser conversation
+        title: Title of the visualisation
+
+    Returns:
+        True if link was added, False if source conversation not found
+    """
+    conv = get_conversation(source_conv_id)
+    if not conv:
+        return False
+
+    # Initialize if missing (backwards compatibility)
+    if "linked_visualisations" not in conv:
+        conv["linked_visualisations"] = []
+
+    # Avoid duplicates
+    existing_ids = [v["id"] for v in conv["linked_visualisations"]]
+    if visualiser_conv_id not in existing_ids:
+        conv["linked_visualisations"].append({
+            "id": visualiser_conv_id,
+            "title": title,
+            "created_at": datetime.utcnow().isoformat()
+        })
+        save_conversation(conv)
+
+    return True
+
+
+def migrate_visualisation_links() -> int:
+    """
+    Scan existing visualiser conversations and create links
+    in their source conversations. Returns count of links created.
+    """
+    count = 0
+    data_path = Path(DATA_DIR)
+
+    for conv_path in data_path.glob("*.json"):
+        try:
+            with open(conv_path, 'r') as f:
+                conv = json.load(f)
+
+            # Only process visualiser conversations
+            if conv.get("mode") != "visualiser":
+                continue
+
+            # Find source_id from user message
+            for msg in conv.get("messages", []):
+                if msg.get("role") == "user" and msg.get("source_type") == "conversation":
+                    source_id = msg.get("source_id")
+                    if source_id:
+                        title = conv.get("title", "Diagram")
+                        if link_visualisation(source_id, conv["id"], title):
+                            count += 1
+                    break
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Error processing {conv_path}: {e}")
+            continue
+
+    return count

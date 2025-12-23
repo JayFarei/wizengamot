@@ -14,10 +14,14 @@ import {
   SkipBack,
   SkipForward,
   ArrowLeft,
+  Download,
+  Info,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../api';
 import Teleprompter from './Teleprompter';
 import EmojiReactions from './EmojiReactions';
+import ActionMenu from './ActionMenu';
 import './PodcastInterface.css';
 
 /**
@@ -382,6 +386,7 @@ export default function PodcastInterface({
         <PodcastPlayer
           session={session}
           onEnd={handleEndPodcast}
+          onSelectConversation={onSelectConversation}
         />
       </div>
     );
@@ -532,7 +537,7 @@ export default function PodcastInterface({
 /**
  * PodcastPlayer - Audio player with teleprompter sync.
  */
-function PodcastPlayer({ session, onEnd }) {
+function PodcastPlayer({ session, onEnd, onSelectConversation }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -716,10 +721,28 @@ function PodcastPlayer({ session, onEnd }) {
             </span>
           </div>
         </div>
-        <button className="end-btn" onClick={onEnd}>
-          <Square size={16} />
-          Close
-        </button>
+        <div className="player-controls-header">
+          <ActionMenu>
+            {session?.source_id && onSelectConversation && (
+              <ActionMenu.Item
+                icon={<FileText size={16} />}
+                label="View Source Notes"
+                onClick={() => onSelectConversation(session.source_id)}
+              />
+            )}
+            {session?.session_id && (
+              <ActionMenu.Item
+                icon={<Download size={16} />}
+                label="Download Audio"
+                onClick={() => window.open(api.getPodcastAudioUrl(session.session_id), '_blank')}
+              />
+            )}
+          </ActionMenu>
+          <button className="end-btn" onClick={onEnd}>
+            <Square size={16} />
+            Close
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}

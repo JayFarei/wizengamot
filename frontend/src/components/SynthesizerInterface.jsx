@@ -28,6 +28,11 @@ export default function SynthesizerInterface({
   onSetActiveComment,
   // Podcast navigation
   onNavigateToPodcast,
+  // Visualiser navigation
+  onNavigateToVisualiser,
+  // Linked visualisations
+  linkedVisualisations = [],
+  onSelectConversation,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -382,6 +387,9 @@ export default function SynthesizerInterface({
                 activeCommentId={activeCommentId}
                 onSetActiveComment={onSetActiveComment}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToVisualiser={onNavigateToVisualiser}
+                linkedVisualisations={linkedVisualisations}
+                onSelectConversation={onSelectConversation}
               />
             )
           )}

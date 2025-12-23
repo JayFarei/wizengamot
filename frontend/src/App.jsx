@@ -87,6 +87,7 @@ function App() {
   const [showPodcastSetup, setShowPodcastSetup] = useState(false);
   const [currentPodcastId, setCurrentPodcastId] = useState(null);
   const [podcastSourceConvId, setPodcastSourceConvId] = useState(null);
+  const [visualiserSourceConvId, setVisualiserSourceConvId] = useState(null);
 
   // API key status for warnings
   const [apiKeyStatus, setApiKeyStatus] = useState(null);
@@ -511,6 +512,24 @@ function App() {
     setCurrentPodcastId(null);
     setCurrentMonitorId(null);
     setCurrentMonitor(null);
+  };
+
+  // Navigate to visualiser mode with pre-selected source conversation
+  const handleNavigateToVisualiser = async (sourceConversationId) => {
+    try {
+      // Create a new visualiser conversation
+      const newConv = await api.createConversation(null, null, 'visualiser', null);
+      setConversations([
+        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'visualiser' },
+        ...conversations,
+      ]);
+      setCurrentConversationId(newConv.id);
+      setVisualiserSourceConvId(sourceConversationId);
+      setCurrentMonitorId(null);
+      setCurrentMonitor(null);
+    } catch (error) {
+      console.error('Failed to create visualiser conversation:', error);
+    }
   };
 
   const handleConfigSubmit = async (config) => {
@@ -1484,11 +1503,17 @@ function App() {
           activeCommentId={activeCommentId}
           onSetActiveComment={handleSetActiveComment}
           onNavigateToPodcast={() => handleNavigateToPodcast(currentConversationId)}
+          onNavigateToVisualiser={() => handleNavigateToVisualiser(currentConversationId)}
+          linkedVisualisations={currentConversation?.linked_visualisations || []}
+          onSelectConversation={handleSelectConversation}
         />
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface
           conversation={currentConversation}
           conversations={conversations}
+          preSelectedConversationId={visualiserSourceConvId}
+          onClearPreSelection={() => setVisualiserSourceConvId(null)}
+          onSelectConversation={handleSelectConversation}
           onConversationUpdate={(updatedConv, newTitle) => {
             setCurrentConversation(updatedConv);
             if (newTitle) {

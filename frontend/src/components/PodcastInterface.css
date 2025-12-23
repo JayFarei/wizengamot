@@ -709,6 +709,12 @@
   color: var(--success);
 }
 
+.player-controls-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .player-header-actions {
   display: flex;
   align-items: center;

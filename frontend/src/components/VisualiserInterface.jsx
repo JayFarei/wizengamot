@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { api } from '../api';
 import SearchModal from './SearchModal';
+import ActionMenu from './ActionMenu';
 import './VisualiserInterface.css';
 
-export default function VisualiserInterface({ conversation, conversations, onConversationUpdate }) {
+export default function VisualiserInterface({ conversation, conversations, onConversationUpdate, preSelectedConversationId, onClearPreSelection, onSelectConversation }) {
   // Diagram styles loaded from API
   const [diagramStyles, setDiagramStyles] = useState([]);
   const [sourceType, setSourceType] = useState(null);
@@ -16,7 +17,6 @@ export default function VisualiserInterface({ conversation, conversations, onCon
   const [processingStage, setProcessingStage] = useState('');
   const [error, setError] = useState(null);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
-  const [showSourceInfo, setShowSourceInfo] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
   const [fullscreenMode, setFullscreenMode] = useState(false);
   const [currentVersionIndex, setCurrentVersionIndex] = useState(null);
@@ -26,7 +26,6 @@ export default function VisualiserInterface({ conversation, conversations, onCon
   const [spellCheckStage, setSpellCheckStage] = useState('');
   const [spellCheckResult, setSpellCheckResult] = useState(null);
   const [showPromptModal, setShowPromptModal] = useState(false);
-  const sourceInfoRef = useRef(null);
   const sourceOptionsRef = useRef(null);
 
   // Keyboard navigation for source selection
@@ -76,18 +75,6 @@ export default function VisualiserInterface({ conversation, conversations, onCon
     }
     return null;
   }, [conversation]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sourceInfoRef.current && !sourceInfoRef.current.contains(event.target)) {
-        setShowSourceInfo(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -159,6 +146,20 @@ export default function VisualiserInterface({ conversation, conversations, onCon
       styleGridRef.current.focus();
     }
   }, [sourceType, selectedConversationId]);
+
+  // Initialize from pre-selected conversation (when navigating from NoteViewer)
+  useEffect(() => {
+    if (preSelectedConversationId && conversations) {
+      const conv = conversations.find(c => c.id === preSelectedConversationId);
+      if (conv) {
+        setSourceType('conversation');
+        setSelectedConversationId(preSelectedConversationId);
+        setSelectedConversationTitle(conv.title);
+        // Clear the pre-selection so it doesn't re-apply
+        onClearPreSelection?.();
+      }
+    }
+  }, [preSelectedConversationId, conversations, onClearPreSelection]);
 
   // Keyboard handler for source selection
   const handleSourceKeyDown = (e) => {
@@ -447,56 +448,6 @@ export default function VisualiserInterface({ conversation, conversations, onCon
               {sourceInfo?.sourceTitle && (
                 <span className="source-title">{sourceInfo.sourceTitle}</span>
               )}
-
-              {/* Source Info Button */}
-              {(sourceInfo?.sourceUrl || latestImage?.sourceContent) && (
-                <div className="source-info-container" ref={sourceInfoRef}>
-                  <button
-                    className="source-info-btn"
-                    onClick={() => setShowSourceInfo(!showSourceInfo)}
-                    title="View source info"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </button>
-
-                  {showSourceInfo && (
-                    <div className="source-info-dropdown">
-                      {sourceInfo?.sourceUrl && (
-                        <a
-                          href={sourceInfo.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="source-info-item"
-                          onClick={() => setShowSourceInfo(false)}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
-                          </svg>
-                          Open Source URL
-                        </a>
-                      )}
-                      {latestImage?.sourceContent && (
-                        <button
-                          className="source-info-item"
-                          onClick={handleCopySource}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          {copyFeedback || 'Copy Source Content'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="visualiser-controls">
@@ -527,7 +478,18 @@ export default function VisualiserInterface({ conversation, conversations, onCon
               )}
               <span className="style-badge">{getStyleName(latestImage?.style)}</span>
               <button
-                className="fullscreen-btn"
+                className="header-icon-btn"
+                onClick={handleDownload}
+                title="Download diagram (d)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+              <button
+                className="header-icon-btn"
                 onClick={() => setFullscreenMode(true)}
                 title="View fullscreen"
               >
@@ -535,6 +497,59 @@ export default function VisualiserInterface({ conversation, conversations, onCon
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                 </svg>
               </button>
+              <ActionMenu>
+                {sourceInfo?.sourceType === 'conversation' && sourceInfo?.sourceId && onSelectConversation && (
+                  <ActionMenu.Item
+                    icon={
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14,2 14,8 20,8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </svg>
+                    }
+                    label="View Source Notes"
+                    onClick={() => onSelectConversation(sourceInfo.sourceId)}
+                  />
+                )}
+                {sourceInfo?.sourceUrl && (
+                  <ActionMenu.Item
+                    icon={
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    }
+                    label="Open Source URL"
+                    onClick={() => window.open(sourceInfo.sourceUrl, '_blank')}
+                  />
+                )}
+                {(sourceInfo?.sourceId || sourceInfo?.sourceUrl) && <ActionMenu.Divider />}
+                <ActionMenu.Item
+                  icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  }
+                  label={copyFeedback || "Copy Source Content"}
+                  onClick={handleCopySource}
+                  disabled={!latestImage?.sourceContent}
+                />
+                <ActionMenu.Divider />
+                <ActionMenu.Item
+                  icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <line x1="12" y1="8" x2="12" y2="16" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                  }
+                  label="New Diagram"
+                  onClick={handleNewDiagram}
+                />
+              </ActionMenu>
             </div>
           </div>
 
@@ -567,42 +582,6 @@ export default function VisualiserInterface({ conversation, conversations, onCon
               </div>
             )}
 
-            <div className="visualiser-actions">
-              <button onClick={handleDownload} className="visualiser-download-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7,10 12,15 17,10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Download
-                <kbd>d</kbd>
-              </button>
-              <button
-                onClick={handleSpellCheck}
-                disabled={isSpellChecking}
-                className="visualiser-spellcheck-btn"
-              >
-                {isSpellChecking ? (
-                  <>
-                    <span className="visualiser-spinner"></span>
-                    Spell Check
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                    </svg>
-                    Spell Check
-                    <kbd>s</kbd>
-                  </>
-                )}
-              </button>
-              <button onClick={handleNewDiagram} className="visualiser-new-btn">
-                New
-                <kbd>n</kbd>
-              </button>
-            </div>
 
             {/* Spell check progress indicator */}
             {isSpellChecking && spellCheckStage && (
@@ -633,6 +612,36 @@ export default function VisualiserInterface({ conversation, conversations, onCon
                 )}
               </div>
             )}
+
+            {/* Quick Actions */}
+            <div className="visualiser-quick-actions">
+              <button
+                onClick={handleDownload}
+                className="visualiser-quick-btn"
+                title="Download diagram (D)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download
+                <kbd>d</kbd>
+              </button>
+              <button
+                onClick={handleSpellCheck}
+                disabled={isSpellChecking}
+                className="visualiser-quick-btn"
+                title="Check spelling (s)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Spell Check
+                <kbd>s</kbd>
+              </button>
+            </div>
 
             {/* Edit prompt section - always visible */}
             <div className="visualiser-edit-section">
