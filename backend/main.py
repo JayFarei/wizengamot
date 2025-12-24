@@ -18,6 +18,9 @@ from . import storage, config, prompts, threads, settings, content, synthesizer,
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
+# Track cancelled conversations for in-progress streams
+_cancelled_conversations: set = set()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -322,8 +325,12 @@ async def get_conversation(conversation_id: str):
 @app.delete("/api/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     """Delete a conversation."""
+    # Signal any in-progress streams to stop
+    _cancelled_conversations.add(conversation_id)
+
     deleted = storage.delete_conversation(conversation_id)
     if not deleted:
+        _cancelled_conversations.discard(conversation_id)
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"success": True}
 
@@ -468,11 +475,21 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             stage1_results = await stage1_collect_responses(request.content, council_models, system_prompt)
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
+            # Check for cancellation before Stage 2
+            if conversation_id in _cancelled_conversations:
+                yield f"data: {json.dumps({'type': 'cancelled', 'message': 'Conversation was deleted'})}\n\n"
+                return
+
             # Stage 2: Collect rankings
             yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
             stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results, council_models)
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
+
+            # Check for cancellation before Stage 3
+            if conversation_id in _cancelled_conversations:
+                yield f"data: {json.dumps({'type': 'cancelled', 'message': 'Conversation was deleted'})}\n\n"
+                return
 
             # Stage 3: Synthesize final answer
             yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
@@ -522,21 +539,28 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
         finally:
+            # Clean up cancellation tracking
+            _cancelled_conversations.discard(conversation_id)
+
             # Save in finally block - ensures save even if client disconnects
             if stage1_results and stage2_results and stage3_result:
-                storage.add_assistant_message(
-                    conversation_id,
-                    stage1_results,
-                    stage2_results,
-                    stage3_result
-                )
+                try:
+                    storage.add_assistant_message(
+                        conversation_id,
+                        stage1_results,
+                        stage2_results,
+                        stage3_result
+                    )
 
-                # Save accumulated cost to conversation
-                if total_message_cost > 0:
-                    storage.update_conversation_cost(conversation_id, total_message_cost)
+                    # Save accumulated cost to conversation
+                    if total_message_cost > 0:
+                        storage.update_conversation_cost(conversation_id, total_message_cost)
 
-                # Generate summary for gallery preview (fire and forget)
-                asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
+                    # Generate summary for gallery preview (fire and forget)
+                    asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
+                except ValueError:
+                    # Conversation was deleted during streaming, skip saving
+                    print(f"Conversation {conversation_id} was deleted during streaming, skipping save")
 
     return StreamingResponse(
         event_generator(),
