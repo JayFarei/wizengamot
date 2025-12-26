@@ -36,8 +36,8 @@ export default function FeatureList() {
     const featureList = [];
 
     for (const line of lines) {
-      // Match pattern: "Dec 9 - Feature text so that benefit"
-      const match = line.match(/^([A-Z][a-z]{2}\s+\d+)\s*-\s*(.+)$/);
+      // Match pattern: "- Dec 9 - Feature text" or "Dec 9 - Feature text" (bullet optional)
+      const match = line.match(/^-?\s*([A-Z][a-z]{2}\s+\d+)\s*-\s*(.+)$/);
       if (match) {
         featureList.push({
           date: match[1],

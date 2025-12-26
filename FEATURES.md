@@ -1,44 +1,44 @@
 # Wizengamot Features
 
-Dec 26 - Showcase carousel for README with animated GIF demonstrating app features
-Dec 24 - Rich markdown input with WYSIWYG editing
-Dec 23 - Action menu with nested submenus for note management
-Dec 21 - Custom prompts for diagram generation
-Dec 21 - Podcast mode for audio explanations of notes
-Dec 19 - Quick access to recent conversations in Cmd+K search
-Dec 19 - Gallery list view and colored card headers for easier browsing
-Dec 18 - Grid galleries with AI-generated summaries for browsing Council conversations and Notes
-Dec 18 - Cmd+. keyboard shortcut opens settings, Escape closes modals
-Dec 18 - Editable stage prompts for Synthesizer deliberation
-Dec 18 - Improved deliberation panel with keyboard shortcuts, clickable headers, and numbered reading order badges
-Dec 18 - OTA updates so you can update the app with one click from the landing page
-Dec 18 - Redesigned synthesizer onboarding with stepped keyboard-driven flow for easier content processing
-Dec 18 - Deliberation mode for Synthesizer, enabling council-based collaborative note generation from content
-Dec 18 - Create diagrams from highlights in Review Context sidebar
-Dec 18 - Image gallery grid view for browsing generated visualizations
-Dec 18 - Real-time cost and prompt label updates in sidebar
-Dec 18 - Keyboard shortcuts for council configuration modal
-Dec 18 - Animated status messages during council deliberation
-Dec 17 - Thread conversations with context sidebar for continuing discussions with individual council members
-Dec 16 - Catppuccin color scheme for light and dark modes
-Dec 16 - Paste raw text directly into Synthesizer when URLs block scraping
-Dec 15 - Mode-specific prompts (council/synthesizer prompt directories)
-Dec 14 - Usage statistics so that you can track spending by mode and conversation
-Dec 11 - Visualiser mode for generating diagrams and flowcharts from conversations
-Dec 9 - Branded splash screen with WIZENGAMOT logo and feature list
-Dec 9 - Customizable question sets so that you can tailor monitor analysis to specific criteria
-Dec 8 - Copy group of highlights to slack so that you can update your team about key passages and commentary
-Dec 8 - Sentence highlighter in focus mode so that you can highlight notes with keyboard precision
-Dec 8 - Apple Podcasts support so that you can synthesize notes from podcast episodes
-Dec 6 - Group tracker monitor so that you can track entities across multiple sources
-Dec 5 - Tweet generation so that you can share insights directly from your notes
-Dec 4 - PDF and arXiv parsing so that you can synthesize academic papers into notes
-Dec 4 - Dark mode so that you can work comfortably in any lighting
-Dec 4 - Semantic search (Cmd+K) so that you can find conversations by meaning, not just keywords
-Dec 3 - Synthesizer mode so that you can transform URLs into Zettelkasten notes
-Dec 3 - Focus mode so that you can review notes with keyboard navigation
-Dec 3 - Podcast transcription so that you can extract insights from audio content
-Nov 29 - Context stack so that you can hand-pick exactly what context models see
-Nov 24 - Custom system prompts so that you can shape council behavior per conversation
-Nov 24 - Annotation system so that you can highlight and comment on model responses
-Nov 22 - LLM Council deliberation so that multiple models can collaborate on your questions
+- Dec 26 - Showcase carousel for README with animated GIF demonstrating app features
+- Dec 24 - Rich markdown input with WYSIWYG editing
+- Dec 23 - Action menu with nested submenus for note management
+- Dec 21 - Custom prompts for diagram generation
+- Dec 21 - Podcast mode for audio explanations of notes
+- Dec 19 - Quick access to recent conversations in Cmd+K search
+- Dec 19 - Gallery list view and colored card headers for easier browsing
+- Dec 18 - Grid galleries with AI-generated summaries for browsing Council conversations and Notes
+- Dec 18 - Cmd+. keyboard shortcut opens settings, Escape closes modals
+- Dec 18 - Editable stage prompts for Synthesizer deliberation
+- Dec 18 - Improved deliberation panel with keyboard shortcuts, clickable headers, and numbered reading order badges
+- Dec 18 - OTA updates so you can update the app with one click from the landing page
+- Dec 18 - Redesigned synthesizer onboarding with stepped keyboard-driven flow for easier content processing
+- Dec 18 - Deliberation mode for Synthesizer, enabling council-based collaborative note generation from content
+- Dec 18 - Create diagrams from highlights in Review Context sidebar
+- Dec 18 - Image gallery grid view for browsing generated visualizations
+- Dec 18 - Real-time cost and prompt label updates in sidebar
+- Dec 18 - Keyboard shortcuts for council configuration modal
+- Dec 18 - Animated status messages during council deliberation
+- Dec 17 - Thread conversations with context sidebar for continuing discussions with individual council members
+- Dec 16 - Catppuccin color scheme for light and dark modes
+- Dec 16 - Paste raw text directly into Synthesizer when URLs block scraping
+- Dec 15 - Mode-specific prompts (council/synthesizer prompt directories)
+- Dec 14 - Usage statistics so that you can track spending by mode and conversation
+- Dec 11 - Visualiser mode for generating diagrams and flowcharts from conversations
+- Dec 9 - Branded splash screen with WIZENGAMOT logo and feature list
+- Dec 9 - Customizable question sets so that you can tailor monitor analysis to specific criteria
+- Dec 8 - Copy group of highlights to slack so that you can update your team about key passages and commentary
+- Dec 8 - Sentence highlighter in focus mode so that you can highlight notes with keyboard precision
+- Dec 8 - Apple Podcasts support so that you can synthesize notes from podcast episodes
+- Dec 6 - Group tracker monitor so that you can track entities across multiple sources
+- Dec 5 - Tweet generation so that you can share insights directly from your notes
+- Dec 4 - PDF and arXiv parsing so that you can synthesize academic papers into notes
+- Dec 4 - Dark mode so that you can work comfortably in any lighting
+- Dec 4 - Semantic search (Cmd+K) so that you can find conversations by meaning, not just keywords
+- Dec 3 - Synthesizer mode so that you can transform URLs into Zettelkasten notes
+- Dec 3 - Focus mode so that you can review notes with keyboard navigation
+- Dec 3 - Podcast transcription so that you can extract insights from audio content
+- Nov 29 - Context stack so that you can hand-pick exactly what context models see
+- Nov 24 - Custom system prompts so that you can shape council behavior per conversation
+- Nov 24 - Annotation system so that you can highlight and comment on model responses
+- Nov 22 - LLM Council deliberation so that multiple models can collaborate on your questions
