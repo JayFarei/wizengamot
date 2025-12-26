@@ -11,6 +11,9 @@ NC='\033[0m'
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Configure git to use tracked hooks directory
+git config core.hooksPath hooks 2>/dev/null
+
 # Parse arguments
 SKIP_CHECKS=0
 for arg in "$@"; do

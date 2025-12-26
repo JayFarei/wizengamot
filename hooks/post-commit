@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+# Skip if this is a FEATURES.md update commit (prevent infinite loop)
+LAST_MSG=$(git log -1 --pretty=%B)
+if [[ "$LAST_MSG" == *"Update FEATURES.md"* ]]; then
+  exit 0
+fi
+
+# Source environment variables from zshrc
+source ~/.zshrc 2>/dev/null
+
+# Get commit info
+COMMIT_HASH=$(git rev-parse --short HEAD)
+COMMIT_MSG=$(git log -1 --pretty=%B | head -1)
+COMMIT_DIFF=$(git diff HEAD~1 HEAD --stat)
+CURRENT_DATE=$(date "+%b %-d")
+
+# Simple prompt that works
+PROMPT="Analyze this commit: $COMMIT_HASH - $COMMIT_MSG
+Files: $COMMIT_DIFF
+If this is a user-facing feature (not a fix or refactor), output a single line like: - $CURRENT_DATE - Feature name so that user benefit
+If NOT a feature, output: SKIP
+No other output."
+
+# Run Claude
+RESULT=$(ANTHROPIC_BEDROCK_BASE_URL="https://train.msldev.io" \
+  AWS_BEARER_TOKEN_BEDROCK="$ANTHROPIC_AUTH_TOKEN" \
+  CLAUDE_CODE_USE_BEDROCK=true \
+  DISABLE_TELEMETRY=true \
+  /Users/jayfarei/.claude/local/claude \
+  --dangerously-skip-permissions \
+  --model "global.anthropic.claude-opus-4-5-20251101-v1:0" \
+  -p "$PROMPT" 2>&1)
+
+# Check if we should update FEATURES.md (result starts with "- " for bullet format)
+if [[ "$RESULT" == "- $CURRENT_DATE"* ]]; then
+  FEATURES_FILE="FEATURES.md"
+  if [[ -f "$FEATURES_FILE" ]]; then
+    # Insert after line 2 (after header and blank line)
+    sed -i '' "3i\\
+$RESULT
+" "$FEATURES_FILE"
+
+    # Commit the update
+    git add "$FEATURES_FILE"
+    git commit -m "docs: Update FEATURES.md for $COMMIT_HASH"
+  fi
+fi
