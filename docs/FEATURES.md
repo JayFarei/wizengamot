@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Dec 28 - AI tweet generation and persistence for notes
 - Dec 26 - Showcase carousel for README with animated GIF demonstrating app features
 - Dec 24 - Rich markdown input with WYSIWYG editing
 - Dec 23 - Action menu with nested submenus for note management
