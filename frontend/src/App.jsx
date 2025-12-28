@@ -838,7 +838,6 @@ function App() {
   const handleSelectionChange = useCallback((selection) => {
     if (selection) {
       setCurrentSelection(selection);
-      // Position the comment button near the selection
       const rect = selection.range.getBoundingClientRect();
       setCommentButtonPosition({
         x: rect.right + 10,
@@ -1630,7 +1629,7 @@ function App() {
         }}
       />
       <CommentButton
-        position={commentButtonPosition}
+        position={currentSelection ? null : commentButtonPosition}
         onComment={handleCommentButtonClick}
       />
       {showCommitSidebar && (
