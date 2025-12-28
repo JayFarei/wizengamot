@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Dec 28 - Copy all notes to clipboard
 - Dec 28 - Architect/Engineer council prompt for technical specifications
 - Dec 28 - AI tweet generation and persistence for notes
 - Dec 26 - Showcase carousel for README with animated GIF demonstrating app features
