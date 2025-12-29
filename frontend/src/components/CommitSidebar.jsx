@@ -21,8 +21,6 @@ function CommitSidebar({
   onSelectComment,
   onEditComment,
   onDeleteComment,
-  showContextPreview,
-  onToggleContextPreview,
   activeCommentId,
   onRemoveContextSegment,
   onVisualise,
@@ -210,16 +208,6 @@ function CommitSidebar({
       }),
     [followUpQuestion, comments, combinedStackSegments, selectedModel]
   );
-
-  const promptPct = tokenBreakdown.total
-    ? (tokenBreakdown.promptTokens / tokenBreakdown.total) * 100
-    : 0;
-  const highlightPct = tokenBreakdown.total
-    ? (tokenBreakdown.highlightTokens / tokenBreakdown.total) * 100
-    : 0;
-  const stackPct = tokenBreakdown.total
-    ? Math.max(0, 100 - promptPct - highlightPct)
-    : 0;
 
   return (
     <div className="commit-sidebar">
@@ -451,25 +439,16 @@ function CommitSidebar({
       </div>
 
       <div className="commit-sidebar-input">
-        <div className="input-header">
-          <label>Ask a follow-up question:</label>
-          <button
-            className={`btn-preview ${showContextPreview ? 'active' : ''}`}
-            onClick={onToggleContextPreview}
-            title="Toggle context preview"
-          >
-            {showContextPreview ? 'Hide' : 'Show'} Context
-          </button>
-        </div>
-
-        <div className="input-with-selector">
+        {/* Follow-up Question Section */}
+        <div className="followup-section">
+          <h4 className="sidebar-section-title">Ask a follow-up question</h4>
+          
           <div className="model-selector" ref={dropdownRef}>
             <button
               className="model-selector-button"
               onClick={() => setShowModelDropdown(!showModelDropdown)}
               title="Select model"
             >
-              <span className="model-icon">🤖</span>
               <span className="model-name">
                 {selectedModel
                   ? allModels.find(m => m.value === selectedModel)?.label || getModelShortName(selectedModel)
@@ -496,187 +475,111 @@ function CommitSidebar({
             )}
           </div>
 
-          <textarea
-            ref={inputRef}
-            className="commit-input"
-            placeholder="Add your follow-up question..."
-            value={followUpQuestion}
-            onChange={(e) => setFollowUpQuestion(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={3}
-          />
-        </div>
-
-        <div className="token-meter">
-          <div className="token-meter-header">
-            <span className="token-meter-title">Token estimate</span>
-            <span className="token-meter-total">{tokenBreakdown.total} tokens</span>
-          </div>
-          <div className="token-meter-track">
-            <div
-              className="token-meter-segment prompt"
-              style={{ width: `${promptPct}%` }}
-              title={`Prompt: ${tokenBreakdown.promptTokens} tokens`}
+          <div className="followup-input-wrapper">
+            <textarea
+              ref={inputRef}
+              className="followup-textarea"
+              placeholder="Type your question..."
+              value={followUpQuestion}
+              onChange={(e) => setFollowUpQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={4}
             />
-            <div
-              className="token-meter-segment highlights"
-              style={{ width: `${highlightPct}%` }}
-              title={`Highlights: ${tokenBreakdown.highlightTokens} tokens`}
-            />
-            <div
-              className="token-meter-segment stack"
-              style={{ width: `${stackPct}%` }}
-              title={`Context stack: ${tokenBreakdown.stackTokens} tokens`}
-            />
-          </div>
-          <div className="token-meter-legend">
-            <div className="token-legend-item">
-              <span className="token-swatch prompt" />
-              <span>Prompt · {tokenBreakdown.promptTokens}</span>
-            </div>
-            <div className="token-legend-item">
-              <span className="token-swatch highlights" />
-              <span>Highlights · {tokenBreakdown.highlightTokens}</span>
-            </div>
-            <div className="token-legend-item">
-              <span className="token-swatch stack" />
-              <span>Context stack · {tokenBreakdown.stackTokens}</span>
-            </div>
-            <div className="token-legend-item encoding">
-              <span className="encoding-label">Encoding</span>
-              <span className="encoding-value">{tokenBreakdown.encodingName}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="input-actions">
-          <div className="input-hint">
-            ⌘/Ctrl+Enter to send
-          </div>
-          <div className="input-actions-buttons">
-            {onVisualise && (
-              <div className="visualise-action">
-                <div className="style-selector" ref={styleDropdownRef}>
-                  <button
-                    className="style-selector-button"
-                    onClick={() => setShowStyleDropdown(!showStyleDropdown)}
-                    title="Select diagram style"
-                    disabled={isVisualising}
-                  >
-                    <span className="style-name">
-                      {diagramStyles.find(s => s.id === selectedStyle)?.name || 'Bento'}
-                    </span>
-                    <span className="dropdown-arrow">▼</span>
-                  </button>
-                  {showStyleDropdown && (
-                    <div className="style-dropdown">
-                      {diagramStyles.map((style) => (
-                        <div
-                          key={style.id}
-                          className={`style-option ${selectedStyle === style.id ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedStyle(style.id);
-                            setShowStyleDropdown(false);
-                          }}
-                        >
-                          {style.name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  className="btn-visualise"
-                  onClick={handleVisualise}
-                  disabled={isVisualising || !hasContext}
-                  title="Create a visual diagram from your highlights"
-                >
-                  {isVisualising ? 'Creating...' : 'Visualise'}
-                </button>
-              </div>
-            )}
             <button
-              className="btn-commit"
+              className="followup-send-btn"
               onClick={handleSubmit}
               disabled={!followUpQuestion.trim() || !selectedModel || !hasContext}
+              title="Send (⌘/Ctrl+Enter)"
             >
-              Start Conversation
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
             </button>
           </div>
-        </div>
-      </div>
 
-      {showContextPreview && (
-        <div className="context-preview">
-          <div className="context-preview-header">
-            Context Preview
+          <div className="followup-info-row">
+            <span className="encoding-info">Encoding {tokenBreakdown.encodingName}</span>
+            <span className="shortcut-hint">⌘/Ctrl+Enter to send</span>
           </div>
-          <div className="context-preview-content">
-            <div className="context-section">
-              <strong>Annotations ({comments.length}):</strong>
-              {comments.map((c, i) => (
-                <div key={c.id} className="context-item-block">
-                  <div className="context-item-header">
-                    <span className="context-num">{i + 1}.</span>
-                    <span className="context-meta">[{getModelShortName(c.model)}, Stage {c.stage}]</span>
-                  </div>
-                  {c.source_content && (
-                    <div className="context-source">
-                      <span className="source-label">Source:</span>
-                      <span className="source-content">
-                        {c.source_content.length > 200 
-                          ? c.source_content.substring(0, 200) + '...' 
-                          : c.source_content}
-                      </span>
-                    </div>
-                  )}
-                  <div className="context-highlight">
-                    <span className="highlight-label">Highlighted:</span>
-                    <span className="context-selection">"{c.selection}"</span>
-                  </div>
-                  <div className="context-annotation">
-                    <span className="annotation-arrow">→</span>
-                    <span className="context-comment">{c.content}</span>
-                  </div>
-                </div>
-              ))}
+
+          <div className="token-bar-simple">
+            <div className="token-bar-header">
+              <span className="token-bar-percentage">{Math.round((tokenBreakdown.total / 200000) * 100)}%</span>
+              <div className="token-bar-track">
+                <div
+                  className="token-bar-fill"
+                  style={{ width: `${Math.min((tokenBreakdown.total / 200000) * 100, 100)}%` }}
+                />
+              </div>
+              <span className="token-bar-label">Max Tokens</span>
             </div>
-            {combinedStackSegments.length > 0 && (
-              isStackCollapsed ? (
-                <div className="context-section">
-                  <strong>Context Stack:</strong> Collapsed above. Expand to preview pinned sections.
-                </div>
-              ) : (
-                <div className="context-section">
-                  <strong>Context Stack ({combinedStackSegments.length}):</strong>
-                  {combinedStackSegments.map((segment, idx) => (
-                    <div key={segment.id} className="context-item-block">
-                      <div className="context-item-header">
-                        <span className="context-num">{idx + 1}.</span>
-                        <span className="context-meta">[{getModelShortName(segment.model)}, Stage {segment.stage}]</span>
-                        {segment.label && (
-                          <span className="context-stack-label">{segment.label}</span>
-                        )}
-                        {segment.autoGenerated && (
-                          <span className="context-stack-label auto">Auto</span>
-                        )}
-                      </div>
-                      <div className="context-segment-preview">
-                        {segment.content.length > 300
-                          ? `${segment.content.substring(0, 300)}...`
-                          : segment.content}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-            <div className="context-section target-section">
-              <strong>Target Councilor:</strong> {getModelShortName(selectedModel)}
+            <div className="token-bar-legend">
+              <div className="token-legend-item">
+                <span className="token-swatch prompt" />
+                <span>Prompt · {tokenBreakdown.promptTokens}</span>
+              </div>
+              <div className="token-legend-item">
+                <span className="token-swatch highlights" />
+                <span>Highlights · {tokenBreakdown.highlightTokens}</span>
+              </div>
+              <div className="token-legend-item">
+                <span className="token-swatch stack" />
+                <span>Stack · {tokenBreakdown.stackTokens}</span>
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Divider */}
+        {onVisualise && <div className="sidebar-divider" />}
+
+        {/* Visualise Annotations Section */}
+        {onVisualise && (
+          <div className="visualise-section">
+            <h4 className="sidebar-section-title">Visualise Annotations</h4>
+            <div className="visualise-controls">
+              <div className="style-selector" ref={styleDropdownRef}>
+                <button
+                  className="style-selector-button"
+                  onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+                  title="Select diagram style"
+                  disabled={isVisualising}
+                >
+                  <span className="style-name">
+                    {diagramStyles.find(s => s.id === selectedStyle)?.name || 'Bento'}
+                  </span>
+                  <span className="dropdown-arrow">▼</span>
+                </button>
+                {showStyleDropdown && (
+                  <div className="style-dropdown">
+                    {diagramStyles.map((style) => (
+                      <div
+                        key={style.id}
+                        className={`style-option ${selectedStyle === style.id ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedStyle(style.id);
+                          setShowStyleDropdown(false);
+                        }}
+                      >
+                        {style.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                className="btn-visualise"
+                onClick={handleVisualise}
+                disabled={isVisualising || !hasContext}
+                title="Create a visual diagram from your highlights"
+              >
+                {isVisualising ? 'Creating...' : 'Visualise'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

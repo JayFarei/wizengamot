@@ -8,6 +8,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* Layout constants */
+  --header-height: 56px;
+
   /* Catppuccin Latte - Light Mode */
 
   /* Backgrounds */

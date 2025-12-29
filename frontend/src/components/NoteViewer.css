@@ -21,7 +21,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  height: var(--header-height);
+  padding: 0 20px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-primary);
 }
