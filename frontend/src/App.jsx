@@ -35,6 +35,7 @@ function App() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState('api');
+  const [settingsDefaultPrompt, setSettingsDefaultPrompt] = useState(null);
   const [showPromptManager, setShowPromptManager] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
@@ -54,7 +55,6 @@ function App() {
   const [commentButtonPosition, setCommentButtonPosition] = useState(null);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showCommitSidebar, setShowCommitSidebar] = useState(false);
-  const [showContextPreview, setShowContextPreview] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState(null);
 
   // Derive comments and contextSegments from active session
@@ -593,7 +593,7 @@ function App() {
     setCurrentPodcastId(null);
     setCurrentConversationId(id);
     setActiveCommentId(null);
-    setContextSegments([]);
+    setActiveReviewSessionId(null);
 
     // Auto-mark as read if unread
     const conv = conversations.find(c => c.id === id);
@@ -1663,6 +1663,8 @@ function App() {
           onNavigateToVisualiser={() => handleNavigateToVisualiser(currentConversationId)}
           linkedVisualisations={currentConversation?.linked_visualisations || []}
           onSelectConversation={handleSelectConversation}
+          reviewSessionCount={reviewSessions.length}
+          onToggleReviewSidebar={handleToggleCommitSidebar}
         />
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface
@@ -1706,13 +1708,16 @@ function App() {
           onSetActiveComment={handleSetActiveComment}
           onAddContextSegment={handleAddContextSegment}
           onRemoveContextSegment={handleRemoveContextSegment}
-          onOpenSettings={(tab) => {
+          onOpenSettings={(tab, promptFilename) => {
             setSettingsDefaultTab(tab || 'api');
+            setSettingsDefaultPrompt(promptFilename || null);
             setShowSettingsModal(true);
           }}
           onContinueThread={handleContinueThread}
           onSelectThread={handleSelectThread}
           isLoading={isLoading}
+          reviewSessionCount={reviewSessions.length}
+          onToggleReviewSidebar={handleToggleCommitSidebar}
         />
       ) : (
         <ChatInterface
@@ -1755,10 +1760,12 @@ function App() {
         onClose={() => {
           setShowSettingsModal(false);
           setSettingsDefaultTab('api'); // Reset to default tab
+          setSettingsDefaultPrompt(null); // Reset prompt selection
           loadConfig(); // Reload config to pick up any model changes
           loadApiKeyStatus(); // Reload API key status in case user added keys
         }}
         defaultTab={settingsDefaultTab}
+        defaultPrompt={settingsDefaultPrompt}
       />
       {showPromptManager && (
         <PromptManager
@@ -1802,8 +1809,6 @@ function App() {
           onSelectComment={handleSelectComment}
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}
-          showContextPreview={showContextPreview}
-          onToggleContextPreview={() => setShowContextPreview(!showContextPreview)}
           activeCommentId={activeCommentId}
           onRemoveContextSegment={handleRemoveContextSegment}
           onVisualise={handleVisualiseFromContext}

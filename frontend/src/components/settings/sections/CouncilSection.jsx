@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../../api';
 import StagePromptEditorModal from '../StagePromptEditorModal';
 import PromptEditorModal from '../../PromptEditorModal';
@@ -12,6 +12,7 @@ export default function CouncilSection({
   setError,
   setSuccess,
   onReload,
+  defaultPrompt = null,
 }) {
   const [editingStagePrompt, setEditingStagePrompt] = useState(null);
   const [showPromptEditor, setShowPromptEditor] = useState(false);
@@ -151,6 +152,28 @@ export default function CouncilSection({
       setLoading(false);
     }
   };
+
+  // Auto-open prompt editor when defaultPrompt is provided
+  useEffect(() => {
+    const openPromptIfExists = async () => {
+      if (defaultPrompt && councilPrompts.length > 0) {
+        const promptExists = councilPrompts.some(p => p.filename === defaultPrompt);
+        if (promptExists) {
+          try {
+            const prompt = await api.getPrompt(defaultPrompt, 'council');
+            setEditingPrompt(defaultPrompt);
+            setEditingPromptTitle(prompt.title || defaultPrompt);
+            setEditingPromptContent(prompt.content);
+            setIsNewPrompt(false);
+            setShowPromptEditor(true);
+          } catch {
+            setError('Failed to load prompt');
+          }
+        }
+      }
+    };
+    openPromptIfExists();
+  }, [defaultPrompt, councilPrompts, setError]);
 
   return (
     <div className="settings-section council-section">

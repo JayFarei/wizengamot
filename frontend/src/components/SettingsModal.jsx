@@ -26,7 +26,7 @@ const TAB_TO_SECTION = {
   monitor: 'monitor',
 };
 
-export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' }) {
+export default function SettingsModal({ isOpen, onClose, defaultTab = 'general', defaultPrompt = null }) {
   const [activeSection, setActiveSection] = useState(TAB_TO_SECTION[defaultTab] || 'general');
   const [settings, setSettings] = useState(null);
   const [modelSettings, setModelSettings] = useState(null);
@@ -110,6 +110,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general' 
             setError={setError}
             setSuccess={setSuccess}
             onReload={loadAllSettings}
+            defaultPrompt={defaultPrompt}
           />
         );
       case 'synthesizer':
