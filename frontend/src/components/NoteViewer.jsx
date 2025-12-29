@@ -6,6 +6,8 @@ import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
 import FloatingComment from './FloatingComment';
 import ActionMenu from './ActionMenu';
+import SourceMetadataModal from './SourceMetadataModal';
+import { api } from '../api';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
@@ -44,6 +46,7 @@ export default function NoteViewer({
   // Tweet persistence
   conversationId,
   onNoteTweetSaved,
+  onSourceMetadataUpdate,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
 
@@ -54,6 +57,9 @@ export default function NoteViewer({
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
   const [showTweetModal, setShowTweetModal] = useState(false);
+  const [showSourceMetadataModal, setShowSourceMetadataModal] = useState(false);
+  const [sourceMetadataError, setSourceMetadataError] = useState(null);
+  const [isSavingSourceMetadata, setIsSavingSourceMetadata] = useState(false);
   const containerRef = useRef(null);
   const sourceInfoRef = useRef(null);
 
@@ -102,6 +108,8 @@ export default function NoteViewer({
       case 'youtube': return 'YouTube Transcript';
       case 'podcast': return 'Podcast Transcript';
       case 'article': return 'Article Content';
+      case 'pdf': return 'PDF Content';
+      case 'text': return 'Text Content';
       default: return 'Source Content';
     }
   };
@@ -121,16 +129,6 @@ export default function NoteViewer({
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [onSelectionChange]);
 
-  // Format note body with empty line after each sentence
-  const formatNoteBody = useCallback((body) => {
-    if (!body) return '';
-    // Split on sentence endings (. ! ?) followed by space or end
-    // Keep the punctuation with the sentence, then add double newline
-    return body
-      .replace(/([.!?])\s+/g, '$1\n\n')
-      .trim();
-  }, []);
-
   // Parse note body into array of sentences for keyboard navigation
   // Uses sbd (Sentence Boundary Detection) library for robust parsing
   const parseSentences = useCallback((body) => {
@@ -145,6 +143,12 @@ export default function NoteViewer({
 
     return sentences.filter(s => s.trim().length > 0);
   }, []);
+
+  // Format note body with empty line after each sentence
+  const formatNoteBody = useCallback((body) => {
+    if (!body) return '';
+    return parseSentences(body).join('\n\n').trim();
+  }, [parseSentences]);
 
   // Helper to get the range of selected sentences
   const getSelectionRange = useCallback(() => {
@@ -245,6 +249,55 @@ export default function NoteViewer({
     }
   }, [notes, sourceTitle, sourceUrl]);
 
+  const handleOpenSourceMetadata = useCallback(() => {
+    setSourceMetadataError(null);
+    setShowSourceMetadataModal(true);
+  }, []);
+
+  const handleCloseSourceMetadata = useCallback(() => {
+    setShowSourceMetadataModal(false);
+    setSourceMetadataError(null);
+  }, []);
+
+  const handleSaveSourceMetadata = useCallback(async (draft) => {
+    if (!conversationId) return;
+
+    const normalizeValue = (value) => {
+      if (value === null || value === undefined) return null;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    };
+
+    const currentType = normalizeValue(sourceType);
+    const currentTitle = normalizeValue(sourceTitle);
+    const currentUrl = normalizeValue(sourceUrl);
+    const nextType = normalizeValue(draft.sourceType);
+    const nextTitle = normalizeValue(draft.sourceTitle);
+    const nextUrl = normalizeValue(draft.sourceUrl);
+
+    const updates = {};
+    if (currentType !== nextType) updates.source_type = nextType;
+    if (currentTitle !== nextTitle) updates.source_title = nextTitle;
+    if (currentUrl !== nextUrl) updates.source_url = nextUrl;
+
+    if (Object.keys(updates).length === 0) {
+      setShowSourceMetadataModal(false);
+      return;
+    }
+
+    setIsSavingSourceMetadata(true);
+    setSourceMetadataError(null);
+    try {
+      const updated = await api.updateSynthesizerSource(conversationId, updates);
+      onSourceMetadataUpdate?.(updated);
+      setShowSourceMetadataModal(false);
+    } catch (error) {
+      setSourceMetadataError(error.message || 'Failed to update source info');
+    } finally {
+      setIsSavingSourceMetadata(false);
+    }
+  }, [conversationId, sourceType, sourceTitle, sourceUrl, onSourceMetadataUpdate]);
+
   // Open tweet modal
   const openTweetModal = useCallback(() => {
     setShowTweetModal(true);
@@ -260,6 +313,7 @@ export default function NoteViewer({
     // Skip if user is typing in an input or comment modal is open
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (showKeyboardCommentModal) return;
+    if (showSourceMetadataModal) return;
     if (!notes?.length) return;
 
     // C key copies the current note (in swipe view or focus mode)
@@ -379,7 +433,8 @@ export default function NoteViewer({
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
     }
   }, [viewMode, focusMode, notes, currentIndex, sentences, sentenceCursor, selectionStart,
-      sourceUrl, showKeyboardCommentModal, copyNoteToClipboard, openTweetModal, getSelectedSentencesText]);
+      sourceUrl, showKeyboardCommentModal, showSourceMetadataModal, copyNoteToClipboard,
+      openTweetModal, getSelectedSentencesText]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -540,7 +595,7 @@ export default function NoteViewer({
           {/* Source type badge */}
           {sourceType && (
             <span className={`source-badge source-${sourceType}`}>
-              {sourceType === 'youtube' ? 'YOUTUBE' : sourceType === 'podcast' ? 'PODCAST' : 'ARTICLE'}
+              {sourceType.toUpperCase()}
             </span>
           )}
 
@@ -677,6 +732,18 @@ export default function NoteViewer({
               label="Copy All Notes"
               onClick={copyAllNotesToClipboard}
             />
+            {conversationId && onSourceMetadataUpdate && (
+              <ActionMenu.Item
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </svg>
+                }
+                label="Edit Source Info"
+                onClick={handleOpenSourceMetadata}
+              />
+            )}
             {sourceContent && (
               <ActionMenu.Item
                 icon={
@@ -822,6 +889,21 @@ export default function NoteViewer({
       {/* Copy Feedback Toast */}
       {copyFeedback && (copyFeedback.includes('Note') || copyFeedback.includes('notes')) && (
         <div className="copy-toast">{copyFeedback}</div>
+      )}
+
+      {showSourceMetadataModal && (
+        <SourceMetadataModal
+          isOpen={showSourceMetadataModal}
+          initialValues={{
+            sourceType: sourceType || '',
+            sourceTitle: sourceTitle || '',
+            sourceUrl: sourceUrl || '',
+          }}
+          onSave={handleSaveSourceMetadata}
+          onClose={handleCloseSourceMetadata}
+          isSaving={isSavingSourceMetadata}
+          error={sourceMetadataError}
+        />
       )}
 
       {/* Focus Mode Overlay */}

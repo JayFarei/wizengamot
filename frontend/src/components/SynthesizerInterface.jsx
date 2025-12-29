@@ -317,6 +317,12 @@ export default function SynthesizerInterface({
     }
   }, [conversation?.id, onConversationUpdate]);
 
+  const handleSourceMetadataUpdate = useCallback((updatedConversation) => {
+    if (onConversationUpdate) {
+      onConversationUpdate(updatedConversation);
+    }
+  }, [onConversationUpdate]);
+
   // Get pinned notes info for conversation view header
   const pinnedNotesInfo = useMemo(() => {
     if (!followUpMessages.length || !latestNotes) return [];
@@ -376,6 +382,7 @@ export default function SynthesizerInterface({
                 sourceContent={latestNotes.sourceContent}
                 models={latestNotes.models}
                 chairmanModel={latestNotes.chairmanModel}
+                conversationId={conversation?.id}
                 comments={comments}
                 onSelectionChange={onSelectionChange}
                 onSaveComment={onSaveComment}
@@ -383,6 +390,7 @@ export default function SynthesizerInterface({
                 onDeleteComment={onDeleteComment}
                 activeCommentId={activeCommentId}
                 onSetActiveComment={onSetActiveComment}
+                onSourceMetadataUpdate={handleSourceMetadataUpdate}
               />
             ) : (
               <NoteViewer
@@ -404,6 +412,7 @@ export default function SynthesizerInterface({
                 onSelectConversation={onSelectConversation}
                 conversationId={conversation?.id}
                 onNoteTweetSaved={handleNoteTweetSaved}
+                onSourceMetadataUpdate={handleSourceMetadataUpdate}
               />
             )
           )}

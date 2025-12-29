@@ -18,6 +18,7 @@ export default function DeliberationNoteViewer({
   sourceContent,
   models,
   chairmanModel,
+  conversationId,
   // Comment props passed to NoteViewer
   comments = [],
   onSelectionChange,
@@ -26,6 +27,7 @@ export default function DeliberationNoteViewer({
   onDeleteComment,
   activeCommentId,
   onSetActiveComment,
+  onSourceMetadataUpdate,
 }) {
   const [showDeliberation, setShowDeliberation] = useState(false);
   const [deliberationTab, setDeliberationTab] = useState('stage1');
@@ -54,6 +56,7 @@ export default function DeliberationNoteViewer({
           sourceType={sourceType}
           sourceUrl={sourceUrl}
           sourceContent={sourceContent}
+          conversationId={conversationId}
           comments={comments}
           onSelectionChange={onSelectionChange}
           onSaveComment={onSaveComment}
@@ -64,6 +67,7 @@ export default function DeliberationNoteViewer({
           isDeliberation={true}
           modelCount={models?.length}
           chairmanModel={chairmanModel}
+          onSourceMetadataUpdate={onSourceMetadataUpdate}
         />
       </div>
 

@@ -58,6 +58,16 @@
   color: var(--council-badge-text);
 }
 
+.source-pdf {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.source-text {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
 /* Council icon */
 .council-icon {
   display: flex;
