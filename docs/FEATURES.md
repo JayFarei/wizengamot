@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Dec 29 - Quick access to switch between multiple review sessions
 - Dec 29 - Review sessions for organizing comments and threads
 - Dec 29 - Edit source metadata for synthesizer notes
 - Dec 29 - Text source type for synthesizing plain text content
