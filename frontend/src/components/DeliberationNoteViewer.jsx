@@ -28,6 +28,9 @@ export default function DeliberationNoteViewer({
   activeCommentId,
   onSetActiveComment,
   onSourceMetadataUpdate,
+  // Review sessions
+  reviewSessionCount = 0,
+  onToggleReviewSidebar,
 }) {
   const [showDeliberation, setShowDeliberation] = useState(false);
   const [deliberationTab, setDeliberationTab] = useState('stage1');
@@ -68,6 +71,8 @@ export default function DeliberationNoteViewer({
           modelCount={models?.length}
           chairmanModel={chairmanModel}
           onSourceMetadataUpdate={onSourceMetadataUpdate}
+          reviewSessionCount={reviewSessionCount}
+          onToggleReviewSidebar={onToggleReviewSidebar}
         />
       </div>
 

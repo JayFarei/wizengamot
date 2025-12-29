@@ -6,6 +6,7 @@ import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
 import FloatingComment from './FloatingComment';
 import ActionMenu from './ActionMenu';
+import ReviewSessionsButton from './ReviewSessionsButton';
 import SourceMetadataModal from './SourceMetadataModal';
 import { api } from '../api';
 import { SelectionHandler } from '../utils/SelectionHandler';
@@ -47,6 +48,9 @@ export default function NoteViewer({
   conversationId,
   onNoteTweetSaved,
   onSourceMetadataUpdate,
+  // Review sessions
+  reviewSessionCount = 0,
+  onToggleReviewSidebar,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
 
@@ -651,6 +655,10 @@ export default function NoteViewer({
               </svg>
             </button>
           )}
+          <ReviewSessionsButton
+            sessionCount={reviewSessionCount}
+            onClick={onToggleReviewSidebar}
+          />
           <ActionMenu>
             {onNavigateToPodcast && (
               <ActionMenu.Item

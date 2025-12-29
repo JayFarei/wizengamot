@@ -33,6 +33,9 @@ export default function SynthesizerInterface({
   // Linked visualisations
   linkedVisualisations = [],
   onSelectConversation,
+  // Review sessions
+  reviewSessionCount = 0,
+  onToggleReviewSidebar,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -391,6 +394,8 @@ export default function SynthesizerInterface({
                 activeCommentId={activeCommentId}
                 onSetActiveComment={onSetActiveComment}
                 onSourceMetadataUpdate={handleSourceMetadataUpdate}
+                reviewSessionCount={reviewSessionCount}
+                onToggleReviewSidebar={onToggleReviewSidebar}
               />
             ) : (
               <NoteViewer
@@ -413,6 +418,8 @@ export default function SynthesizerInterface({
                 conversationId={conversation?.id}
                 onNoteTweetSaved={handleNoteTweetSaved}
                 onSourceMetadataUpdate={handleSourceMetadataUpdate}
+                reviewSessionCount={reviewSessionCount}
+                onToggleReviewSidebar={onToggleReviewSidebar}
               />
             )
           )}
