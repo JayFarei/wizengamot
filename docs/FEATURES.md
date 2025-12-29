@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Dec 29 - Text source type for synthesizing plain text content
 - Dec 28 - Copy all notes to clipboard
 - Dec 28 - Architect/Engineer council prompt for technical specifications
 - Dec 28 - AI tweet generation and persistence for notes
