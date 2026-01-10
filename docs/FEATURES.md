@@ -1,5 +1,7 @@
 # Wizengamot Features
 
+- Jan 10 - Settings sidebar submenus with accordion navigation for quick access to specific settings
+- Jan 10 - Crawl4AI integration as primary web scraper with Firecrawl fallback
 - Dec 29 - Click prompt labels to edit them directly
 - Dec 29 - Quick access to switch between multiple review sessions
 - Dec 29 - Review sessions for organizing comments and threads
