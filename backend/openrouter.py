@@ -1,9 +1,12 @@
 """OpenRouter API client for making LLM requests."""
 
 import httpx
+import logging
 from typing import List, Dict, Any, Optional
 from .config import OPENROUTER_API_URL
 from .settings import get_openrouter_api_key
+
+logger = logging.getLogger(__name__)
 
 # Base URL for OpenRouter API
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -27,8 +30,8 @@ async def query_model(
     """
     api_key = get_openrouter_api_key()
     if not api_key:
-        print("Error: No OpenRouter API key configured")
-        return None
+        logger.error("No OpenRouter API key configured")
+        return {"error": "No OpenRouter API key configured. Go to Settings to add your key."}
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -58,9 +61,16 @@ async def query_model(
                 'generation_id': data.get('id')
             }
 
+    except httpx.TimeoutException:
+        logger.error(f"Timeout querying model {model}")
+        return {"error": f"Request timed out. The model '{model}' may be slow or unavailable."}
+    except httpx.HTTPStatusError as e:
+        error_text = e.response.text[:200] if e.response.text else "No error details"
+        logger.error(f"HTTP error querying {model}: {e.response.status_code} - {error_text}")
+        return {"error": f"API error ({e.response.status_code}): {error_text}"}
     except Exception as e:
-        print(f"Error querying model {model}: {e}")
-        return None
+        logger.error(f"Error querying model {model}: {e}")
+        return {"error": f"Failed to query model '{model}': {str(e)}"}
 
 
 async def get_generation_cost(generation_id: str) -> Optional[float]:
