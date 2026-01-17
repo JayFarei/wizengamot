@@ -2668,6 +2668,34 @@ export const api = {
   },
 
   /**
+   * Get entities extracted from a specific note.
+   * @param {string} noteId - The full note ID (e.g., "note:conversation_id:note_id")
+   * @returns {Object} Entities list with type, context, and extraction status
+   */
+  async getNoteEntities(noteId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/notes/${encodeURIComponent(noteId)}/entities`);
+    if (!response.ok) {
+      throw new Error('Failed to get note entities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Run hierarchical entity normalization on all entities.
+   * Creates specialization_of relationships between compound entities and root entities.
+   * @returns {Object} Summary of relationships created
+   */
+  async normalizeEntities() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/normalize`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to normalize entities');
+    }
+    return response.json();
+  },
+
+  /**
    * Extract entities from a conversation.
    * @param {string} conversationId - The conversation ID
    */

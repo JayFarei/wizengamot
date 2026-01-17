@@ -18,6 +18,7 @@ import PodcastReplayView from './components/PodcastReplayView';
 import ImageGallery from './components/ImageGallery';
 import ConversationGallery from './components/ConversationGallery';
 import PodcastGallery from './components/PodcastGallery';
+import KnowledgeGraphGallery from './components/KnowledgeGraphGallery';
 import SearchModal from './components/SearchModal';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
@@ -95,6 +96,10 @@ function App() {
   // Podcast sessions for sidebar
   const [podcastSessions, setPodcastSessions] = useState([]);
   const [showPodcastGallery, setShowPodcastGallery] = useState(false);
+
+  // Knowledge graph gallery state
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
+  const [focusedEntityId, setFocusedEntityId] = useState(null);
   const [showPodcastSetup, setShowPodcastSetup] = useState(false);
   const [currentPodcastId, setCurrentPodcastId] = useState(null);
   const [podcastSourceConvId, setPodcastSourceConvId] = useState(null);
@@ -392,6 +397,7 @@ function App() {
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentPodcastId(null);
   };
@@ -401,6 +407,7 @@ function App() {
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
@@ -414,6 +421,7 @@ function App() {
     setShowNotesGallery(false);
     setShowImageGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
@@ -427,6 +435,7 @@ function App() {
     setShowCouncilGallery(false);
     setShowImageGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
@@ -442,6 +451,7 @@ function App() {
 
   const handleNewNoteFromGallery = async () => {
     setShowNotesGallery(false);
+    setShowKnowledgeGraph(false);
     try {
       const newConv = await api.createConversation(null, null, 'synthesizer', null);
       setConversations([
@@ -459,6 +469,7 @@ function App() {
   const handleModeSelect = async (mode) => {
     setShowModeSelector(false);
     setShowImageGallery(false);
+    setShowKnowledgeGraph(false);
 
     // Cleanup empty conversation before creating new one
     await cleanupEmptyConversation(currentConversationId);
@@ -533,6 +544,22 @@ function App() {
     setCurrentMonitor(null);
   };
 
+  // Navigate to Knowledge Graph with pre-selected entity
+  const handleNavigateToGraphEntity = (entityId) => {
+    setFocusedEntityId(entityId);
+    setShowKnowledgeGraph(true);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
+    setShowImageGallery(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setCurrentPodcastId(null);
+  };
+
   // Navigate to visualiser mode with pre-selected source conversation
   const handleNavigateToVisualiser = async (sourceConversationId) => {
     try {
@@ -589,6 +616,7 @@ function App() {
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentPodcastId(null);
     setCurrentConversationId(id);
@@ -631,6 +659,7 @@ function App() {
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
     setShowPodcastGallery(false);
+    setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentPodcastId(null);
     setCurrentMonitorId(id);
@@ -1513,6 +1542,7 @@ function App() {
         onOpenCouncilGallery={handleOpenCouncilGallery}
         onOpenNotesGallery={handleOpenNotesGallery}
         onOpenPodcastGallery={() => setShowPodcastGallery(true)}
+        onOpenKnowledgeGraph={() => setShowKnowledgeGraph(true)}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
@@ -1580,6 +1610,19 @@ function App() {
             }
           }}
           onRefresh={loadPodcasts}
+        />
+      ) : showKnowledgeGraph ? (
+        <KnowledgeGraphGallery
+          onSelectConversation={async (id) => {
+            await handleSelectConversation(id);
+            setShowKnowledgeGraph(false);
+            setFocusedEntityId(null);
+          }}
+          onClose={() => {
+            setShowKnowledgeGraph(false);
+            setFocusedEntityId(null);
+          }}
+          initialEntityId={focusedEntityId}
         />
       ) : showImageGallery ? (
         <ImageGallery
@@ -1674,6 +1717,7 @@ function App() {
           onSelectConversation={handleSelectConversation}
           reviewSessionCount={reviewSessions.length}
           onToggleReviewSidebar={handleToggleCommitSidebar}
+          onNavigateToGraphEntity={handleNavigateToGraphEntity}
         />
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface

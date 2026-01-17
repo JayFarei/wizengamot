@@ -303,6 +303,103 @@ async def extract_entity_relationships(
         return []
 
 
+def create_hierarchical_relationships(entities: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Find and create relationships between compound entities and their root entities.
+
+    This function automatically detects compound entity names (e.g., "unix-philosophy",
+    "machine-learning") and creates specialization_of relationships to root entities
+    (e.g., "unix", "machine") if they exist.
+
+    Args:
+        entities: Dict of entity_id -> entity data
+
+    Returns:
+        List of new relationship dicts ready to be added to entity_relationships
+    """
+    relationships = []
+
+    # Build a lookup of entity names to IDs (lowercase for matching)
+    entity_name_to_id = {}
+    for entity_id, entity in entities.items():
+        name_lower = entity.get("name", "").lower().strip()
+        if name_lower:
+            entity_name_to_id[name_lower] = entity_id
+
+    for entity_id, entity in entities.items():
+        name = entity.get("name", "").lower().strip()
+        if not name:
+            continue
+
+        # Split on common separators: hyphen, underscore, space
+        parts = re.split(r'[-_\s]+', name)
+        if len(parts) < 2:
+            continue
+
+        # Check if the first part (root term) exists as a separate entity
+        root_term = parts[0]
+        if root_term in entity_name_to_id and root_term != name:
+            root_id = entity_name_to_id[root_term]
+            root_entity = entities.get(root_id, {})
+
+            relationships.append({
+                "id": f"rel_hier_{uuid.uuid4().hex[:8]}",
+                "source_entity_id": entity_id,
+                "target_entity_id": root_id,
+                "source_entity_name": entity.get("name", ""),
+                "target_entity_name": root_entity.get("name", ""),
+                "type": "specialization_of",
+                "bidirectional": False,
+                "auto_generated": True,
+                "source_note": None  # Not from a specific note
+            })
+
+    return relationships
+
+
+def run_hierarchical_normalization() -> Dict[str, Any]:
+    """
+    Run hierarchical entity normalization on all existing entities.
+
+    Finds compound entities and creates specialization_of relationships
+    to their root entities.
+
+    Returns:
+        Summary of relationships created
+    """
+    data = load_entities()
+    entities = data.get("entities", {})
+    existing_relationships = data.get("entity_relationships", [])
+
+    # Find new hierarchical relationships
+    new_relationships = create_hierarchical_relationships(entities)
+
+    # Filter out duplicates (same source and target entity pair with same type)
+    existing_pairs = set()
+    for rel in existing_relationships:
+        pair = (rel.get("source_entity_id"), rel.get("target_entity_id"), rel.get("type"))
+        existing_pairs.add(pair)
+
+    added_count = 0
+    for rel in new_relationships:
+        pair = (rel.get("source_entity_id"), rel.get("target_entity_id"), rel.get("type"))
+        if pair not in existing_pairs:
+            existing_relationships.append(rel)
+            existing_pairs.add(pair)
+            added_count += 1
+
+    # Save if we added any new relationships
+    if added_count > 0:
+        data["entity_relationships"] = existing_relationships
+        save_entities(data)
+
+    return {
+        "total_entities": len(entities),
+        "new_relationships_created": added_count,
+        "total_relationships": len(existing_relationships)
+    }
+
+
 def similarity_ratio(s1: str, s2: str) -> float:
     """Calculate similarity ratio between two strings."""
     return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
@@ -1048,6 +1145,87 @@ def get_graph_stats() -> Dict[str, Any]:
         "manual_links": len(manual_links_data.get("manual_links", [])),
         "reviewed_entities": len(manual_links_data.get("reviewed_entities", [])),
         "updated_at": data.get("updated_at")
+    }
+
+
+def get_note_entities(note_id: str) -> Dict[str, Any]:
+    """
+    Get entities extracted from a specific note.
+
+    Args:
+        note_id: Full note ID in format "note:conversation_id:note_id"
+
+    Returns:
+        Dict with entities list and extraction status
+    """
+    data = load_entities()
+    entities = data.get("entities", {})
+    note_entities = data.get("note_entities", {})
+    processed_conversations = data.get("processed_conversations", [])
+    entity_relationships = data.get("entity_relationships", [])
+
+    # Parse note_id to get conversation_id
+    # Format: "note:conversation_id:note_id"
+    parts = note_id.split(":")
+    if len(parts) >= 2:
+        conversation_id = parts[1]
+    else:
+        conversation_id = None
+
+    # Check if conversation was processed
+    is_processed = conversation_id in processed_conversations if conversation_id else False
+
+    # Build the note key for lookup
+    # note_entities uses "conversation_id:note_id" as key
+    if len(parts) >= 3:
+        note_key = f"{parts[1]}:{parts[2]}"
+    else:
+        note_key = note_id.replace("note:", "")
+
+    # Get entity IDs for this note
+    entity_ids = note_entities.get(note_key, [])
+
+    # Build full entity details
+    note_entity_list = []
+    for entity_id in entity_ids:
+        entity = entities.get(entity_id)
+        if entity:
+            # Find context for this specific note from mentions
+            context = None
+            for mention in entity.get("mentions", []):
+                mention_key = f"{mention.get('conversation_id')}:{mention.get('note_id')}"
+                if mention_key == note_key:
+                    context = mention.get("context")
+                    break
+
+            note_entity_list.append({
+                "id": entity_id,
+                "name": entity.get("name", ""),
+                "type": entity.get("type", "concept"),
+                "context": context,
+                "mentionCount": len(entity.get("mentions", []))
+            })
+
+    # Find relationships involving these entities
+    related_relationships = []
+    entity_id_set = set(entity_ids)
+    for rel in entity_relationships:
+        if rel.get("source_entity_id") in entity_id_set or rel.get("target_entity_id") in entity_id_set:
+            related_relationships.append({
+                "id": rel.get("id"),
+                "source": rel.get("source_entity_name"),
+                "target": rel.get("target_entity_name"),
+                "type": rel.get("type"),
+                "bidirectional": rel.get("bidirectional", False)
+            })
+
+    return {
+        "noteId": note_id,
+        "entities": note_entity_list,
+        "relationships": related_relationships,
+        "isProcessed": is_processed,
+        "conversationId": conversation_id,
+        "extractedAt": data.get("updated_at")
     }
 
 

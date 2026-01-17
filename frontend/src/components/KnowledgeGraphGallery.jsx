@@ -13,6 +13,7 @@ import './KnowledgeGraph.css';
 export default function KnowledgeGraphGallery({
   onClose,
   onSelectConversation,
+  initialEntityId = null,
 }) {
   const [graphData, setGraphData] = useState(null);
   const [stats, setStats] = useState(null);
@@ -130,6 +131,24 @@ export default function KnowledgeGraphGallery({
     loadGraph();
     loadMigrationStatus();
   }, [loadGraph, loadMigrationStatus]);
+
+  // Auto-select entity if initialEntityId is provided
+  useEffect(() => {
+    if (!initialEntityId || !graphData?.nodes) return;
+
+    // Find the entity node by ID
+    const entityNodeId = initialEntityId.startsWith('entity:')
+      ? initialEntityId
+      : `entity:${initialEntityId}`;
+    const entityNode = graphData.nodes.find(n => n.id === entityNodeId);
+
+    if (entityNode) {
+      setSelectedNode(entityNode);
+      setFocusMode(true); // Enable focus mode to show connected nodes
+      setHighlightedNodeId(entityNode.id);
+      setTimeout(() => setHighlightedNodeId(null), 2000);
+    }
+  }, [initialEntityId, graphData]);
 
   // Poll migration status while running
   useEffect(() => {

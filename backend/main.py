@@ -3862,6 +3862,24 @@ async def get_related_notes(note_id: str):
     return knowledge_graph.get_related_notes(note_id)
 
 
+@app.get("/api/knowledge-graph/notes/{note_id:path}/entities")
+async def get_note_entities(note_id: str):
+    """
+    Get entities extracted from a specific note.
+    Returns list of entities with their type, context, and related relationships.
+    """
+    return knowledge_graph.get_note_entities(note_id)
+
+
+@app.post("/api/knowledge-graph/normalize")
+async def normalize_entities():
+    """
+    Run hierarchical entity normalization on all existing entities.
+    Finds compound entities and creates specialization_of relationships to root entities.
+    """
+    return knowledge_graph.run_hierarchical_normalization()
+
+
 @app.post("/api/knowledge-graph/extract/{conversation_id}")
 async def extract_entities(conversation_id: str, background_tasks: BackgroundTasks):
     """

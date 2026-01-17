@@ -36,6 +36,8 @@ export default function SynthesizerInterface({
   // Review sessions
   reviewSessionCount = 0,
   onToggleReviewSidebar,
+  // Knowledge graph navigation
+  onNavigateToGraphEntity,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -99,13 +101,6 @@ export default function SynthesizerInterface({
 
   // Check if we have an active conversation
   const hasConversation = followUpMessages.length > 0;
-
-  // Auto-switch to conversation view when new messages arrive
-  useEffect(() => {
-    if (hasConversation && viewMode === 'notes') {
-      setViewMode('conversation');
-    }
-  }, [followUpMessages.length]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -420,6 +415,7 @@ export default function SynthesizerInterface({
                 onSourceMetadataUpdate={handleSourceMetadataUpdate}
                 reviewSessionCount={reviewSessionCount}
                 onToggleReviewSidebar={onToggleReviewSidebar}
+                onNavigateToGraphEntity={onNavigateToGraphEntity}
               />
             )
           )}

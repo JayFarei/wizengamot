@@ -8,6 +8,7 @@ import FloatingComment from './FloatingComment';
 import ActionMenu from './ActionMenu';
 import ReviewSessionsButton from './ReviewSessionsButton';
 import SourceMetadataModal from './SourceMetadataModal';
+import NotePanesView from './NotePanesView';
 import { api } from '../api';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
@@ -51,8 +52,11 @@ export default function NoteViewer({
   // Review sessions
   reviewSessionCount = 0,
   onToggleReviewSidebar,
+  // Knowledge graph navigation
+  onNavigateToGraphEntity,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
+  const [showPanesView, setShowPanesView] = useState(false);
 
   // Helper to get short model name
   const getModelShortName = (model) => model?.split('/').pop() || model;
@@ -357,6 +361,13 @@ export default function NoteViewer({
       return;
     }
 
+    // B key toggles browse related view (in swipe view or focus mode)
+    if ((e.key === 'b' || e.key === 'B') && (viewMode === 'swipe' || focusMode)) {
+      e.preventDefault();
+      setShowPanesView(prev => !prev);
+      return;
+    }
+
     // F key toggles focus mode (only in swipe view)
     if ((e.key === 'f' || e.key === 'F') && viewMode === 'swipe') {
       e.preventDefault();
@@ -612,6 +623,20 @@ export default function NoteViewer({
     );
   }
 
+  // Show panes view when active
+  if (showPanesView) {
+    return (
+      <NotePanesView
+        initialNote={currentNote}
+        conversationId={conversationId}
+        sourceTitle={sourceTitle}
+        onClose={() => setShowPanesView(false)}
+        onViewConversation={onSelectConversation}
+        onNavigateToGraph={onNavigateToGraphEntity}
+      />
+    );
+  }
+
   return (
     <div className="note-viewer" tabIndex={0} ref={containerRef}>
       {/* Header */}
@@ -739,6 +764,16 @@ export default function NoteViewer({
               </ActionMenu.Submenu>
             )}
             {(onNavigateToPodcast || onNavigateToVisualiser || linkedVisualisations.length > 0) && <ActionMenu.Divider />}
+            <ActionMenu.Item
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              }
+              label="Browse Related"
+              onClick={() => setShowPanesView(true)}
+            />
             <ActionMenu.Item
               icon={
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -870,7 +905,7 @@ export default function NoteViewer({
           </div>
 
           <p className="nav-hint">
-            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>F</kbd> focus mode, <kbd>C</kbd> copy note, <kbd>X</kbd> tweet
+            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>F</kbd> focus mode, <kbd>B</kbd> browse related, <kbd>C</kbd> copy, <kbd>X</kbd> tweet
           </p>
         </div>
       ) : (
