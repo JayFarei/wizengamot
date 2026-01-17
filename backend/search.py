@@ -30,6 +30,18 @@ def get_model() -> TextEmbedding:
     return _model
 
 
+def preload_model():
+    """
+    Preload the embedding model at startup.
+    Call this during server initialization to avoid cold-start latency.
+    """
+    print("Preloading embedding model (BAAI/bge-small-en-v1.5)...")
+    model = get_model()
+    # Warm up with a test embedding to ensure model is fully loaded
+    list(model.embed(["warmup"]))
+    print("Embedding model ready.")
+
+
 def get_embedding(text: str) -> np.ndarray:
     """Get embedding vector for a text string."""
     model = get_model()

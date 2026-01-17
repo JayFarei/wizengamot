@@ -2590,4 +2590,351 @@ export const api = {
   getPodcastAudioUrl(sessionId) {
     return `${API_BASE}/api/podcast/sessions/${sessionId}/audio`;
   },
+
+  // ==========================================================================
+  // Knowledge Graph API Methods
+  // ==========================================================================
+
+  /**
+   * Get the full knowledge graph.
+   * @param {string} tags - Optional comma-separated list of tags to filter by
+   */
+  async getKnowledgeGraph(tags = null) {
+    const url = tags
+      ? `${API_BASE}/api/knowledge-graph?tags=${encodeURIComponent(tags)}`
+      : `${API_BASE}/api/knowledge-graph`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to get knowledge graph');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get knowledge graph statistics.
+   */
+  async getKnowledgeGraphStats() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/stats`);
+    if (!response.ok) {
+      throw new Error('Failed to get knowledge graph stats');
+    }
+    return response.json();
+  },
+
+  /**
+   * Search knowledge graph nodes by semantic similarity.
+   * @param {string} query - Search query string
+   * @param {Object} options - Search options
+   * @param {string[]} options.types - Node types to filter (entity, note, source)
+   * @param {string[]} options.entityTypes - Entity types to filter (person, organization, etc.)
+   * @param {string[]} options.tags - Tags to filter notes by
+   * @param {number} options.limit - Maximum results to return
+   * @returns {Object} Results with id, type, name, score, and metadata
+   */
+  async searchKnowledgeGraph(query, options = {}) {
+    const params = new URLSearchParams();
+    params.set('q', query);
+    if (options.types?.length) {
+      params.set('types', options.types.join(','));
+    }
+    if (options.entityTypes?.length) {
+      params.set('entity_types', options.entityTypes.join(','));
+    }
+    if (options.tags?.length) {
+      params.set('tags', options.tags.join(','));
+    }
+    if (options.limit) {
+      params.set('limit', options.limit.toString());
+    }
+
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/search?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to search knowledge graph');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get notes related to a specific note via the knowledge graph.
+   * @param {string} noteId - The full note ID (e.g., "note:conversation_id:note_id")
+   * @returns {Object} Related notes grouped by connection type
+   */
+  async getRelatedNotes(noteId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/notes/${encodeURIComponent(noteId)}/related`);
+    if (!response.ok) {
+      throw new Error('Failed to get related notes');
+    }
+    return response.json();
+  },
+
+  /**
+   * Extract entities from a conversation.
+   * @param {string} conversationId - The conversation ID
+   */
+  async extractEntities(conversationId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/extract/${conversationId}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to extract entities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Start migration of all synthesizer conversations.
+   * @param {boolean} force - If true, reprocess already-processed conversations
+   */
+  async startKnowledgeGraphMigration(force = false) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/migrate?force=${force}`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to start migration');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get migration status.
+   */
+  async getKnowledgeGraphMigrationStatus() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/migrate/status`);
+    if (!response.ok) {
+      throw new Error('Failed to get migration status');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel running migration.
+   */
+  async cancelKnowledgeGraphMigration() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/migrate/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel migration');
+    }
+    return response.json();
+  },
+
+  /**
+   * Rebuild the entire knowledge graph.
+   */
+  async rebuildKnowledgeGraph() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/rebuild`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to rebuild knowledge graph');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a manual link between two nodes.
+   * @param {string} source - Source node ID
+   * @param {string} target - Target node ID
+   * @param {string} label - Link label
+   */
+  async createManualLink(source, target, label = 'related') {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, target, label }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create manual link');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a manual link.
+   * @param {string} linkId - The link ID
+   */
+  async deleteManualLink(linkId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/links/${linkId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete manual link');
+    }
+    return response.json();
+  },
+
+  /**
+   * Dismiss a suggested link.
+   * @param {string} linkId - The link ID
+   */
+  async dismissSuggestedLink(linkId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/links/${linkId}/dismiss`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to dismiss link');
+    }
+    return response.json();
+  },
+
+  // Knowledge Graph Linkage Session
+
+  /**
+   * Get linkage session data including duplicates and stats.
+   */
+  async getLinkageSession() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/linkage`);
+    if (!response.ok) {
+      throw new Error('Failed to get linkage session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get potential duplicate entities.
+   * @param {number} threshold - Similarity threshold (0-1)
+   */
+  async getDuplicateEntities(threshold = 0.7) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/linkage/duplicates?threshold=${threshold}`);
+    if (!response.ok) {
+      throw new Error('Failed to get duplicate entities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Merge multiple entities into a canonical one.
+   * @param {string} canonicalId - The entity ID to keep
+   * @param {string[]} mergeIds - Entity IDs to merge
+   */
+  async mergeEntities(canonicalId, mergeIds) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/linkage/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canonical_id: canonicalId, merge_ids: mergeIds }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to merge entities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Mark an entity as reviewed.
+   * @param {string} entityId - The entity ID
+   */
+  async markEntityReviewed(entityId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/linkage/entities/${entityId}/review`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to mark entity as reviewed');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get AI-generated connection suggestions.
+   * @param {number} limit - Maximum suggestions to return
+   */
+  async getConnectionSuggestions(limit = 10) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/linkage/suggestions?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to get connection suggestions');
+    }
+    return response.json();
+  },
+
+  // Graph RAG Chat
+
+  /**
+   * Send a message to the knowledge graph chat.
+   * @param {string} message - The user's message
+   * @param {string|null} sessionId - Optional session ID for conversation continuity
+   */
+  async chatWithKnowledgeGraph(message, sessionId = null) {
+    const body = { message };
+    if (sessionId) {
+      body.session_id = sessionId;
+    }
+
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to chat with knowledge graph');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get chat history for a session.
+   * @param {string} sessionId - The session ID
+   */
+  async getKnowledgeGraphChatHistory(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/${sessionId}/history`);
+    if (!response.ok) {
+      throw new Error('Failed to get chat history');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear a chat session.
+   * @param {string} sessionId - The session ID
+   */
+  async clearKnowledgeGraphChatSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear chat session');
+    }
+    return response.json();
+  },
+
+  /**
+   * List all active chat sessions.
+   */
+  async listKnowledgeGraphChatSessions() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/sessions`);
+    if (!response.ok) {
+      throw new Error('Failed to list chat sessions');
+    }
+    return response.json();
+  },
+
+  // =============================================================================
+  // Knowledge Graph Settings
+  // =============================================================================
+
+  /**
+   * Get knowledge graph settings.
+   */
+  async getKnowledgeGraphSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph`);
+    if (!response.ok) {
+      throw new Error('Failed to get knowledge graph settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Set knowledge graph model.
+   * @param {string} model - The model identifier
+   */
+  async setKnowledgeGraphModel(model) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/model`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to set knowledge graph model');
+    }
+    return response.json();
+  },
 };

@@ -14,7 +14,7 @@ import threading
 import time
 import os
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
@@ -25,6 +25,8 @@ _cancelled_conversations: set = set()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown."""
+    # Startup: Preload embedding model to avoid cold-start latency
+    search.preload_model()
     # Startup: Start background tasks
     monitor_scheduler.start_scheduler()
     yield
@@ -428,6 +430,15 @@ async def _generate_synthesizer_summary(conversation_id: str, notes: List[Dict[s
                     storage.update_conversation_summary(conversation_id, summary)
     except Exception as e:
         print(f"Error generating synthesizer summary: {e}")
+
+
+async def _extract_entities_for_notes(conversation_id: str):
+    """Background task to extract entities from synthesizer notes for knowledge graph."""
+    try:
+        await knowledge_graph.extract_entities_for_conversation(conversation_id)
+        print(f"Knowledge graph: Extracted entities for conversation {conversation_id}")
+    except Exception as e:
+        print(f"Error extracting entities for knowledge graph: {e}")
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
@@ -1822,6 +1833,8 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     # Generate summary for gallery preview (await to ensure it's ready when frontend fetches)
     if result.get("notes"):
         await _generate_synthesizer_summary(conversation_id, result["notes"])
+        # Extract entities for knowledge graph (run in background, don't block response)
+        asyncio.create_task(_extract_entities_for_notes(conversation_id))
 
     # Generate title from notes if first message
     generated_title = None
@@ -3731,6 +3744,332 @@ async def migrate_visualisation_links():
     """
     count = storage.migrate_visualisation_links()
     return {"migrated": count, "message": f"Created {count} visualisation link(s)"}
+
+
+# ===== Knowledge Graph Endpoints =====
+
+from . import knowledge_graph
+
+
+class ManualLinkRequest(BaseModel):
+    """Request to create a manual link."""
+    source: str
+    target: str
+    label: str = "related"
+
+
+@app.get("/api/knowledge-graph")
+async def get_knowledge_graph(tags: Optional[str] = None):
+    """
+    Get the full knowledge graph.
+
+    Args:
+        tags: Optional comma-separated list of tags to filter by
+    """
+    graph = knowledge_graph.build_graph()
+
+    # Apply tag filter if provided
+    if tags:
+        tag_list = [t.strip().lower() for t in tags.split(",")]
+        # Filter nodes to only include notes with matching tags
+        filtered_note_ids = set()
+        for node in graph["nodes"]:
+            if node["type"] == "note":
+                node_tags = [t.lower() for t in node.get("tags", [])]
+                if any(tag in node_tags for tag in tag_list):
+                    filtered_note_ids.add(node["id"])
+
+        # Include source nodes for filtered notes
+        source_ids = set()
+        for node in graph["nodes"]:
+            if node["type"] == "note" and node["id"] in filtered_note_ids:
+                source_ids.add(node.get("sourceId"))
+
+        # Filter nodes
+        filtered_nodes = [
+            n for n in graph["nodes"]
+            if n["type"] == "entity"
+            or n["id"] in filtered_note_ids
+            or n["id"] in source_ids
+        ]
+
+        # Filter links to only include those between filtered nodes
+        node_ids = {n["id"] for n in filtered_nodes}
+        filtered_links = [
+            l for l in graph["links"]
+            if l["source"] in node_ids and l["target"] in node_ids
+        ]
+
+        graph["nodes"] = filtered_nodes
+        graph["links"] = filtered_links
+
+    return graph
+
+
+@app.get("/api/knowledge-graph/stats")
+async def get_knowledge_graph_stats():
+    """Get knowledge graph statistics."""
+    return knowledge_graph.get_graph_stats()
+
+
+@app.get("/api/knowledge-graph/search")
+async def search_knowledge_graph_endpoint(
+    q: str,
+    types: Optional[str] = None,
+    entity_types: Optional[str] = None,
+    tags: Optional[str] = None,
+    limit: int = 20
+):
+    """
+    Search knowledge graph nodes by semantic similarity.
+
+    Args:
+        q: Search query string
+        types: Optional comma-separated list of node types (entity, note, source)
+        entity_types: Optional comma-separated list of entity types (person, organization, etc.)
+        tags: Optional comma-separated list of tags to filter notes by
+        limit: Maximum results to return (default 20)
+
+    Returns:
+        Object with results array and query info
+    """
+    # Parse comma-separated filters
+    node_types = [t.strip() for t in types.split(",")] if types else None
+    entity_type_list = [t.strip() for t in entity_types.split(",")] if entity_types else None
+    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+
+    results = graph_search.search_knowledge_graph(
+        query=q,
+        node_types=node_types,
+        entity_types=entity_type_list,
+        tags=tag_list,
+        limit=limit
+    )
+
+    return {
+        "results": results,
+        "query": q,
+        "total": len(results)
+    }
+
+
+@app.get("/api/knowledge-graph/notes/{note_id:path}/related")
+async def get_related_notes(note_id: str):
+    """
+    Get notes related to a specific note via the knowledge graph.
+    Returns notes grouped by connection type (sequential, shared_tag, shared_entity, same_source).
+    """
+    return knowledge_graph.get_related_notes(note_id)
+
+
+@app.post("/api/knowledge-graph/extract/{conversation_id}")
+async def extract_entities(conversation_id: str, background_tasks: BackgroundTasks):
+    """
+    Extract entities from a conversation's notes.
+    Runs in background for large conversations.
+    """
+    # Run extraction synchronously for immediate feedback
+    result = await knowledge_graph.extract_entities_for_conversation(conversation_id)
+    return result
+
+
+@app.post("/api/knowledge-graph/migrate")
+async def start_migration(
+    background_tasks: BackgroundTasks,
+    force: bool = False
+):
+    """
+    Start migration of all existing synthesizer conversations.
+    Runs as a background task.
+    """
+    status = knowledge_graph.get_migration_status()
+    if status["running"]:
+        raise HTTPException(status_code=409, detail="Migration already running")
+
+    # Start migration in background
+    background_tasks.add_task(knowledge_graph.migrate_all_conversations, force_reprocess=force)
+
+    return {"status": "started", "message": "Migration started in background"}
+
+
+@app.get("/api/knowledge-graph/migrate/status")
+async def get_migration_status():
+    """Get current migration status."""
+    return knowledge_graph.get_migration_status()
+
+
+@app.post("/api/knowledge-graph/migrate/cancel")
+async def cancel_migration():
+    """Cancel running migration."""
+    return knowledge_graph.cancel_migration()
+
+
+@app.post("/api/knowledge-graph/rebuild")
+async def rebuild_knowledge_graph(background_tasks: BackgroundTasks):
+    """
+    Rebuild the entire knowledge graph from scratch.
+    This re-extracts all entities from all conversations.
+    """
+    status = knowledge_graph.get_migration_status()
+    if status["running"]:
+        raise HTTPException(status_code=409, detail="Migration already running")
+
+    # Start full rebuild in background
+    background_tasks.add_task(knowledge_graph.migrate_all_conversations, force_reprocess=True)
+
+    return {"status": "started", "message": "Full rebuild started in background"}
+
+
+@app.post("/api/knowledge-graph/links")
+async def create_manual_link(request: ManualLinkRequest):
+    """Create a manual link between two nodes."""
+    link = knowledge_graph.create_manual_link(
+        source=request.source,
+        target=request.target,
+        label=request.label
+    )
+    return link
+
+
+@app.delete("/api/knowledge-graph/links/{link_id}")
+async def delete_manual_link(link_id: str):
+    """Delete a manual link."""
+    success = knowledge_graph.delete_manual_link(link_id)
+    if success:
+        return {"status": "deleted"}
+    raise HTTPException(status_code=404, detail="Link not found")
+
+
+@app.post("/api/knowledge-graph/links/{link_id}/dismiss")
+async def dismiss_suggested_link(link_id: str):
+    """Dismiss a suggested link so it won't be suggested again."""
+    knowledge_graph.dismiss_link(link_id)
+    return {"status": "dismissed"}
+
+
+# Linkage session endpoints
+
+@app.get("/api/knowledge-graph/linkage")
+async def get_linkage_session():
+    """Get data for a linkage session including duplicates and stats."""
+    return knowledge_graph.get_linkage_session_data()
+
+
+@app.get("/api/knowledge-graph/linkage/duplicates")
+async def get_duplicate_entities(threshold: float = 0.7):
+    """Get potential duplicate entities."""
+    return knowledge_graph.find_duplicate_entities(threshold)
+
+
+class MergeEntitiesRequest(BaseModel):
+    """Request to merge entities."""
+    canonical_id: str
+    merge_ids: List[str]
+
+
+@app.post("/api/knowledge-graph/linkage/merge")
+async def merge_entities(request: MergeEntitiesRequest):
+    """Merge multiple entities into a canonical one."""
+    result = knowledge_graph.merge_entities(request.canonical_id, request.merge_ids)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.post("/api/knowledge-graph/linkage/entities/{entity_id}/review")
+async def mark_entity_as_reviewed(entity_id: str):
+    """Mark an entity as reviewed."""
+    knowledge_graph.mark_entity_reviewed(entity_id)
+    return {"status": "reviewed"}
+
+
+@app.get("/api/knowledge-graph/linkage/suggestions")
+async def get_connection_suggestions(limit: int = 10):
+    """Get AI-generated connection suggestions between notes."""
+    suggestions = await knowledge_graph.get_connection_suggestions(limit=limit)
+    return {"suggestions": suggestions}
+
+
+# Graph RAG Chat endpoints
+
+class GraphRAGChatRequest(BaseModel):
+    """Request to chat with the knowledge graph."""
+    message: str
+    session_id: Optional[str] = None
+
+
+@app.post("/api/knowledge-graph/chat")
+async def chat_with_knowledge_graph(request: GraphRAGChatRequest):
+    """
+    Chat with the knowledge graph using natural language.
+    Returns an answer with citations from relevant notes.
+    """
+    session_id = request.session_id or str(uuid.uuid4())[:8]
+
+    # Get conversation history
+    history = graph_rag.get_chat_history(session_id)
+
+    # Add user message to history
+    graph_rag.add_to_chat_history(session_id, "user", request.message)
+
+    # Query the knowledge graph
+    result = await graph_rag.query_knowledge_graph(
+        question=request.message,
+        conversation_history=history
+    )
+
+    # Add assistant response to history
+    graph_rag.add_to_chat_history(session_id, "assistant", result["answer"])
+
+    return {
+        "session_id": session_id,
+        "answer": result["answer"],
+        "citations": result["citations"],
+        "follow_ups": result["follow_ups"],
+        "notes_searched": result["notes_searched"]
+    }
+
+
+@app.get("/api/knowledge-graph/chat/{session_id}/history")
+async def get_chat_history(session_id: str):
+    """Get chat history for a session."""
+    history = graph_rag.get_chat_history(session_id)
+    return {"session_id": session_id, "messages": history}
+
+
+@app.delete("/api/knowledge-graph/chat/{session_id}")
+async def clear_chat_session(session_id: str):
+    """Clear a chat session."""
+    graph_rag.clear_chat_session(session_id)
+    return {"status": "cleared"}
+
+
+@app.get("/api/knowledge-graph/chat/sessions")
+async def list_chat_sessions():
+    """List all active chat sessions."""
+    return {"sessions": graph_rag.list_chat_sessions()}
+
+
+# =============================================================================
+# Knowledge Graph Settings Endpoints
+# =============================================================================
+
+@app.get("/api/settings/knowledge-graph")
+async def get_knowledge_graph_settings_endpoint():
+    """Get knowledge graph settings."""
+    return settings.get_knowledge_graph_settings()
+
+
+class KnowledgeGraphModelRequest(BaseModel):
+    """Request to set knowledge graph model."""
+    model: str
+
+
+@app.put("/api/settings/knowledge-graph/model")
+async def set_knowledge_graph_model_endpoint(request: KnowledgeGraphModelRequest):
+    """Set the knowledge graph model."""
+    settings.set_knowledge_graph_model(request.model)
+    return settings.get_knowledge_graph_settings()
 
 
 if __name__ == "__main__":
