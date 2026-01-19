@@ -403,27 +403,26 @@ export default function KnowledgeGraphReview({
           </div>
         )}
 
-        {/* Stats */}
-        {stats && (
-          <div className="kg-discover-stats">
-            <span>{stats.pending} pending</span>
-            <span>{stats.approved} approved</span>
-            <span>{stats.dismissed} dismissed</span>
-          </div>
-        )}
-
-        {/* Filter */}
-        <div className="kg-discover-filter">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="kg-discover-filter-select"
+        {/* Filter Tabs */}
+        <div className="kg-review-tabs">
+          <button
+            className={`kg-review-tab ${filter === 'pending' ? 'active' : ''}`}
+            onClick={() => setFilter('pending')}
           >
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="dismissed">Dismissed</option>
-            <option value="all">All</option>
-          </select>
+            Pending {stats?.pending > 0 && `(${stats.pending})`}
+          </button>
+          <button
+            className={`kg-review-tab ${filter === 'approved' ? 'active' : ''}`}
+            onClick={() => setFilter('approved')}
+          >
+            Approved {stats?.approved > 0 && `(${stats.approved})`}
+          </button>
+          <button
+            className={`kg-review-tab ${filter === 'dismissed' ? 'active' : ''}`}
+            onClick={() => setFilter('dismissed')}
+          >
+            Dismissed {stats?.dismissed > 0 && `(${stats.dismissed})`}
+          </button>
         </div>
 
         {/* Discoveries list */}

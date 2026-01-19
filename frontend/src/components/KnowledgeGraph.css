@@ -2811,6 +2811,35 @@
   padding: 16px;
 }
 
+/* Review Panel Filter Tabs */
+.kg-review-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary);
+  padding-bottom: 0;
+}
+
+.kg-review-tab {
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.kg-review-tab:hover {
+  color: var(--text-primary);
+}
+
+.kg-review-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
 /* Full screen mode for review panel */
 .kg-review-panel.kg-review-fullscreen {
   position: fixed;
