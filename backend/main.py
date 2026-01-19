@@ -4069,6 +4069,137 @@ async def list_chat_sessions():
 
 
 # =============================================================================
+# Knowledge Discovery Endpoints
+# =============================================================================
+
+from . import knowledge_discovery
+
+
+class DiscoveryRequest(BaseModel):
+    """Request to start a discovery analysis."""
+    prompt: str
+    model: Optional[str] = None
+    include_web_search: bool = True
+
+
+@app.post("/api/knowledge-graph/discover")
+async def run_discovery(request: DiscoveryRequest, background_tasks: BackgroundTasks):
+    """
+    Start a discovery analysis with natural language prompt.
+
+    Example prompts:
+    - "Find connections between AI and philosophy"
+    - "What patterns am I missing in my startup research?"
+    """
+    result = await knowledge_discovery.run_discovery_analysis(
+        prompt=request.prompt,
+        model=request.model,
+        include_web_search=request.include_web_search
+    )
+    return result
+
+
+@app.get("/api/knowledge-graph/discover/status")
+async def get_discovery_status():
+    """Get current discovery run status."""
+    return knowledge_discovery.get_discovery_status()
+
+
+@app.post("/api/knowledge-graph/discover/cancel")
+async def cancel_discovery():
+    """Cancel a running discovery."""
+    return knowledge_discovery.cancel_discovery()
+
+
+@app.get("/api/knowledge-graph/discoveries")
+async def list_discoveries(status: Optional[str] = None, limit: int = 50):
+    """List discoveries with optional status filter."""
+    return {"discoveries": knowledge_discovery.list_discoveries(status=status, limit=limit)}
+
+
+@app.get("/api/knowledge-graph/discoveries/{discovery_id}")
+async def get_discovery(discovery_id: str):
+    """Get a single discovery by ID."""
+    discovery = knowledge_discovery.get_discovery(discovery_id)
+    if not discovery:
+        raise HTTPException(status_code=404, detail="Discovery not found")
+    return discovery
+
+
+class ApproveDiscoveryRequest(BaseModel):
+    """Request to approve a discovery with optional edits."""
+    title: Optional[str] = None
+    body: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+@app.post("/api/knowledge-graph/discoveries/{discovery_id}/approve")
+async def approve_discovery(discovery_id: str, request: ApproveDiscoveryRequest = None):
+    """Approve a discovery and create the bridge note."""
+    edits = None
+    if request and (request.title or request.body or request.tags):
+        edits = {}
+        if request.title:
+            edits["title"] = request.title
+        if request.body:
+            edits["body"] = request.body
+        if request.tags:
+            edits["tags"] = request.tags
+
+    result = await knowledge_discovery.approve_discovery(discovery_id, edits=edits)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@app.post("/api/knowledge-graph/discoveries/{discovery_id}/dismiss")
+async def dismiss_discovery(discovery_id: str):
+    """Dismiss a discovery."""
+    success = knowledge_discovery.dismiss_discovery(discovery_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Discovery not found")
+    return {"status": "dismissed"}
+
+
+@app.delete("/api/knowledge-graph/discoveries/{discovery_id}")
+async def delete_discovery(discovery_id: str):
+    """Delete a discovery."""
+    success = knowledge_discovery.delete_discovery(discovery_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Discovery not found")
+    return {"status": "deleted"}
+
+
+@app.get("/api/knowledge-graph/discover/stats")
+async def get_discovery_stats():
+    """Get discovery statistics."""
+    return knowledge_discovery.get_discovery_stats()
+
+
+class DiscoverySettingsRequest(BaseModel):
+    """Request to update discovery settings."""
+    discovery_model: Optional[str] = None
+    min_notes_for_discovery: Optional[int] = None
+    discovery_depth: Optional[str] = None
+
+
+@app.put("/api/knowledge-graph/discover/settings")
+async def update_discovery_settings(request: DiscoverySettingsRequest):
+    """Update discovery settings."""
+    settings_dict = {}
+    if request.discovery_model is not None:
+        settings_dict["discovery_model"] = request.discovery_model
+    if request.min_notes_for_discovery is not None:
+        settings_dict["min_notes_for_discovery"] = request.min_notes_for_discovery
+    if request.discovery_depth is not None:
+        settings_dict["discovery_depth"] = request.discovery_depth
+
+    return knowledge_discovery.update_discovery_settings(settings_dict)
+
+
+# =============================================================================
 # Knowledge Graph Settings Endpoints
 # =============================================================================
 
