@@ -100,6 +100,7 @@ function App() {
   // Knowledge graph gallery state
   const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
   const [focusedEntityId, setFocusedEntityId] = useState(null);
+  const [initialOpenReview, setInitialOpenReview] = useState(false);
   const [showPodcastSetup, setShowPodcastSetup] = useState(false);
   const [currentPodcastId, setCurrentPodcastId] = useState(null);
   const [podcastSourceConvId, setPodcastSourceConvId] = useState(null);
@@ -1542,7 +1543,10 @@ function App() {
         onOpenCouncilGallery={handleOpenCouncilGallery}
         onOpenNotesGallery={handleOpenNotesGallery}
         onOpenPodcastGallery={() => setShowPodcastGallery(true)}
-        onOpenKnowledgeGraph={() => setShowKnowledgeGraph(true)}
+        onOpenKnowledgeGraph={(options = {}) => {
+          setInitialOpenReview(options.openReview || false);
+          setShowKnowledgeGraph(true);
+        }}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
@@ -1577,7 +1581,7 @@ function App() {
       ) : showNotesGallery ? (
         <ConversationGallery
           mode="synthesizer"
-          items={conversations.filter(c => c.mode === 'synthesizer')}
+          items={conversations.filter(c => c.mode === 'synthesizer' || c.mode === 'discovery')}
           onSelectConversation={async (id) => {
             await handleSelectConversation(id);
             setShowNotesGallery(false);
@@ -1617,12 +1621,15 @@ function App() {
             await handleSelectConversation(id);
             setShowKnowledgeGraph(false);
             setFocusedEntityId(null);
+            setInitialOpenReview(false);
           }}
           onClose={() => {
             setShowKnowledgeGraph(false);
             setFocusedEntityId(null);
+            setInitialOpenReview(false);
           }}
           initialEntityId={focusedEntityId}
+          initialOpenReview={initialOpenReview}
         />
       ) : showImageGallery ? (
         <ImageGallery
@@ -1674,6 +1681,27 @@ function App() {
             loadMonitors();
           }}
           onMarkRead={handleMarkMonitorRead}
+        />
+      ) : currentConversation?.mode === 'discovery' ? (
+        <SynthesizerInterface
+          conversation={currentConversation}
+          onConversationUpdate={(updatedConv, newTitle) => {
+            setCurrentConversation(updatedConv);
+            setConversations((prev) =>
+              prev.map((c) => (c.id === updatedConv.id ? { ...c, ...updatedConv, title: newTitle || updatedConv.title } : c))
+            );
+            if (newTitle) setAnimatingTitleId(updatedConv.id);
+          }}
+          comments={comments}
+          onSelectionChange={handleSelectionChange}
+          onSaveComment={handleSaveCommentDirect}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+          activeCommentId={activeCommentId}
+          onSetActiveComment={handleSetActiveComment}
+          reviewSessionCount={reviewSessions.length}
+          onToggleReviewSidebar={handleToggleCommitSidebar}
+          onNavigateToGraphEntity={handleNavigateToGraphEntity}
         />
       ) : currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface
@@ -1749,7 +1777,7 @@ function App() {
           conversations={conversations}
           preSelectedConversationId={podcastSourceConvId}
         />
-      ) : currentConversation?.mode === 'council' && currentConversation?.messages?.some(m => m.role === 'assistant') ? (
+      ) : currentConversation?.mode === 'council' ? (
         <CouncilDiscussionView
           conversation={conversationWithThreads}
           comments={comments}

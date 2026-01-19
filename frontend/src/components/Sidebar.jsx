@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import * as LucideIcons from 'lucide-react';
 import './Sidebar.css';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
+import { api } from '../api';
 
 // Helper to get Lucide icon component from name
 function getIconComponent(iconName) {
@@ -144,6 +145,45 @@ export default function Sidebar({
   onOpenKnowledgeGraph,
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [discoveryStats, setDiscoveryStats] = useState({ pending: 0, total_discoveries: 0 });
+  const [activeWorkers, setActiveWorkers] = useState(0);
+
+  // Fetch discovery stats and worker status
+  const fetchDiscoveryData = useCallback(async () => {
+    try {
+      // Fetch discovery stats
+      const stats = await api.getDiscoveryStats();
+      setDiscoveryStats(stats);
+
+      // Fetch active workers (sessions with status "running")
+      const { sessions } = await api.listSleepComputeSessions(10);
+      const runningCount = sessions.filter(s => s.status === 'running').length;
+      setActiveWorkers(runningCount);
+    } catch (err) {
+      // Silently fail - discovery features may not be available
+      console.debug('Failed to fetch discovery data:', err);
+    }
+  }, []);
+
+  // Fetch on mount and poll when workers are running
+  useEffect(() => {
+    fetchDiscoveryData();
+
+    // Poll every 5 seconds when there are active workers
+    const pollInterval = setInterval(() => {
+      if (activeWorkers > 0) {
+        fetchDiscoveryData();
+      }
+    }, 5000);
+
+    // Also poll every 30 seconds regardless (to catch new workers)
+    const slowPollInterval = setInterval(fetchDiscoveryData, 30000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(slowPollInterval);
+    };
+  }, [fetchDiscoveryData, activeWorkers]);
 
   // Click outside to cancel delete confirmation
   useEffect(() => {
@@ -267,7 +307,7 @@ export default function Sidebar({
         ) : (
           <>
             {/* Council section */}
-            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser').length > 0 && (
+            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser' && c.mode !== 'discovery').length > 0 && (
               <div className="sidebar-section scrollable">
                 <div className="section-header">
                   <span className="section-header-icon">{MODE_ICONS.council}</span>
@@ -290,7 +330,7 @@ export default function Sidebar({
                 </div>
                 <div className="section-list">
                   {conversations
-                    .filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')
+                    .filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser' && c.mode !== 'discovery')
                     .map((conv) => {
                       const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
                       const shouldAnimate = conv.id === animatingTitleId;
@@ -395,13 +435,13 @@ export default function Sidebar({
             )}
 
             {/* Separator between Council and Notes */}
-            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser').length > 0 &&
-             conversations.filter(c => c.mode === 'synthesizer').length > 0 && (
+            {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser' && c.mode !== 'discovery').length > 0 &&
+             conversations.filter(c => c.mode === 'synthesizer' || c.mode === 'discovery').length > 0 && (
               <div className="sidebar-separator"></div>
             )}
 
             {/* Notes section */}
-            {conversations.filter(c => c.mode === 'synthesizer').length > 0 && (
+            {conversations.filter(c => c.mode === 'synthesizer' || c.mode === 'discovery').length > 0 && (
               <div className="sidebar-section scrollable">
                 <div className="section-header">
                   <span className="section-header-icon">{MODE_ICONS.synthesizer}</span>
@@ -424,7 +464,7 @@ export default function Sidebar({
                 </div>
                 <div className="section-list">
                   {conversations
-                    .filter(c => c.mode === 'synthesizer')
+                    .filter(c => c.mode === 'synthesizer' || c.mode === 'discovery')
                     .map((conv) => {
                       const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
                       const shouldAnimate = conv.id === animatingTitleId;
@@ -474,6 +514,17 @@ export default function Sidebar({
                                 )}
                                 {conv.status?.is_unread && !isCurrentAndLoading && (
                                   <span className="unread-dot" />
+                                )}
+                                {conv.mode === 'discovery' && !isCurrentAndLoading && (
+                                  <span className="auto-discovery-icon" title="Auto-discovered">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <rect x="3" y="11" width="18" height="10" rx="2" />
+                                      <circle cx="12" cy="5" r="3" />
+                                      <path d="M12 8v3" />
+                                      <circle cx="8" cy="16" r="1" fill="currentColor" />
+                                      <circle cx="16" cy="16" r="1" fill="currentColor" />
+                                    </svg>
+                                  </span>
                                 )}
                                 {conv.is_deliberation && !isCurrentAndLoading && (
                                   <span className="council-deliberation-icon" title="Council Deliberation">
@@ -676,6 +727,38 @@ export default function Sidebar({
           </>
         )}
       </div>
+
+      {/* Sticky Discovery Tab */}
+      {(activeWorkers > 0 || discoveryStats.pending > 0) && (
+        <div
+          className={`sidebar-discovery-tab ${collapsed ? 'collapsed' : ''}`}
+          onClick={() => onOpenKnowledgeGraph({ openReview: discoveryStats.pending > 0 })}
+          title="View Knowledge Discovery"
+        >
+          <div className="sidebar-discovery-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span className="sidebar-discovery-title">Discovery</span>
+            {(activeWorkers + discoveryStats.pending) > 0 && (
+              <span className="sidebar-badge">{activeWorkers + discoveryStats.pending}</span>
+            )}
+          </div>
+
+          {activeWorkers > 0 && (
+            <div className="sidebar-discovery-sub">
+              <span className="worker-spinner" />
+              <span>{activeWorkers} worker{activeWorkers > 1 ? 's' : ''} running</span>
+            </div>
+          )}
+
+          {discoveryStats.pending > 0 && (
+            <div className="sidebar-discovery-sub">
+              <span>{discoveryStats.pending} to review</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer with home, credits, settings */}
       <div className="sidebar-footer">

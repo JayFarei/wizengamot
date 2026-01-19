@@ -719,6 +719,30 @@
   opacity: 1;
 }
 
+/* Auto-discovery bot icon */
+.auto-discovery-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: var(--text-muted, #888);
+  opacity: 0.75;
+}
+
+.auto-discovery-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.conversation-item.active .auto-discovery-icon {
+  opacity: 1;
+}
+
+.conversation-item:hover .auto-discovery-icon {
+  opacity: 1;
+}
+
 /* Inline delete confirmation */
 .conversation-item.pending-delete {
   background: var(--bg-hover);
@@ -815,4 +839,82 @@
   font-size: 10px;
   color: var(--success-color, #10b981);
   text-transform: capitalize;
+}
+
+/* Sidebar Discovery Tab - Sticky section above footer */
+.sidebar-discovery-tab {
+  flex-shrink: 0;
+  background: var(--bg-tertiary, var(--bg-secondary));
+  border-top: 1px solid var(--border-primary);
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.sidebar-discovery-tab:hover {
+  background: var(--bg-hover);
+}
+
+.sidebar-discovery-tab.collapsed {
+  opacity: 0;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+}
+
+.sidebar-discovery-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.sidebar-discovery-header svg {
+  color: var(--accent-primary, #f59e0b);
+  flex-shrink: 0;
+}
+
+.sidebar-discovery-title {
+  flex: 1;
+}
+
+.sidebar-badge {
+  background: var(--accent-primary, #f59e0b);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+}
+
+.sidebar-discovery-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding-left: 24px;
+}
+
+/* Spinning worker indicator */
+.worker-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--accent-primary, #f59e0b);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
