@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Jan 19 - Knowledge Graph discovery and workers
 - Jan 17 - Knowledge Graph navigation improvements
 - Jan 17 - Knowledge Graph for visualizing entity relationships across notes with search and RAG chat
 - Jan 10 - Settings sidebar submenus with accordion navigation
