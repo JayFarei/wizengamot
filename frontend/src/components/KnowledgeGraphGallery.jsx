@@ -596,7 +596,23 @@ export default function KnowledgeGraphGallery({
             </div>
             <div className="kg-legend-item">
               <div className="kg-legend-dot" style={{ background: 'var(--kg-entity-person)' }} />
-              Entity
+              Person
+            </div>
+            <div className="kg-legend-item">
+              <div className="kg-legend-dot" style={{ background: 'var(--kg-entity-org)' }} />
+              Organization
+            </div>
+            <div className="kg-legend-item">
+              <div className="kg-legend-dot" style={{ background: 'var(--kg-entity-concept)' }} />
+              Concept
+            </div>
+            <div className="kg-legend-item">
+              <div className="kg-legend-dot" style={{ background: 'var(--kg-entity-tech)' }} />
+              Technology
+            </div>
+            <div className="kg-legend-item">
+              <div className="kg-legend-dot" style={{ background: 'var(--kg-entity-event)' }} />
+              Event
             </div>
             <div className="kg-legend-item">
               <div className="kg-legend-line" style={{ background: 'var(--kg-link-sequential)' }} />
