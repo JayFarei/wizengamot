@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../../../api';
 import PromptEditorModal from '../../PromptEditorModal';
 import StagePromptEditorModal from '../StagePromptEditorModal';
@@ -20,20 +20,6 @@ export default function SynthesizerSection({
   const [editingPromptTitle, setEditingPromptTitle] = useState('');
   const [isNewPrompt, setIsNewPrompt] = useState(false);
   const [editingStagePrompt, setEditingStagePrompt] = useState(null);
-  const [knowledgeGraphSettings, setKnowledgeGraphSettings] = useState(null);
-
-  // Load knowledge graph settings
-  useEffect(() => {
-    const loadKnowledgeGraphSettings = async () => {
-      try {
-        const settings = await api.getKnowledgeGraphSettings();
-        setKnowledgeGraphSettings(settings);
-      } catch (err) {
-        console.error('Failed to load knowledge graph settings:', err);
-      }
-    };
-    loadKnowledgeGraphSettings();
-  }, []);
 
   // Filter prompts to only show synthesizer prompts
   const synthesizerPrompts = prompts.filter((p) => p.mode === 'synthesizer');
@@ -84,23 +70,6 @@ export default function SynthesizerSection({
       await onReload();
     } catch (err) {
       setError('Failed to update synthesizer prompt');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Knowledge Graph Settings handlers
-  const handleKnowledgeGraphModelChange = async (model) => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const updated = await api.setKnowledgeGraphModel(model);
-      setKnowledgeGraphSettings(updated);
-      setSuccess('Knowledge Graph model updated');
-    } catch (err) {
-      setError('Failed to update Knowledge Graph model');
     } finally {
       setLoading(false);
     }
@@ -300,35 +269,6 @@ export default function SynthesizerSection({
           </div>
         </div>
 
-      </div>
-
-      {/* Knowledge Graph Settings */}
-      <div id="knowledge-graph" className="modal-section">
-        <h3>Knowledge Graph</h3>
-        <p className="section-description">
-          Configure the model used for knowledge graph operations (entity extraction, RAG chat)
-        </p>
-
-        {knowledgeGraphSettings && modelSettings && (
-          <div className="setting-row">
-            <label>Knowledge Graph Model</label>
-            <select
-              className="setting-select"
-              value={knowledgeGraphSettings.model || ''}
-              onChange={(e) => handleKnowledgeGraphModelChange(e.target.value)}
-              disabled={loading}
-            >
-              {modelSettings.model_pool.map((model) => (
-                <option key={model} value={model}>
-                  {getModelShortName(model)}
-                </option>
-              ))}
-            </select>
-            <p className="setting-hint">
-              Used for extracting entities from notes and answering questions about your knowledge graph
-            </p>
-          </div>
-        )}
       </div>
 
       <StagePromptEditorModal

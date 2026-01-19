@@ -5,6 +5,7 @@ import GeneralSection from './settings/sections/GeneralSection';
 import UsageSection from './settings/sections/UsageSection';
 import CouncilSection from './settings/sections/CouncilSection';
 import SynthesizerSection from './settings/sections/SynthesizerSection';
+import KnowledgeGraphSection from './settings/sections/KnowledgeGraphSection';
 import MonitorSection from './settings/sections/MonitorSection';
 import VisualiserSection from './settings/sections/VisualiserSection';
 import PodcastSection from './settings/sections/PodcastSection';
@@ -24,6 +25,7 @@ const TAB_TO_SECTION = {
   usage: 'usage',
   council: 'council',
   monitor: 'monitor',
+  'knowledge-graph': 'knowledge-graph',
 };
 
 export default function SettingsModal({ isOpen, onClose, defaultTab = 'general', defaultPrompt = null }) {
@@ -32,6 +34,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
   const [modelSettings, setModelSettings] = useState(null);
   const [prompts, setPrompts] = useState([]);
   const [synthesizerSettings, setSynthesizerSettings] = useState(null);
+  const [knowledgeGraphSettings, setKnowledgeGraphSettings] = useState(null);
   const [visualiserSettings, setVisualiserSettings] = useState(null);
   const [podcastSettings, setPodcastSettings] = useState(null);
   const [crawlerSettings, setCrawlerSettings] = useState(null);
@@ -62,12 +65,13 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
 
   const loadAllSettings = async () => {
     try {
-      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData, podData, crawlerData] = await Promise.all([
+      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, kgData, visData, podData, crawlerData] = await Promise.all([
         api.getSettings(),
         api.getModelSettings(),
         api.listPrompts('council'),
         api.listPrompts('synthesizer'),
         api.getSynthesizerSettings(),
+        api.getKnowledgeGraphSettings(),
         api.getVisualiserSettings(),
         api.getPodcastSettings(),
         api.getCrawlerSettings().catch(() => null),
@@ -77,6 +81,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
       // Combine prompts with their modes properly indicated
       setPrompts([...councilPrompts, ...synthPrompts]);
       setSynthesizerSettings(synthData);
+      setKnowledgeGraphSettings(kgData);
       setVisualiserSettings(visData);
       setPodcastSettings(podData);
       setCrawlerSettings(crawlerData);
@@ -123,6 +128,18 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
             modelSettings={modelSettings}
             synthesizerSettings={synthesizerSettings}
             prompts={prompts}
+            loading={loading}
+            setLoading={setLoading}
+            setError={setError}
+            setSuccess={setSuccess}
+            onReload={loadAllSettings}
+          />
+        );
+      case 'knowledge-graph':
+        return (
+          <KnowledgeGraphSection
+            knowledgeGraphSettings={knowledgeGraphSettings}
+            modelSettings={modelSettings}
             loading={loading}
             setLoading={setLoading}
             setError={setError}
