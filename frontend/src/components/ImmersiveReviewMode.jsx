@@ -42,6 +42,9 @@ export default function ImmersiveReviewMode({
   const [editedTitle, setEditedTitle] = useState('');
   const [editedBody, setEditedBody] = useState('');
   const [editedTags, setEditedTags] = useState('');
+  const [approvingId, setApprovingId] = useState(null);
+  const [showCheckmark, setShowCheckmark] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const currentDiscovery = discoveries[currentIndex];
   const totalCount = discoveries.length;
@@ -57,6 +60,66 @@ export default function ImmersiveReviewMode({
       currentDiscovery.source_notes?.forEach(noteId => fetchNoteData(noteId));
     }
   }, [currentIndex, currentDiscovery, fetchNoteData]);
+
+  // Action handlers (wrapped in useCallback to avoid stale closures)
+  const handleApprove = useCallback(async () => {
+    if (!currentDiscovery || approvingId) return;  // Prevent double-click
+
+    const edits = editMode ? {
+      title: editedTitle || currentDiscovery.suggested_title,
+      body: editedBody || currentDiscovery.suggested_body,
+      tags: editedTags ? editedTags.split(',').map(t => t.trim()).filter(Boolean) : currentDiscovery.suggested_tags,
+    } : null;
+
+    // 1. Start checkmark animation
+    setApprovingId(currentDiscovery.id);
+    setShowCheckmark(true);
+
+    // 2. Wait for checkmark pop animation
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // 3. Calculate next index BEFORE calling onApprove (which removes the item)
+    const nextIndex = currentIndex >= totalCount - 1
+      ? Math.max(0, currentIndex - 1)
+      : currentIndex;
+    const shouldClose = totalCount <= 1;
+
+    // 4. Fire onApprove - parent updates state immediately (optimistic)
+    onApprove(currentDiscovery, edits);
+
+    // 5. Clear animation and transition
+    setShowCheckmark(false);
+    setApprovingId(null);
+    setIsTransitioning(false);
+
+    // 6. Handle navigation
+    if (shouldClose) {
+      onClose();
+    } else {
+      setCurrentIndex(nextIndex);
+    }
+  }, [currentDiscovery, approvingId, editMode, editedTitle, editedBody, editedTags, totalCount, currentIndex, onApprove, onClose]);
+
+  const handleDismiss = useCallback(async () => {
+    if (!currentDiscovery) return;
+    await onDismiss(currentDiscovery);
+    if (totalCount <= 1) {
+      onClose();
+    } else if (currentIndex >= totalCount - 1) {
+      setCurrentIndex(prev => Math.max(0, prev - 1));
+    }
+  }, [currentDiscovery, totalCount, currentIndex, onDismiss, onClose]);
+
+  const handleDelete = useCallback(async () => {
+    if (!currentDiscovery) return;
+    if (!window.confirm('Permanently delete this discovery? This cannot be undone.')) return;
+    await onDelete(currentDiscovery);
+    if (totalCount <= 1) {
+      onClose();
+    } else if (currentIndex >= totalCount - 1) {
+      setCurrentIndex(prev => Math.max(0, prev - 1));
+    }
+  }, [currentDiscovery, totalCount, currentIndex, onDelete, onClose]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
@@ -87,8 +150,8 @@ export default function ImmersiveReviewMode({
         setEditMode(prev => !prev);
         break;
       case 'a':
-        // Approve
-        handleApprove();
+        // Approve (blocked during animation)
+        if (!approvingId) handleApprove();
         break;
       case 'd':
         // Dismiss (lowercase)
@@ -107,7 +170,7 @@ export default function ImmersiveReviewMode({
       default:
         break;
     }
-  }, [currentIndex, totalCount, editMode, onClose]);
+  }, [currentIndex, totalCount, editMode, approvingId, onClose, handleApprove, handleDismiss, handleDelete]);
 
   useEffect(() => {
     // Use capture phase to intercept Escape before other handlers
@@ -122,43 +185,6 @@ export default function ImmersiveReviewMode({
       document.body.style.overflow = '';
     };
   }, []);
-
-  const handleApprove = async () => {
-    if (!currentDiscovery) return;
-    const edits = editMode ? {
-      title: editedTitle || currentDiscovery.suggested_title,
-      body: editedBody || currentDiscovery.suggested_body,
-      tags: editedTags ? editedTags.split(',').map(t => t.trim()).filter(Boolean) : currentDiscovery.suggested_tags,
-    } : null;
-    await onApprove(currentDiscovery, edits);
-    // Move to next or close if none left
-    if (totalCount <= 1) {
-      onClose();
-    } else if (currentIndex >= totalCount - 1) {
-      setCurrentIndex(prev => Math.max(0, prev - 1));
-    }
-  };
-
-  const handleDismiss = async () => {
-    if (!currentDiscovery) return;
-    await onDismiss(currentDiscovery);
-    if (totalCount <= 1) {
-      onClose();
-    } else if (currentIndex >= totalCount - 1) {
-      setCurrentIndex(prev => Math.max(0, prev - 1));
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!currentDiscovery) return;
-    if (!window.confirm('Permanently delete this discovery? This cannot be undone.')) return;
-    await onDelete(currentDiscovery);
-    if (totalCount <= 1) {
-      onClose();
-    } else if (currentIndex >= totalCount - 1) {
-      setCurrentIndex(prev => Math.max(0, prev - 1));
-    }
-  };
 
   const goToPrev = () => {
     if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
@@ -264,7 +290,7 @@ export default function ImmersiveReviewMode({
       </div>
 
       {/* Main content */}
-      <div className="immersive-review-content">
+      <div className={`immersive-review-content ${isTransitioning ? 'transitioning' : ''}`}>
         {/* Left: Source notes */}
         <div className="immersive-source-panel">
           <h3>Source Notes ({currentDiscovery.source_notes?.length || 0})</h3>
@@ -275,6 +301,14 @@ export default function ImmersiveReviewMode({
 
         {/* Right: Bridge note */}
         <div className="immersive-bridge-panel">
+          {/* Approval animation overlay */}
+          {showCheckmark && (
+            <div className="immersive-approval-overlay">
+              <div className="immersive-approval-checkmark">
+                <Check size={64} />
+              </div>
+            </div>
+          )}
           <h3>Bridge Note</h3>
 
           <div className="immersive-bridge-content">
@@ -367,6 +401,7 @@ export default function ImmersiveReviewMode({
         <button
           className="kg-btn kg-btn-success"
           onClick={handleApprove}
+          disabled={!!approvingId}
           title="Approve (a)"
         >
           <Check size={16} />

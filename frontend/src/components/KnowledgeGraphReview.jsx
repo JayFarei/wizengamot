@@ -207,19 +207,25 @@ export default function KnowledgeGraphReview({
   };
 
   // Handle approve from immersive mode (with optional edits)
-  const handleImmersiveApprove = async (discovery, edits = null) => {
-    try {
-      const result = await api.approveDiscovery(discovery.id, edits);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
-        loadStats();
-        if (onRefreshGraph) onRefreshGraph();
-      }
-    } catch (err) {
-      setError(err.message);
-    }
+  // OPTIMISTIC: Update state immediately, run API in background
+  const handleImmersiveApprove = (discovery, edits = null) => {
+    // 1. OPTIMISTIC: Remove from local state immediately
+    setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
+
+    // 2. Fire API in background (don't await)
+    api.approveDiscovery(discovery.id, edits)
+      .then(result => {
+        if (result.error) {
+          console.error('Approval failed:', result.error);
+          // Could restore item on error, but for now just log
+        } else {
+          loadStats();
+          if (onRefreshGraph) onRefreshGraph();
+        }
+      })
+      .catch(err => {
+        console.error('Approval failed:', err.message);
+      });
   };
 
   // Handle dismiss from immersive mode
