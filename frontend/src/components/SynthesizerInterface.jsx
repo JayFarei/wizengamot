@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
 import NoteViewer from './NoteViewer';
 import DeliberationNoteViewer from './DeliberationNoteViewer';
+import KnowledgeGraphNoteViewer from './KnowledgeGraphNoteViewer';
 import './SynthesizerInterface.css';
 
 /**
@@ -38,6 +39,7 @@ export default function SynthesizerInterface({
   onToggleReviewSidebar,
   // Knowledge graph navigation
   onNavigateToGraphEntity,
+  onNavigateToGraphSearch,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -47,7 +49,7 @@ export default function SynthesizerInterface({
   const [viewMode, setViewMode] = useState('notes'); // 'notes' or 'conversation'
   const [inputMode, setInputMode] = useState('url'); // 'url' or 'text'
   const [textContent, setTextContent] = useState('');
-  const [generationMode, setGenerationMode] = useState('single'); // 'single' or 'deliberation'
+  const [generationMode, setGenerationMode] = useState('single'); // 'single', 'deliberation', or 'knowledge_graph'
   // Model selection for deliberation mode
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModels, setSelectedModels] = useState([]);
@@ -85,6 +87,12 @@ export default function SynthesizerInterface({
           stage3Raw: msg.stage3_raw || null,
           models: msg.models || null,
           chairmanModel: msg.chairman_model || null,
+          // Knowledge graph mode data
+          isKnowledgeGraph: msg.mode === 'knowledge_graph',
+          contextNotes: msg.context_notes || null,
+          topicsExtracted: msg.topics_extracted || null,
+          model: msg.model || null,
+          rawResponse: msg.raw_response || null,
         };
       }
     }
@@ -260,6 +268,8 @@ export default function SynthesizerInterface({
       // Update stage message based on generation mode
       if (generationMode === 'deliberation') {
         setProcessingStage('Stage 1: Models generating notes...');
+      } else if (generationMode === 'knowledge_graph') {
+        setProcessingStage('Analyzing content and querying knowledge graph...');
       } else {
         setProcessingStage('Generating Zettelkasten notes...');
       }
@@ -273,7 +283,8 @@ export default function SynthesizerInterface({
         inputMode === 'text' ? textContent.trim() : null,
         generationMode === 'deliberation', // use_deliberation
         generationMode === 'deliberation' ? selectedModels : null, // council_models
-        generationMode === 'deliberation' ? chairmanModel : null // chairman_model
+        generationMode === 'deliberation' ? chairmanModel : null, // chairman_model
+        generationMode === 'knowledge_graph' // use_knowledge_graph
       );
 
       // Update conversation with new message
@@ -369,7 +380,31 @@ export default function SynthesizerInterface({
 
           {/* Notes View */}
           {viewMode === 'notes' && (
-            latestNotes.isDeliberation ? (
+            latestNotes.isKnowledgeGraph ? (
+              <KnowledgeGraphNoteViewer
+                notes={latestNotes.notes}
+                contextNotes={latestNotes.contextNotes}
+                topicsExtracted={latestNotes.topicsExtracted}
+                rawResponse={latestNotes.rawResponse}
+                sourceTitle={latestNotes.sourceTitle}
+                sourceType={latestNotes.sourceType}
+                sourceUrl={conversation?.synthesizer_config?.source_url || latestNotes.sourceUrl}
+                sourceContent={latestNotes.sourceContent}
+                model={latestNotes.model}
+                conversationId={conversation?.id}
+                comments={comments}
+                onSelectionChange={onSelectionChange}
+                onSaveComment={onSaveComment}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
+                activeCommentId={activeCommentId}
+                onSetActiveComment={onSetActiveComment}
+                onSourceMetadataUpdate={handleSourceMetadataUpdate}
+                reviewSessionCount={reviewSessionCount}
+                onToggleReviewSidebar={onToggleReviewSidebar}
+                onNavigateToGraphSearch={onNavigateToGraphSearch}
+              />
+            ) : latestNotes.isDeliberation ? (
               <DeliberationNoteViewer
                 notes={latestNotes.notes}
                 deliberation={latestNotes.deliberation}
@@ -515,11 +550,22 @@ export default function SynthesizerInterface({
               >
                 Council
               </button>
+              <button
+                type="button"
+                className={`synth-toggle-btn ${generationMode === 'knowledge_graph' ? 'active' : ''}`}
+                onClick={() => setGenerationMode('knowledge_graph')}
+                onKeyDown={(e) => handleStepKeyDown(e, 'mode')}
+                disabled={isProcessing}
+              >
+                Knowledge Graph
+              </button>
             </div>
             <p className="synth-step-desc">
               {generationMode === 'single'
                 ? 'One model generates all notes from the content.'
-                : 'Multiple models generate notes, review each other\'s work, then a chairman synthesizes the best.'}
+                : generationMode === 'deliberation'
+                ? 'Multiple models generate notes, review each other\'s work, then a chairman synthesizes the best.'
+                : 'Notes generated with awareness of your existing knowledge graph for consistency and gap-filling.'}
             </p>
 
             {/* Collapsible Council Settings */}

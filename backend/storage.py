@@ -184,12 +184,16 @@ def list_conversations() -> List[Dict[str, Any]]:
                 # Include summary for gallery preview (if exists)
                 if data.get("summary"):
                     conv_meta["summary"] = data["summary"]
-                # Include is_deliberation for synthesizer notes
+                # Include mode badges for synthesizer notes
                 if conv_meta["mode"] == "synthesizer":
                     for msg in data.get("messages", []):
-                        if msg.get("role") == "assistant" and msg.get("mode") == "deliberation":
-                            conv_meta["is_deliberation"] = True
-                            break
+                        if msg.get("role") == "assistant":
+                            if msg.get("mode") == "deliberation":
+                                conv_meta["is_deliberation"] = True
+                                break
+                            elif msg.get("mode") == "knowledge_graph":
+                                conv_meta["is_knowledge_graph"] = True
+                                break
                 conversations.append(conv_meta)
 
     # Sort by creation time, newest first
@@ -1484,6 +1488,56 @@ def add_synthesizer_deliberation_message(
         "source_title": source_title,
         "models": models,
         "chairman_model": chairman_model
+    })
+
+    save_conversation(conversation)
+
+
+def add_synthesizer_kg_message(
+    conversation_id: str,
+    notes: List[Dict[str, Any]],
+    raw_response: str,
+    source_content: str,
+    source_type: str,
+    source_url: Optional[str],
+    model: str,
+    context_notes: List[Dict[str, Any]],
+    topics_extracted: Dict[str, Any],
+    source_title: Optional[str] = None
+):
+    """
+    Add a synthesizer assistant message with knowledge graph context details.
+
+    This stores notes generated with awareness of the existing knowledge graph.
+
+    Args:
+        conversation_id: Conversation identifier
+        notes: Generated Zettel notes
+        raw_response: Raw LLM response
+        source_content: Full source content
+        source_type: Type of source ("youtube", "podcast", "article", "text")
+        source_url: Original URL (if any)
+        model: Model used for generation
+        context_notes: Related notes from knowledge graph used as context
+        topics_extracted: Topics and entities extracted from content (first pass)
+        source_title: Title of the source content
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    conversation["messages"].append({
+        "role": "assistant",
+        "notes": notes,
+        "mode": "knowledge_graph",  # Distinguish from single/deliberation modes
+        "raw_response": raw_response,
+        "source_content": source_content,
+        "source_type": source_type,
+        "source_url": source_url,
+        "source_title": source_title,
+        "model": model,
+        "context_notes": context_notes,
+        "topics_extracted": topics_extracted
     })
 
     save_conversation(conversation)

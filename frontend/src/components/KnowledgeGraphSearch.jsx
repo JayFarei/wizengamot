@@ -20,6 +20,7 @@ export default function KnowledgeGraphSearch({
   onResultsChange,
   onSelectNode,
   autoFocus = false,
+  initialQuery = null,
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -257,6 +258,23 @@ export default function KnowledgeGraphSearch({
       inputRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Set initial query when provided (e.g., for tag or entity navigation)
+  useEffect(() => {
+    if (initialQuery && !query) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-select first result when initial query produces results
+  useEffect(() => {
+    if (initialQuery && results.length > 0 && showDropdown) {
+      // Auto-select the first result
+      const firstResult = results[0];
+      onSelectNode?.(firstResult.id);
+      setShowDropdown(false);
+    }
+  }, [initialQuery, results, showDropdown, onSelectNode]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

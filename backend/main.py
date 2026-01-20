@@ -14,7 +14,7 @@ import threading
 import time
 import os
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles
+from . import storage, config, prompts, threads, settings, content, synthesizer, synthesizer_kg, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
@@ -1699,6 +1699,7 @@ class SynthesizeRequest(BaseModel):
     model: Optional[str] = None
     use_council: bool = False
     use_deliberation: bool = False  # Enable full 3-stage council deliberation
+    use_knowledge_graph: bool = False  # Enable knowledge graph aware generation
     council_models: Optional[List[str]] = None  # Models for deliberation mode
     chairman_model: Optional[str] = None  # Chairman for deliberation mode
 
@@ -1759,7 +1760,30 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     # Generate zettels
     model = request.model or settings.get_synthesizer_model()
 
-    if request.use_deliberation:
+    if request.use_knowledge_graph:
+        # Knowledge graph aware generation
+        result = await synthesizer_kg.generate_zettels_knowledge_graph(
+            content_result["content"],
+            system_prompt,
+            model=model,
+            user_comment=request.comment
+        )
+        # Save knowledge graph message with context metadata
+        storage.add_synthesizer_kg_message(
+            conversation_id,
+            result["notes"],
+            result.get("raw_response", ""),
+            content_result["content"] or "",
+            content_result["source_type"],
+            request.url,
+            result.get("model", model),
+            result.get("context_notes", []),
+            result.get("topics_extracted", {}),
+            content_result.get("title")
+        )
+        gen_id = result.get("generation_id")
+        generation_ids = [gen_id] if gen_id else []
+    elif request.use_deliberation:
         # Full 3-stage council deliberation
         result = await synthesizer.generate_zettels_deliberation(
             content_result["content"],
@@ -1859,6 +1883,10 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         response_data["models"] = result.get("models")
         response_data["chairman_model"] = result.get("chairman_model")
         response_data["mode"] = "deliberation"
+    elif request.use_knowledge_graph:
+        response_data["context_notes"] = result.get("context_notes", [])
+        response_data["topics_extracted"] = result.get("topics_extracted", {})
+        response_data["mode"] = "knowledge_graph"
 
     return response_data
 

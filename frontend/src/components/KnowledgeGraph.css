@@ -3085,6 +3085,7 @@
 
 /* Bridge note panel (right) */
 .immersive-bridge-panel {
+  position: relative;
   width: 40%;
   padding: 24px;
   overflow-y: auto;
@@ -3220,6 +3221,52 @@
 .immersive-review-actions .kg-btn {
   padding: 10px 20px;
   font-size: 14px;
+}
+
+/* Approval animation overlay */
+.immersive-approval-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(34, 197, 94, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: immersive-approval-fade-in 0.15s ease-out;
+}
+
+.immersive-approval-checkmark {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  animation: immersive-checkmark-pop 0.3s ease-out;
+}
+
+@keyframes immersive-approval-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes immersive-checkmark-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Transition animation for moving to next item */
+.immersive-review-content {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.immersive-review-content.transitioning {
+  opacity: 0.3;
+  transform: scale(0.98);
+  pointer-events: none;
 }
 
 /* Responsive */

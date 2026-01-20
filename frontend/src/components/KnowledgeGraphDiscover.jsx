@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Sparkles, Maximize2, Minimize2, Moon, Zap, Loader, Users } from 'lucide-react';
 import { api } from '../api';
 import ChatInput from './ChatInput';
@@ -41,6 +41,9 @@ export default function KnowledgeGraphDiscover({
   // Maximum concurrent workers
   const MAX_WORKERS = 3;
 
+  // Ref to track polling interval for quick discovery status
+  const pollingIntervalRef = useRef(null);
+
   // Example prompts for user guidance
   const examplePrompts = [
     "Find connections between AI and philosophy",
@@ -70,6 +73,23 @@ export default function KnowledgeGraphDiscover({
     loadSleepSettings();
   }, []);
 
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Helper to stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
   // Run discovery (Quick mode)
   const handleRunDiscovery = async () => {
     if (!prompt.trim() || loading) return;
@@ -77,6 +97,22 @@ export default function KnowledgeGraphDiscover({
     setLoading(true);
     setError(null);
     setStatus({ phase: 'starting', progress: 0 });
+
+    // Start polling for status updates
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const statusResponse = await api.getDiscoveryStatus();
+        if (statusResponse && statusResponse.phase) {
+          setStatus({
+            phase: statusResponse.phase,
+            progress: statusResponse.progress || 0,
+          });
+        }
+      } catch (pollErr) {
+        // Ignore polling errors, the main request will handle failures
+        console.debug('Status poll error (expected if discovery completed):', pollErr);
+      }
+    }, 500);
 
     try {
       const result = await api.runDiscovery(prompt.trim());
@@ -90,6 +126,7 @@ export default function KnowledgeGraphDiscover({
     } catch (err) {
       setError(err.message);
     } finally {
+      stopPolling();
       setLoading(false);
       setStatus(null);
     }

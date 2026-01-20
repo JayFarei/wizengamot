@@ -1,0 +1,202 @@
+.kg-note-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Final notes section */
+.kg-note-viewer .final-notes-section {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Bottom Sheet Knowledge Graph Context Panel
+   ============================================ */
+.kg-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-primary);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.kg-panel.collapsed {
+  height: 53px;
+}
+
+.kg-panel.expanded {
+  top: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: kgSlideUpFromBottom 0.3s ease-out;
+}
+
+@keyframes kgSlideUpFromBottom {
+  from {
+    top: 100%;
+    height: 53px;
+  }
+  to {
+    top: 0;
+    height: 100%;
+  }
+}
+
+/* Collapsed dock bar */
+.kg-dock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 52px;
+  padding: 0 20px;
+  background: var(--bg-secondary);
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.kg-dock:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.kg-dock .chevron-up {
+  width: 18px;
+  height: 18px;
+  animation: kgBounceUp 2s ease-in-out infinite;
+}
+
+@keyframes kgBounceUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.kg-dock .dock-summary {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+/* Full-screen expanded panel */
+.kg-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Panel header - reuse deliberation styles */
+.kg-fullscreen .panel-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.kg-fullscreen .panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.kg-fullscreen .panel-summary {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.kg-fullscreen .panel-close {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.kg-fullscreen .panel-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.kg-fullscreen .panel-header.clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.kg-fullscreen .panel-header.clickable:hover {
+  background: var(--bg-hover);
+}
+
+.kg-fullscreen .panel-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Tabs */
+.kg-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.kg-tabs button {
+  padding: 10px 18px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.kg-tabs button:hover:not(.active) {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.kg-tabs button.active {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  border-width: 3px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+/* Scrollable content area */
+.kg-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  min-height: 0;
+}

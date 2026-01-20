@@ -570,6 +570,9 @@
 
 .synth-toggle-btn:first-child {
   border-radius: 6px 0 0 6px;
+}
+
+.synth-toggle-btn:not(:last-child) {
   border-right: none;
 }
 

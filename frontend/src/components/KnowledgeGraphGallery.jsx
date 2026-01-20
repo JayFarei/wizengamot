@@ -17,6 +17,7 @@ export default function KnowledgeGraphGallery({
   onSelectConversation,
   initialEntityId = null,
   initialOpenReview = false,
+  initialSearchQuery = null,
 }) {
   const [graphData, setGraphData] = useState(null);
   const [stats, setStats] = useState(null);
@@ -186,6 +187,13 @@ export default function KnowledgeGraphGallery({
       setShowChat(false);
     }
   }, [initialOpenReview]);
+
+  // Auto-expand search when initialSearchQuery is provided
+  useEffect(() => {
+    if (initialSearchQuery && !loading && graphData?.nodes?.length > 0) {
+      setSearchExpanded(true);
+    }
+  }, [initialSearchQuery, loading, graphData]);
 
   // Poll migration status while running
   useEffect(() => {
@@ -405,6 +413,7 @@ export default function KnowledgeGraphGallery({
                   setSearchExpanded(false);
                 }}
                 autoFocus={true}
+                initialQuery={initialSearchQuery}
               />
               <button
                 className="kg-search-close"

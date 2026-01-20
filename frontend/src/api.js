@@ -1337,8 +1337,9 @@ export const api = {
    * @param {boolean} useDeliberation - Whether to use full 3-stage council deliberation
    * @param {Array<string>} councilModels - Optional models for deliberation mode
    * @param {string} chairmanModel - Optional chairman for deliberation mode
+   * @param {boolean} useKnowledgeGraph - Whether to use knowledge graph aware generation
    */
-  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false, text = null, useDeliberation = false, councilModels = null, chairmanModel = null) {
+  async synthesize(conversationId, url, comment = null, model = null, useCouncil = false, text = null, useDeliberation = false, councilModels = null, chairmanModel = null, useKnowledgeGraph = false) {
     const body = {
       url: url || null,
       text: text || null,
@@ -1346,6 +1347,7 @@ export const api = {
       model,
       use_council: useCouncil,
       use_deliberation: useDeliberation,
+      use_knowledge_graph: useKnowledgeGraph,
     };
 
     // Only include council config if deliberation mode is enabled

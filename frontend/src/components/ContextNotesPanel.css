@@ -1,0 +1,156 @@
+.context-notes-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.context-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Card design matching kg-detail-connection from KnowledgeGraph.css */
+.context-note-card {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.context-note-card:hover {
+  background: var(--bg-tertiary);
+}
+
+.note-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.note-rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.note-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Tag styling matching note-tag from NoteViewer */
+.context-notes-panel .note-tag {
+  font-size: 12px;
+  color: var(--note-tag-text);
+  background: var(--note-tag-bg);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.context-notes-panel .note-tag:hover {
+  filter: brightness(1.1);
+}
+
+.relevance-score {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.expand-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  margin-top: 2px;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* Expanded note body */
+.note-body-expanded {
+  padding: 0 12px 12px 42px;
+  animation: noteBodyFadeIn 0.2s ease-out;
+}
+
+@keyframes noteBodyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.note-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Empty state */
+.context-notes-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.context-notes-empty p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.context-notes-empty .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 8px auto 0;
+  line-height: 1.5;
+}
