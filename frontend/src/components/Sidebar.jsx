@@ -218,6 +218,7 @@ export default function Sidebar({
 
   // Filter and sort state
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'cost'
+  const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
   const [selectedTypes, setSelectedTypes] = useState([]); // source_type filter
   const [modeFilter, setModeFilter] = useState(null); // 'agent' | 'user' | null
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
@@ -311,15 +312,22 @@ export default function Sidebar({
     }
 
     // Sort
+    const isAsc = sortDirection === 'asc';
     if (sortBy === 'cost') {
-      filtered.sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0));
+      filtered.sort((a, b) => {
+        const diff = (b.total_cost || 0) - (a.total_cost || 0);
+        return isAsc ? -diff : diff;
+      });
     } else {
-      // Default: sort by created_at descending
-      filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Default: sort by created_at
+      filtered.sort((a, b) => {
+        const diff = new Date(b.created_at) - new Date(a.created_at);
+        return isAsc ? -diff : diff;
+      });
     }
 
     return filtered;
-  }, [selectedTypes, modeFilter, sortBy]);
+  }, [selectedTypes, modeFilter, sortBy, sortDirection]);
 
   // Get conversations by category (memoized)
   const notesConversations = filterAndSortConversations(
@@ -420,15 +428,29 @@ export default function Sidebar({
         <div className="sidebar-filter-bar">
           <button
             className={`filter-btn ${sortBy === 'recent' ? 'active' : ''}`}
-            onClick={() => setSortBy('recent')}
+            onClick={() => {
+              if (sortBy === 'recent') {
+                setSortDirection(d => d === 'desc' ? 'asc' : 'desc');
+              } else {
+                setSortBy('recent');
+                setSortDirection('desc');
+              }
+            }}
           >
-            Recent
+            Recent {sortBy === 'recent' && (sortDirection === 'desc' ? '↓' : '↑')}
           </button>
           <button
             className={`filter-btn ${sortBy === 'cost' ? 'active' : ''}`}
-            onClick={() => setSortBy('cost')}
+            onClick={() => {
+              if (sortBy === 'cost') {
+                setSortDirection(d => d === 'desc' ? 'asc' : 'desc');
+              } else {
+                setSortBy('cost');
+                setSortDirection('desc');
+              }
+            }}
           >
-            Cost
+            Cost {sortBy === 'cost' && (sortDirection === 'desc' ? '↓' : '↑')}
           </button>
           <button
             className={`filter-btn ${typeDropdownOpen || selectedTypes.length > 0 ? 'active' : ''}`}

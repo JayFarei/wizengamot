@@ -25,10 +25,12 @@ Sections are displayed in this order:
 
 In All List and Single modes, a filter bar provides:
 
-- **Recent** - Sort by creation date (default)
-- **Cost** - Sort by total cost descending
+- **Recent** - Sort by creation date (default, newest first)
+- **Cost** - Sort by total cost (highest first by default)
 - **Type** - Filter by source type (YouTube, Podcast, PDF, Article, Text)
 - **Mode** - Filter by origin (agent-generated vs user-created)
+
+**Sort Direction Toggle**: Click the active sort button (Recent or Cost) to toggle between ascending (↑) and descending (↓) order. The arrow indicator shows the current direction.
 
 ### Interactive Features
 
