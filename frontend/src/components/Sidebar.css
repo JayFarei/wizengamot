@@ -164,9 +164,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 12px 16px 6px;
-  font-size: 11px;
+  gap: 5px;
+  padding: 8px 12px 4px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -177,13 +177,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .sidebar .section-header-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 /* Section header action button (e.g., gallery icon) */
@@ -221,9 +221,9 @@
 .monitor-sidebar-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  margin-bottom: 2px;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 1px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -262,7 +262,7 @@
 }
 
 .monitor-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
@@ -399,10 +399,10 @@
 .conversation-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 2px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 1px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -424,12 +424,12 @@
   display: flex;
   align-items: center;
   position: relative;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .conversation-title {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -470,9 +470,9 @@
 .conversation-meta {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: 10px;
   flex-wrap: nowrap;
   overflow: hidden;
   white-space: nowrap;
@@ -917,4 +917,262 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ================================
+   Sidebar Style Selector
+   ================================ */
+
+.sidebar-style-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-style-selector .style-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar-style-selector .style-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.sidebar-style-selector .style-btn.active {
+  color: var(--primary);
+  background: var(--primary-light, rgba(74, 144, 226, 0.1));
+}
+
+.sidebar-style-selector .style-btn svg {
+  flex-shrink: 0;
+}
+
+.sidebar-style-selector .style-divider {
+  color: var(--border-primary);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* ================================
+   Filter Bar
+   ================================ */
+
+.sidebar-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 12px 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-filter-bar .filter-btn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.sidebar-filter-bar .filter-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.sidebar-filter-bar .filter-btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light, rgba(74, 144, 226, 0.1));
+}
+
+/* Type filter dropdown - positioned below filter bar */
+.sidebar-filter-dropdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 6px 12px 8px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filter-dropdown-item input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--primary);
+  margin: 0;
+}
+
+.filter-dropdown-item:hover {
+  color: var(--primary);
+}
+
+/* ================================
+   Category Badge (List Mode)
+   ================================ */
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* Badge color fallbacks for light/dark themes */
+:root {
+  --badge-notes-bg: #e0f2fe;
+  --badge-notes-text: #0369a1;
+  --badge-council-bg: #fef3c7;
+  --badge-council-text: #92400e;
+  --badge-visualiser-bg: #f3e8ff;
+  --badge-visualiser-text: #7e22ce;
+  --badge-monitor-bg: #dcfce7;
+  --badge-monitor-text: #166534;
+}
+
+[data-theme="dark"] {
+  --badge-notes-bg: rgba(14, 165, 233, 0.2);
+  --badge-notes-text: #38bdf8;
+  --badge-council-bg: rgba(245, 158, 11, 0.2);
+  --badge-council-text: #fbbf24;
+  --badge-visualiser-bg: rgba(168, 85, 247, 0.2);
+  --badge-visualiser-text: #c084fc;
+  --badge-monitor-bg: rgba(34, 197, 94, 0.2);
+  --badge-monitor-text: #4ade80;
+}
+
+/* ================================
+   Section Count Badge
+   ================================ */
+
+.section-count {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 6px;
+  margin-left: 3px;
+}
+
+/* ================================
+   Focus Mode Styles
+   ================================ */
+
+/* Clickable section headers */
+.section-header.clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 4px;
+  margin: 0 8px;
+  padding: 6px 8px;
+}
+
+.section-header.clickable:hover {
+  background: var(--bg-hover);
+}
+
+/* Collapsed headers in Focus mode */
+.section-header.collapsed-header {
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 4px;
+  margin: 0 8px 2px;
+  padding: 6px 8px;
+  opacity: 0.7;
+}
+
+.section-header.collapsed-header:hover {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+/* Focused section takes all available space */
+.sidebar-section.focused {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Focus mode: conversation-sections styling */
+.conversation-sections.focus {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================================
+   List Mode Styles
+   ================================ */
+
+.sidebar-section.list-mode {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-section.list-mode .section-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+/* List mode: remove fade gradient */
+.sidebar-section.list-mode::after {
+  display: none;
+}
+
+/* List mode: conversation-sections styling */
+.conversation-sections.list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================================
+   Compact Section (Monitor in Category mode)
+   ================================ */
+
+.sidebar-section.compact {
+  flex: 0 0 auto; /* Don't grow, don't shrink, auto height */
+  max-height: 160px; /* Limit height */
+  overflow: hidden;
+}
+
+.sidebar-section.compact .section-list {
+  overflow-y: auto;
+  max-height: 120px;
+}
+
+/* No fade gradient for compact sections */
+.sidebar-section.compact::after {
+  display: none;
 }
