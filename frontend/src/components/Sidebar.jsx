@@ -394,32 +394,32 @@ export default function Sidebar({
       {/* Style selector - below top actions */}
       {!collapsed && (
         <div className="sidebar-style-selector">
-          <button
-            className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.LIST ? 'active' : ''}`}
-            onClick={() => setSidebarStyle(SIDEBAR_STYLES.LIST)}
-            title="List view"
-          >
-            {StyleIcons.list}
-            <span>All List</span>
-          </button>
-          <span className="style-divider">|</span>
-          <button
-            className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.CATEGORY ? 'active' : ''}`}
-            onClick={() => setSidebarStyle(SIDEBAR_STYLES.CATEGORY)}
-            title="Category view"
-          >
-            {StyleIcons.category}
-            <span>Category</span>
-          </button>
-          <span className="style-divider">|</span>
-          <button
-            className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.FOCUS ? 'active' : ''}`}
-            onClick={() => setSidebarStyle(SIDEBAR_STYLES.FOCUS)}
-            title="Focus view"
-          >
-            {StyleIcons.focus}
-            <span>Single</span>
-          </button>
+          <div className="style-toggle-container">
+            <button
+              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.LIST ? 'active' : ''}`}
+              onClick={() => setSidebarStyle(SIDEBAR_STYLES.LIST)}
+              title="List view"
+            >
+              {StyleIcons.list}
+              <span>List</span>
+            </button>
+            <button
+              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.CATEGORY ? 'active' : ''}`}
+              onClick={() => setSidebarStyle(SIDEBAR_STYLES.CATEGORY)}
+              title="Category view"
+            >
+              {StyleIcons.category}
+              <span>Category</span>
+            </button>
+            <button
+              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.FOCUS ? 'active' : ''}`}
+              onClick={() => setSidebarStyle(SIDEBAR_STYLES.FOCUS)}
+              title="Focus view"
+            >
+              {StyleIcons.focus}
+              <span>Single</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -465,7 +465,7 @@ export default function Sidebar({
             className={`filter-btn ${modeFilter ? 'active' : ''}`}
             onClick={toggleModeFilter}
           >
-            Mode {modeFilter && `(${modeFilter})`}
+            {modeFilter ? (modeFilter === 'agent' ? 'Agent' : 'User') : 'Mode'}
           </button>
         </div>
       )}
@@ -706,6 +706,21 @@ export default function Sidebar({
                                       <path d="M1 19a4 4 0 0 1 6 0" />
                                       <circle cx="20" cy="9" r="2.5" />
                                       <path d="M17 19a4 4 0 0 1 6 0" />
+                                    </svg>
+                                  </span>
+                                )}
+                                {conv.is_knowledge_graph && !isCurrentAndLoading && (
+                                  <span className="knowledge-graph-icon" title="Knowledge Graph">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="3" />
+                                      <circle cx="4" cy="8" r="2" />
+                                      <circle cx="20" cy="8" r="2" />
+                                      <circle cx="4" cy="16" r="2" />
+                                      <circle cx="20" cy="16" r="2" />
+                                      <line x1="9.5" y1="10.5" x2="5.5" y2="8.5" />
+                                      <line x1="14.5" y1="10.5" x2="18.5" y2="8.5" />
+                                      <line x1="9.5" y1="13.5" x2="5.5" y2="15.5" />
+                                      <line x1="14.5" y1="13.5" x2="18.5" y2="15.5" />
                                     </svg>
                                   </span>
                                 )}

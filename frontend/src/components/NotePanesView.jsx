@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronRight, ExternalLink, Link2, Tag, FileText, ArrowLeft, Clock, Youtube, Mic, Globe, RefreshCw } from 'lucide-react';
+import { X, ChevronRight, ExternalLink, Link2, Tag, FileText, ArrowLeft, ArrowRight, Clock, Youtube, Mic, Globe, RefreshCw } from 'lucide-react';
 import sbd from 'sbd';
 import { api } from '../api';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
@@ -613,12 +613,13 @@ export default function NotePanesView({
                     className="entity-type-badge"
                     style={{ backgroundColor: ENTITY_TYPE_COLORS[entity.type] || ENTITY_TYPE_COLORS.concept }}
                   >
-                    {entity.type?.toUpperCase() || 'CONCEPT'}
+                    {entity.type || 'concept'}
                   </span>
                   <span className="entity-name">{entity.name}</span>
                   {entity.mentionCount > 1 && (
                     <span className="entity-mentions">{entity.mentionCount} mentions</span>
                   )}
+                  <ArrowRight size={12} className="entity-arrow" />
                 </div>
               ))}
             </div>

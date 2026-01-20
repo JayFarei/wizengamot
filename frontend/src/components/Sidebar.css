@@ -719,6 +719,30 @@
   opacity: 1;
 }
 
+/* Knowledge Graph icon for synthesizer notes */
+.knowledge-graph-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: var(--kg-entity-concept, #7dc4e4);
+  opacity: 0.85;
+}
+
+.knowledge-graph-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.conversation-item.active .knowledge-graph-icon {
+  opacity: 1;
+}
+
+.conversation-item:hover .knowledge-graph-icon {
+  opacity: 1;
+}
+
 /* Auto-discovery bot icon */
 .auto-discovery-icon {
   display: inline-flex;
@@ -927,43 +951,54 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   padding: 8px 12px;
   flex-shrink: 0;
 }
 
+/* Segmented control container */
+.style-toggle-container {
+  display: flex;
+  flex: 1;
+  background: var(--bg-tertiary);
+  border-radius: 16px;
+  padding: 3px;
+  gap: 1px;
+}
+
 .sidebar-style-selector .style-btn {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 3px;
   padding: 4px 8px;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 12px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .sidebar-style-selector .style-btn:hover {
   color: var(--text-primary);
-  background: var(--bg-hover);
 }
 
 .sidebar-style-selector .style-btn.active {
+  background: var(--primary);
+  color: var(--text-inverse, #fff);
+}
+
+/* Dark mode: use subtle elevated surface instead of bright blue */
+[data-theme="dark"] .sidebar-style-selector .style-btn.active {
+  background: var(--bg-elevated);
   color: var(--primary);
-  background: var(--primary-light, rgba(74, 144, 226, 0.1));
 }
 
 .sidebar-style-selector .style-btn svg {
   flex-shrink: 0;
-}
-
-.sidebar-style-selector .style-divider {
-  color: var(--border-primary);
-  font-size: 12px;
-  user-select: none;
 }
 
 /* ================================
@@ -980,10 +1015,10 @@
 }
 
 .sidebar-filter-bar .filter-btn {
-  padding: 3px 8px;
+  padding: 4px 12px;
   background: transparent;
   border: 1px solid var(--border-primary);
-  border-radius: 12px;
+  border-radius: 16px;
   color: var(--text-muted);
   font-size: 10px;
   cursor: pointer;
@@ -999,7 +1034,7 @@
 .sidebar-filter-bar .filter-btn.active {
   border-color: var(--primary);
   color: var(--primary);
-  background: var(--primary-light, rgba(74, 144, 226, 0.1));
+  background: transparent;
 }
 
 /* Type filter dropdown - positioned below filter bar */

@@ -429,30 +429,30 @@
 .entities-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   padding: 0 16px 16px;
   max-height: 200px;
   overflow-y: auto;
 }
 
 .entity-card {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  background: transparent;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s;
-  font-size: 12px;
+  transition: all 0.2s;
+  line-height: 1.2;
 }
 
 .entity-card:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
 .entity-type-badge {
-  font-size: 8px;
+  font-size: 9px;
   text-transform: uppercase;
   font-weight: 600;
   padding: 2px 5px;
@@ -462,17 +462,31 @@
 }
 
 .entity-name {
-  font-size: 12px;
+  flex: 1;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .entity-mentions {
-  font-size: 10px;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.entity-arrow {
   color: var(--text-tertiary);
   flex-shrink: 0;
-  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.entity-card:hover .entity-arrow {
+  opacity: 1;
 }
 
 .related-notes-empty {
