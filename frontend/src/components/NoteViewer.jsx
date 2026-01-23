@@ -57,9 +57,12 @@ export default function NoteViewer({
   onToggleReviewSidebar,
   // Knowledge graph navigation
   onNavigateToGraphEntity,
+  // Note quality callbacks
+  onNoteQualityUpdate,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
   const [showPanesView, setShowPanesView] = useState(false);
+  const [starringInProgress, setStarringInProgress] = useState(false);
 
   // Helper to get short model name
   const getModelShortName = (model) => model?.split('/').pop() || model;
@@ -73,6 +76,7 @@ export default function NoteViewer({
   const [isSavingSourceMetadata, setIsSavingSourceMetadata] = useState(false);
   const containerRef = useRef(null);
   const sourceInfoRef = useRef(null);
+  const wheelTimeoutRef = useRef(null);
 
   // Keyboard sentence navigation state (focus mode only)
   const [sentences, setSentences] = useState([]);
@@ -332,6 +336,37 @@ export default function NoteViewer({
     }
   }, [conversationId, sourceType, sourceTitle, sourceUrl, onSourceMetadataUpdate]);
 
+  // Toggle star on current note
+  const toggleNoteStar = useCallback(async () => {
+    if (!notes?.length || !conversationId || starringInProgress) return;
+
+    const safeIndex = Math.min(currentIndex, notes.length - 1);
+    const note = notes[safeIndex];
+    if (!note) return;
+
+    const currentStarred = note.quality?.starred || false;
+    const newStarred = !currentStarred;
+
+    setStarringInProgress(true);
+    try {
+      await api.toggleNoteStar(conversationId, note.id, newStarred);
+
+      // Update local state
+      if (onNoteQualityUpdate) {
+        onNoteQualityUpdate(note.id, { starred: newStarred });
+      }
+
+      setCopyFeedback(newStarred ? 'Starred!' : 'Unstarred');
+      setTimeout(() => setCopyFeedback(null), 1500);
+    } catch (err) {
+      console.error('Failed to toggle star:', err);
+      setCopyFeedback('Failed');
+      setTimeout(() => setCopyFeedback(null), 1500);
+    } finally {
+      setStarringInProgress(false);
+    }
+  }, [notes, currentIndex, conversationId, starringInProgress, onNoteQualityUpdate]);
+
   // Open tweet modal
   const openTweetModal = useCallback(() => {
     setShowTweetModal(true);
@@ -354,6 +389,13 @@ export default function NoteViewer({
     if ((e.key === 'c' || e.key === 'C') && (viewMode === 'swipe' || focusMode)) {
       e.preventDefault();
       copyNoteToClipboard();
+      return;
+    }
+
+    // S key toggles star on current note (in swipe view or focus mode, but not in focus mode sentence nav)
+    if ((e.key === 's' || e.key === 'S') && viewMode === 'swipe' && !focusMode) {
+      e.preventDefault();
+      toggleNoteStar();
       return;
     }
 
@@ -475,12 +517,52 @@ export default function NoteViewer({
     }
   }, [viewMode, focusMode, notes, currentIndex, sentences, sentenceCursor, selectionStart,
       sourceUrl, showKeyboardCommentModal, showSourceMetadataModal, copyNoteToClipboard,
-      openTweetModal, getSelectedSentencesText]);
+      openTweetModal, toggleNoteStar, getSelectedSentencesText]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Wheel navigation for swipe view
+  useEffect(() => {
+    if (viewMode !== 'swipe' || focusMode) return;
+    if (!notes?.length) return;
+
+    const handleWheel = (e) => {
+      // Only handle wheel events on the swipe view
+      const swipeView = document.querySelector('.swipe-view');
+      if (!swipeView || !swipeView.contains(e.target)) return;
+
+      e.preventDefault();
+
+      // Debounce: ignore rapid wheel events
+      if (wheelTimeoutRef.current) return;
+
+      const direction = e.deltaY > 0 ? 1 : -1;
+
+      setCurrentIndex(prev => {
+        const next = prev + direction;
+        return Math.max(0, Math.min(next, notes.length - 1));
+      });
+
+      // Set cooldown (300ms feels natural for card transitions)
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelTimeoutRef.current = null;
+      }, 300);
+    };
+
+    // Add to window to capture all wheel events
+    window.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+        wheelTimeoutRef.current = null;
+      }
+    };
+  }, [viewMode, focusMode, notes?.length]);
 
   // Auto-focus container when notes are loaded
   useEffect(() => {
@@ -489,10 +571,16 @@ export default function NoteViewer({
     }
   }, [notes]);
 
-  // Reset index when notes change
+  // Create stable identifier from note IDs (doesn't change on quality updates)
+  const notesSignature = useMemo(() =>
+    notes?.map(n => n.id).join(',') || '',
+    [notes]
+  );
+
+  // Reset index only when the actual notes collection changes
   useEffect(() => {
     setCurrentIndex(0);
-  }, [notes]);
+  }, [notesSignature]);
 
   // Compute currentNote early for use in effects
   const safeIndexForEffects = notes?.length ? Math.min(currentIndex, notes.length - 1) : 0;
@@ -863,11 +951,25 @@ export default function NoteViewer({
           <div className="note-card">
             <div className="note-card-header">
               <h3 className="note-title">{currentNote.title}</h3>
-              {currentNote.source_model && (
-                <span className="note-model" title="Generated by">
-                  {currentNote.source_model.split('/').pop()}
-                </span>
-              )}
+              <div className="note-header-actions">
+                {conversationId && (
+                  <button
+                    className={`note-star-btn ${currentNote.quality?.starred ? 'starred' : ''}`}
+                    onClick={toggleNoteStar}
+                    disabled={starringInProgress}
+                    title={currentNote.quality?.starred ? 'Unstar note (S)' : 'Star note (S)'}
+                  >
+                    <svg viewBox="0 0 24 24" fill={currentNote.quality?.starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </button>
+                )}
+                {currentNote.source_model && (
+                  <span className="note-model" title="Generated by">
+                    {currentNote.source_model.split('/').pop()}
+                  </span>
+                )}
+              </div>
             </div>
 
             {currentNote.tags && currentNote.tags.length > 0 && (
@@ -925,7 +1027,7 @@ export default function NoteViewer({
           </div>
 
           <p className="nav-hint">
-            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>F</kbd> focus mode, <kbd>B</kbd> browse related, <kbd>C</kbd> copy, <kbd>X</kbd> tweet
+            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>F</kbd> focus mode, <kbd>B</kbd> browse related, <kbd>S</kbd> star, <kbd>C</kbd> copy, <kbd>X</kbd> tweet
           </p>
         </div>
       ) : (
@@ -970,8 +1072,8 @@ export default function NoteViewer({
         </div>
       )}
 
-      {/* Copy Feedback Toast */}
-      {copyFeedback && (copyFeedback.includes('Note') || copyFeedback.includes('notes')) && (
+      {/* Copy/Star Feedback Toast */}
+      {copyFeedback && (copyFeedback.includes('Note') || copyFeedback.includes('notes') || copyFeedback.includes('tarred') || copyFeedback === 'Failed') && (
         <div className="copy-toast">{copyFeedback}</div>
       )}
 
@@ -1016,11 +1118,25 @@ export default function NoteViewer({
             <div className="focus-card">
               <div className="note-card-header">
                 <h3 className="note-title">{currentNote.title}</h3>
-                {currentNote.source_model && (
-                  <span className="note-model" title="Generated by">
-                    {currentNote.source_model.split('/').pop()}
-                  </span>
-                )}
+                <div className="note-header-actions">
+                  {conversationId && (
+                    <button
+                      className={`note-star-btn ${currentNote.quality?.starred ? 'starred' : ''}`}
+                      onClick={toggleNoteStar}
+                      disabled={starringInProgress}
+                      title={currentNote.quality?.starred ? 'Unstar note' : 'Star note'}
+                    >
+                      <svg viewBox="0 0 24 24" fill={currentNote.quality?.starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </button>
+                  )}
+                  {currentNote.source_model && (
+                    <span className="note-model" title="Generated by">
+                      {currentNote.source_model.split('/').pop()}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {currentNote.tags && currentNote.tags.length > 0 && (
