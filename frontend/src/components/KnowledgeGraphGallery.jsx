@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search, Sparkles, CheckSquare } from 'lucide-react';
+import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search, Plus, ClipboardList, Zap, Moon, Bot, GitMerge, Link2, AlertTriangle, Wrench, Layers, FileText, BarChart3, Activity, Star } from 'lucide-react';
 import KnowledgeGraphViewer from './KnowledgeGraphViewer';
 import KnowledgeGraphChat from './KnowledgeGraphChat';
 import KnowledgeGraphSearch from './KnowledgeGraphSearch';
 import KnowledgeGraphDiscover from './KnowledgeGraphDiscover';
 import KnowledgeGraphReview from './KnowledgeGraphReview';
+import KGActionMenu from './KGActionMenu';
 import { api } from '../api';
 import './KnowledgeGraph.css';
 
@@ -29,14 +30,28 @@ export default function KnowledgeGraphGallery({
   const [migrationStatus, setMigrationStatus] = useState(null);
   const [migrationPolling, setMigrationPolling] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [showDiscover, setShowDiscover] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+  // Discover mode: 'quick' | 'sleep' | null
+  const [discoverMode, setDiscoverMode] = useState(null);
+  // Review view: 'insights' | 'entities' | 'relationships' | 'quality' | 'feedback' | null
+  const [reviewView, setReviewView] = useState(null);
+  // Review filter for insights view: 'pending' | 'approved' | 'dismissed'
+  const [reviewFilter, setReviewFilter] = useState('pending');
   const [highlightedNodeId, setHighlightedNodeId] = useState(null);
   const [expandedView, setExpandedView] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [searchMatchedNodes, setSearchMatchedNodes] = useState([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [activeWorkers, setActiveWorkers] = useState([]);
+  // Curation/tending operations loading state
+  const [tendingLoading, setTendingLoading] = useState(null);
+  // Curation candidates for review
+  const [curationCandidates, setCurationCandidates] = useState([]);
+  // Discovery stats for review badge
+  const [discoveryStats, setDiscoveryStats] = useState(null);
+  // Entity/relationship counts for badges
+  const [unvalidatedCounts, setUnvalidatedCounts] = useState({ entities: 0, relationships: 0 });
+  // Star toggle loading state
+  const [starringInProgress, setStarringInProgress] = useState(false);
   const containerRef = useRef(null);
   const searchContainerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -136,11 +151,36 @@ export default function KnowledgeGraphGallery({
     }
   }, []);
 
+  // Load discovery stats (for review badges)
+  const loadDiscoveryStats = useCallback(async () => {
+    try {
+      const result = await api.getDiscoveryStats();
+      setDiscoveryStats(result);
+    } catch (err) {
+      console.error('Failed to load discovery stats:', err);
+    }
+  }, []);
+
+  // Load unvalidated counts (for review badges)
+  const loadUnvalidatedCounts = useCallback(async () => {
+    try {
+      const metrics = await api.getKnowledgeGraphQuality();
+      setUnvalidatedCounts({
+        entities: metrics?.review_backlog?.unvalidated_entities || 0,
+        relationships: metrics?.review_backlog?.unvalidated_relationships || 0,
+      });
+    } catch (err) {
+      console.error('Failed to load unvalidated counts:', err);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     loadGraph();
     loadMigrationStatus();
-  }, [loadGraph, loadMigrationStatus]);
+    loadDiscoveryStats();
+    loadUnvalidatedCounts();
+  }, [loadGraph, loadMigrationStatus, loadDiscoveryStats, loadUnvalidatedCounts]);
 
   // Poll for active sleep compute workers (persists across tab switches)
   useEffect(() => {
@@ -182,8 +222,9 @@ export default function KnowledgeGraphGallery({
   // Auto-open Review panel when initialOpenReview is true
   useEffect(() => {
     if (initialOpenReview) {
-      setShowReview(true);
-      setShowDiscover(false);
+      setReviewView('insights');
+      setReviewFilter('pending');
+      setDiscoverMode(null);
       setShowChat(false);
     }
   }, [initialOpenReview]);
@@ -312,6 +353,80 @@ export default function KnowledgeGraphGallery({
     }
   };
 
+  // ==========================================================================
+  // Tend Graph / Curation Actions (for Create menu)
+  // ==========================================================================
+
+  // Run curation analysis with specific rubrics
+  const handleTendGraph = async (rubrics, useAgent = false) => {
+    setTendingLoading(rubrics.join('-'));
+    try {
+      let result;
+      if (useAgent && rubrics.includes('duplicates')) {
+        result = await api.analyzeCurationWithAgent({ rubrics });
+      } else {
+        result = await api.analyzeCuration({ rubrics });
+      }
+
+      if (result.candidates?.length > 0) {
+        // Store candidates and open review panel in curation mode
+        setCurationCandidates(result.candidates);
+        setReviewView('curation');
+        setDiscoverMode(null);
+        setShowChat(false);
+      } else {
+        // No candidates found - clear any existing candidates
+        setCurationCandidates([]);
+        console.log('No curation candidates found');
+      }
+    } catch (err) {
+      console.error('Curation analysis failed:', err);
+    } finally {
+      setTendingLoading(null);
+    }
+  };
+
+  // Normalize entities
+  const handleNormalizeEntities = async () => {
+    setTendingLoading('normalize');
+    try {
+      await api.normalizeEntities();
+      loadGraph();
+    } catch (err) {
+      console.error('Normalize entities failed:', err);
+    } finally {
+      setTendingLoading(null);
+    }
+  };
+
+  // ==========================================================================
+  // Panel Opening Helpers
+  // ==========================================================================
+
+  // Open discover panel in specified mode
+  const openDiscover = (mode) => {
+    setDiscoverMode(mode);
+    setReviewView(null);
+    setShowChat(false);
+  };
+
+  // Open review panel with specified view
+  const openReview = (view, filter = 'pending') => {
+    setReviewView(view);
+    if (view === 'insights') {
+      setReviewFilter(filter);
+    }
+    setDiscoverMode(null);
+    setShowChat(false);
+  };
+
+  // Open chat panel
+  const openChat = () => {
+    setShowChat(true);
+    setDiscoverMode(null);
+    setReviewView(null);
+  };
+
   // Handle node click
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
@@ -382,6 +497,43 @@ export default function KnowledgeGraphGallery({
     }
   }, [graphData]);
 
+  // Handle toggling star status for a note
+  const handleToggleStar = useCallback(async () => {
+    if (!selectedNode || selectedNode.type !== 'note' || starringInProgress) return;
+
+    // Extract conversation ID and note ID from node ID format: "note:{convId}:{noteId}"
+    const parts = selectedNode.id.split(':');
+    const conversationId = parts[1];
+    const noteId = parts.slice(2).join(':');
+
+    const newStarred = !selectedNode.quality?.starred;
+
+    setStarringInProgress(true);
+    try {
+      await api.toggleNoteStar(conversationId, noteId, newStarred);
+
+      // Update selected node state
+      setSelectedNode(prev => ({
+        ...prev,
+        quality: { ...prev.quality, starred: newStarred }
+      }));
+
+      // Update graph data to persist change
+      setGraphData(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n =>
+          n.id === selectedNode.id
+            ? { ...n, quality: { ...n.quality, starred: newStarred } }
+            : n
+        )
+      }));
+    } catch (err) {
+      console.error('Failed to toggle star:', err);
+    } finally {
+      setStarringInProgress(false);
+    }
+  }, [selectedNode, starringInProgress]);
+
   // Calculate pending conversations
   const pendingConversations = stats
     ? stats.total_conversations - stats.processed_conversations
@@ -443,34 +595,151 @@ export default function KnowledgeGraphGallery({
         </div>
 
         <div className={`kg-gallery-actions ${searchExpanded ? 'hidden' : ''}`}>
-          <button
-            className={`kg-icon-btn ${showDiscover ? 'active' : ''}`}
-            onClick={() => { setShowDiscover(!showDiscover); if (!showDiscover) { setShowChat(false); setShowReview(false); } }}
-            title={showDiscover ? 'Hide Generate' : 'Generate Insights'}
-          >
-            <Sparkles size={16} />
-          </button>
-          <button
-            className={`kg-icon-btn ${showReview ? 'active' : ''}`}
-            onClick={() => { setShowReview(!showReview); if (!showReview) { setShowDiscover(false); setShowChat(false); } }}
-            title={showReview ? 'Hide Review' : 'Review Insights'}
-          >
-            <CheckSquare size={16} />
-          </button>
+          {/* Create Menu */}
+          <KGActionMenu
+            icon={<Plus size={16} />}
+            label="Create"
+            sections={[
+              {
+                title: 'Generate Insights',
+                items: [
+                  {
+                    icon: <Zap size={14} />,
+                    label: 'Quick Prompt',
+                    onClick: () => openDiscover('quick'),
+                  },
+                  {
+                    icon: <Moon size={14} />,
+                    label: 'Sleep Compute',
+                    badge: activeWorkers.length,
+                    onClick: () => openDiscover('sleep'),
+                  },
+                ],
+              },
+              {
+                title: 'Tend Graph',
+                items: [
+                  {
+                    icon: <Bot size={14} />,
+                    label: 'Structure Review (AI)',
+                    loading: tendingLoading === 'duplicates',
+                    onClick: () => handleTendGraph(['duplicates'], true),
+                  },
+                  {
+                    icon: <GitMerge size={14} />,
+                    label: 'Find Duplicates',
+                    loading: tendingLoading === 'duplicates-fast',
+                    onClick: () => handleTendGraph(['duplicates'], false),
+                  },
+                  {
+                    icon: <Link2 size={14} />,
+                    label: 'Missing Relations',
+                    loading: tendingLoading === 'missing',
+                    onClick: () => handleTendGraph(['missing']),
+                  },
+                  {
+                    icon: <AlertTriangle size={14} />,
+                    label: 'Validate Relations',
+                    loading: tendingLoading === 'suspect',
+                    onClick: () => handleTendGraph(['suspect']),
+                  },
+                  {
+                    icon: <Wrench size={14} />,
+                    label: 'Full Analysis',
+                    loading: tendingLoading === 'duplicates-missing-suspect',
+                    onClick: () => handleTendGraph(['duplicates', 'missing', 'suspect']),
+                  },
+                  {
+                    icon: <Layers size={14} />,
+                    label: 'Normalize Entities',
+                    loading: tendingLoading === 'normalize',
+                    onClick: handleNormalizeEntities,
+                  },
+                ],
+              },
+              {
+                items: [
+                  {
+                    icon: <RefreshCw size={14} />,
+                    label: 'Re-index Graph',
+                    onClick: handleRebuild,
+                  },
+                ],
+              },
+            ]}
+          />
+
+          {/* Review Menu */}
+          <KGActionMenu
+            icon={<ClipboardList size={16} />}
+            label="Review"
+            sections={[
+              {
+                title: 'Generated Insights',
+                items: [
+                  {
+                    icon: <FileText size={14} />,
+                    label: 'Pending',
+                    badge: discoveryStats?.pending,
+                    onClick: () => openReview('insights', 'pending'),
+                  },
+                  {
+                    icon: <FileText size={14} />,
+                    label: 'Approved',
+                    onClick: () => openReview('insights', 'approved'),
+                  },
+                  {
+                    icon: <FileText size={14} />,
+                    label: 'Dismissed',
+                    onClick: () => openReview('insights', 'dismissed'),
+                  },
+                ],
+              },
+              {
+                title: 'Validate Extractions',
+                items: [
+                  {
+                    icon: <Layers size={14} />,
+                    label: 'Entities',
+                    badge: unvalidatedCounts.entities > 0 ? unvalidatedCounts.entities : null,
+                    onClick: () => openReview('entities'),
+                  },
+                  {
+                    icon: <Link2 size={14} />,
+                    label: 'Relationships',
+                    badge: unvalidatedCounts.relationships > 0 ? unvalidatedCounts.relationships : null,
+                    onClick: () => openReview('relationships'),
+                  },
+                ],
+              },
+              {
+                title: 'Dashboards',
+                items: [
+                  {
+                    icon: <BarChart3 size={14} />,
+                    label: 'Quality',
+                    onClick: () => openReview('quality'),
+                  },
+                  {
+                    icon: <Activity size={14} />,
+                    label: 'Feedback Learning',
+                    onClick: () => openReview('feedback'),
+                  },
+                ],
+              },
+            ]}
+          />
+
+          {/* Chat Quick Action */}
           <button
             className={`kg-icon-btn ${showChat ? 'active' : ''}`}
-            onClick={() => { setShowChat(!showChat); if (!showChat) { setShowDiscover(false); setShowReview(false); } }}
+            onClick={() => showChat ? setShowChat(false) : openChat()}
             title={showChat ? 'Hide Chat' : 'Ask Knowledge Graph'}
           >
             <MessageSquare size={16} />
           </button>
-          <button
-            className="kg-icon-btn"
-            onClick={loadGraph}
-            disabled={loading}
-          >
-            <RefreshCw size={16} />
-          </button>
+
+          {/* Close Button */}
           <button className="kg-close-btn" onClick={onClose}>
             <X size={20} />
           </button>
@@ -533,7 +802,7 @@ export default function KnowledgeGraphGallery({
       )}
 
       {/* Main content */}
-      <div className={`kg-gallery-content ${showChat ? 'chat-open' : ''} ${showDiscover ? 'discover-open' : ''} ${showReview ? 'review-open' : ''}`}>
+      <div className={`kg-gallery-content ${showChat ? 'chat-open' : ''} ${discoverMode ? 'discover-open' : ''} ${reviewView ? 'review-open' : ''}`}>
         {/* Graph container */}
         <div className="kg-graph-container" ref={containerRef}>
           {loading ? (
@@ -666,6 +935,16 @@ export default function KnowledgeGraphGallery({
                   {selectedNode.type === 'entity' ? selectedNode.entityType : selectedNode.type}
                 </div>
                 <div className="kg-detail-header-btns">
+                  {selectedNode.type === 'note' && (
+                    <button
+                      className={`kg-detail-star-btn ${selectedNode.quality?.starred ? 'starred' : ''}`}
+                      onClick={handleToggleStar}
+                      disabled={starringInProgress}
+                      title={selectedNode.quality?.starred ? 'Unstar note' : 'Star note'}
+                    >
+                      <Star size={16} fill={selectedNode.quality?.starred ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
                   <button
                     className="kg-detail-focus-btn"
                     onClick={() => setFocusMode(!focusMode)}
@@ -824,9 +1103,10 @@ export default function KnowledgeGraphGallery({
         )}
 
         {/* Generate (Discovery) panel */}
-        {showDiscover && (
+        {discoverMode && (
           <KnowledgeGraphDiscover
-            onClose={() => setShowDiscover(false)}
+            mode={discoverMode}
+            onClose={() => setDiscoverMode(null)}
             onRefreshGraph={loadGraph}
             activeWorkers={activeWorkers}
             setActiveWorkers={setActiveWorkers}
@@ -834,11 +1114,21 @@ export default function KnowledgeGraphGallery({
         )}
 
         {/* Review panel */}
-        {showReview && (
+        {reviewView && (
           <KnowledgeGraphReview
-            onClose={() => setShowReview(false)}
+            view={reviewView}
+            initialFilter={reviewFilter}
+            onClose={() => {
+              setReviewView(null);
+              setCurationCandidates([]);
+            }}
             onSelectConversation={onSelectConversation}
-            onRefreshGraph={loadGraph}
+            onRefreshGraph={() => {
+              loadGraph();
+              loadDiscoveryStats();
+              loadUnvalidatedCounts();
+            }}
+            curationCandidates={curationCandidates}
           />
         )}
       </div>
