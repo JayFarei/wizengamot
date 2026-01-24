@@ -65,6 +65,61 @@
   color: var(--text-secondary);
 }
 
+/* Quick Access row for Knowledge Graph and Podcast */
+.search-quick-access {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.quick-access-item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+}
+
+.quick-access-item:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.quick-access-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.quick-access-item:hover .quick-access-icon {
+  color: var(--primary);
+}
+
+.quick-access-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.quick-access-kbd {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
 .search-results {
   max-height: 400px;
   overflow-y: auto;

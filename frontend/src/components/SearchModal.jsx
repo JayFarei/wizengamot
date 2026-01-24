@@ -96,7 +96,7 @@ function applyTypeFilter(results, filter) {
   });
 }
 
-export default function SearchModal({ isOpen, onClose, conversations = [], onSelectConversation, onNewConversation, theme, onToggleTheme, onOpenSettings }) {
+export default function SearchModal({ isOpen, onClose, conversations = [], onSelectConversation, onNewConversation, theme, onToggleTheme, onOpenSettings, onOpenKnowledgeGraph, onOpenPodcast }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);

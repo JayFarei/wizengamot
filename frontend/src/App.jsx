@@ -242,6 +242,36 @@ function App() {
         } else if (e.key === '.') {
           e.preventDefault();
           setShowSettingsModal(s => !s);
+        } else if (e.key === 'u') {
+          e.preventDefault();
+          // Navigate to Knowledge Graph
+          setShowKnowledgeGraph(true);
+          setShowSearchModal(false);
+          setCurrentConversationId(null);
+          setCurrentConversation(null);
+          setCurrentMonitorId(null);
+          setCurrentMonitor(null);
+          setShowImageGallery(false);
+          setShowCouncilGallery(false);
+          setShowNotesGallery(false);
+          setShowPodcastGallery(false);
+          setShowPodcastSetup(false);
+          setCurrentPodcastId(null);
+        } else if (e.key === 'o') {
+          e.preventDefault();
+          // Navigate to Podcast Gallery
+          setShowPodcastGallery(true);
+          setShowSearchModal(false);
+          setCurrentConversationId(null);
+          setCurrentPodcastId(null);
+          setCurrentMonitorId(null);
+          setCurrentMonitor(null);
+          setShowImageGallery(false);
+          setShowCouncilGallery(false);
+          setShowNotesGallery(false);
+          setShowKnowledgeGraph(false);
+          setShowPodcastSetup(false);
+          loadPodcasts();
         }
       }
     };
@@ -472,6 +502,10 @@ function App() {
     setShowModeSelector(false);
     setShowImageGallery(false);
     setShowKnowledgeGraph(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
 
     // Cleanup empty conversation before creating new one
     await cleanupEmptyConversation(currentConversationId);
@@ -1560,10 +1594,22 @@ function App() {
         onOpenImageGallery={handleOpenImageGallery}
         onOpenCouncilGallery={handleOpenCouncilGallery}
         onOpenNotesGallery={handleOpenNotesGallery}
-        onOpenPodcastGallery={() => setShowPodcastGallery(true)}
+        onOpenPodcastGallery={() => {
+          setShowPodcastGallery(true);
+          setShowKnowledgeGraph(false);
+          setShowImageGallery(false);
+          setShowCouncilGallery(false);
+          setShowNotesGallery(false);
+          setShowPodcastSetup(false);
+        }}
         onOpenKnowledgeGraph={(options = {}) => {
           setInitialOpenReview(options.openReview || false);
           setShowKnowledgeGraph(true);
+          setShowPodcastGallery(false);
+          setShowImageGallery(false);
+          setShowCouncilGallery(false);
+          setShowNotesGallery(false);
+          setShowPodcastSetup(false);
         }}
       />
       <div className="main-content">
