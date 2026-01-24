@@ -5,6 +5,7 @@ const MODE_LABELS = {
   council: 'Council',
   synthesizer: 'Synthesizer',
   visualiser: 'Visualiser',
+  discovery: 'Discovery',
 };
 
 export default function CommandPalette({ isOpen, onClose, mode, actions = [] }) {
