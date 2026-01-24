@@ -20,6 +20,7 @@ import ConversationGallery from './components/ConversationGallery';
 import PodcastGallery from './components/PodcastGallery';
 import KnowledgeGraphGallery from './components/KnowledgeGraphGallery';
 import SearchModal from './components/SearchModal';
+import CommandPalette from './components/CommandPalette';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
@@ -76,6 +77,9 @@ function App() {
 
   // Search modal state
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // Command palette state
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
 
   // Image gallery state
   const [showImageGallery, setShowImageGallery] = useState(false);
@@ -230,6 +234,10 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.metaKey || e.ctrlKey) {
+        // Cmd+Shift+P handled in separate useEffect with proper dependencies
+        if ((e.key === 'P' || e.key === 'p') && e.shiftKey) {
+          return; // Let the dedicated handler handle this
+        }
         if (e.key === 'k') {
           e.preventDefault();
           setShowSearchModal(s => !s);
@@ -278,6 +286,21 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Command palette shortcut (separate effect to track conversation state)
+  useEffect(() => {
+    const handleCommandPalette = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (currentConversation || currentConversationId) {
+          setShowCommandPalette(s => !s);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleCommandPalette);
+    return () => window.removeEventListener('keydown', handleCommandPalette);
+  }, [currentConversation, currentConversationId]);
 
   const loadConfig = async () => {
     try {
@@ -1566,6 +1589,310 @@ function App() {
   const isNavigatingToConversation = currentConversationId &&
     (!currentConversation || currentConversation.id !== currentConversationId);
 
+  // Command palette action dispatcher
+  const dispatchCommandPaletteAction = useCallback((action) => {
+    window.dispatchEvent(new CustomEvent('commandPalette:action', {
+      detail: { action }
+    }));
+  }, []);
+
+  // Compute command palette actions based on current mode
+  const commandPaletteActions = useMemo(() => {
+    const mode = currentConversation?.mode;
+    if (!mode) return [];
+
+    const sourceUrl = currentConversation?.synthesizer_config?.source_url;
+    const linkedVisualisations = currentConversation?.linked_visualisations || [];
+
+    if (mode === 'council') {
+      return [
+        {
+          id: 'copyResponse',
+          label: 'Copy Response',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('copyResponse'),
+        },
+        {
+          id: 'addToContext',
+          label: 'Add to Context',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('addToContext'),
+        },
+        {
+          id: 'startFollowUp',
+          label: 'Start Follow-up',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          ),
+          onSelect: () => setShowCommitSidebar(true),
+        },
+        {
+          id: 'viewContextStack',
+          label: 'View Context Stack',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="9" rx="1" />
+              <rect x="14" y="3" width="7" height="9" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          ),
+          badge: totalContextItems > 0 ? `${totalContextItems}` : null,
+          onSelect: () => setShowCommitSidebar(true),
+        },
+        {
+          id: 'exportConversation',
+          label: 'Export Conversation',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7,10 12,15 17,10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('exportConversation'),
+        },
+      ];
+    }
+
+    if (mode === 'synthesizer') {
+      const actions = [
+        {
+          id: 'generatePodcast',
+          label: 'Generate Podcast',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          ),
+          onSelect: () => handleNavigateToPodcast(currentConversationId),
+        },
+        {
+          id: 'createDiagram',
+          label: 'Create Diagram',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+            </svg>
+          ),
+          onSelect: () => handleNavigateToVisualiser(currentConversationId),
+        },
+        {
+          id: 'browseRelated',
+          label: 'Browse Related',
+          shortcut: 'B',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('browseRelated'),
+        },
+        {
+          id: 'copyNote',
+          label: 'Copy Note',
+          shortcut: 'C',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('copyNote'),
+        },
+        {
+          id: 'copyAllNotes',
+          label: 'Copy All Notes',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              <line x1="12" y1="12" x2="12" y2="18" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('copyAllNotes'),
+        },
+        {
+          id: 'editSourceInfo',
+          label: 'Edit Source Info',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('editSourceInfo'),
+        },
+      ];
+
+      // Add Open Source URL if available
+      if (sourceUrl) {
+        actions.push({
+          id: 'openSourceUrl',
+          label: 'Open Source URL',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          ),
+          onSelect: () => window.open(sourceUrl, '_blank'),
+        });
+      }
+
+      // Add View Linked Diagrams if any
+      if (linkedVisualisations.length > 0) {
+        actions.push({
+          id: 'viewLinkedDiagrams',
+          label: 'View Linked Diagrams',
+          badge: `${linkedVisualisations.length}`,
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('viewLinkedDiagrams'),
+        });
+      }
+
+      return actions;
+    }
+
+    if (mode === 'visualiser') {
+      const sourceInfo = currentConversation?.messages?.find(m => m.role === 'user');
+      return [
+        {
+          id: 'downloadDiagram',
+          label: 'Download Diagram',
+          shortcut: 'D',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7,10 12,15 17,10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('downloadDiagram'),
+        },
+        {
+          id: 'spellCheck',
+          label: 'Spell Check',
+          shortcut: 'S',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('spellCheck'),
+        },
+        {
+          id: 'newDiagram',
+          label: 'New Diagram',
+          shortcut: 'N',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('newDiagram'),
+        },
+        {
+          id: 'prevVersion',
+          label: 'Previous Version',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('prevVersion'),
+        },
+        {
+          id: 'nextVersion',
+          label: 'Next Version',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('nextVersion'),
+        },
+        {
+          id: 'enterFullscreen',
+          label: 'Enter Fullscreen',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('enterFullscreen'),
+        },
+        ...(sourceInfo?.source_id ? [{
+          id: 'viewSourceNotes',
+          label: 'View Source Notes',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          ),
+          onSelect: () => handleSelectConversation(sourceInfo.source_id),
+        }] : []),
+        ...(sourceInfo?.source_url ? [{
+          id: 'openSourceUrl',
+          label: 'Open Source URL',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          ),
+          onSelect: () => window.open(sourceInfo.source_url, '_blank'),
+        }] : []),
+        {
+          id: 'copySourceContent',
+          label: 'Copy Source Content',
+          icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          ),
+          onSelect: () => dispatchCommandPaletteAction('copySourceContent'),
+        },
+      ];
+    }
+
+    return [];
+  }, [currentConversation, currentConversationId, totalContextItems, dispatchCommandPaletteAction, handleNavigateToPodcast, handleNavigateToVisualiser, handleSelectConversation, setShowCommitSidebar]);
+
   return (
     <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''} ${showCommitSidebar ? 'right-open' : ''}`}>
       <Sidebar
@@ -2028,6 +2355,12 @@ function App() {
           setShowSearchModal(false);
           setShowSettingsModal(true);
         }}
+      />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        mode={currentConversation?.mode}
+        actions={commandPaletteActions}
       />
     </div>
   );
