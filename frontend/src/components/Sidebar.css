@@ -33,6 +33,14 @@
   flex-shrink: 0;
 }
 
+/* Thin separator between search and feature quick access */
+.sidebar-quick-separator {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 6px 8px;
+  opacity: 0.5;
+}
+
 .sidebar-action-btn {
   display: flex;
   align-items: center;

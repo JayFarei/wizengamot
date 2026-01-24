@@ -450,6 +450,31 @@ export default function Sidebar({
           <span className="action-text">Search chats</span>
           <span className="shortcut">⌘K</span>
         </button>
+
+        {/* Feature quick access */}
+        <div className="sidebar-quick-separator"></div>
+
+        <button className="sidebar-action-btn" onClick={onOpenKnowledgeGraph} title="Knowledge Graph (⌘U)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="6" cy="6" r="3"/>
+            <circle cx="18" cy="6" r="3"/>
+            <circle cx="12" cy="18" r="3"/>
+            <line x1="8.5" y1="7.5" x2="10" y2="15"/>
+            <line x1="15.5" y1="7.5" x2="14" y2="15"/>
+            <line x1="9" y1="6" x2="15" y2="6"/>
+          </svg>
+          <span className="action-text">Knowledge graph</span>
+          <span className="shortcut">⌘U</span>
+        </button>
+
+        <button className="sidebar-action-btn" onClick={onOpenPodcastGallery} title="Podcast (⌘O)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+          </svg>
+          <span className="action-text">Podcast</span>
+          <span className="shortcut">⌘O</span>
+        </button>
       </div>
 
       {/* Separator line */}
@@ -1319,22 +1344,6 @@ export default function Sidebar({
             ${credits.toFixed(2)}
           </span>
         )}
-        <button className="footer-icon-btn" onClick={onOpenPodcastGallery} title="Podcasts">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-          </svg>
-        </button>
-        <button className="footer-icon-btn" onClick={onOpenKnowledgeGraph} title="Knowledge Graph">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="6" cy="6" r="3"/>
-            <circle cx="18" cy="6" r="3"/>
-            <circle cx="12" cy="18" r="3"/>
-            <line x1="8.5" y1="7.5" x2="10" y2="15"/>
-            <line x1="15.5" y1="7.5" x2="14" y2="15"/>
-            <line x1="9" y1="6" x2="15" y2="6"/>
-          </svg>
-        </button>
         <button className="footer-icon-btn" onClick={onOpenSettings} title="Settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3"/>
