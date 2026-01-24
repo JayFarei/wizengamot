@@ -1,0 +1,189 @@
+/* KGActionMenu - Dropdown menu component */
+
+.kg-action-menu {
+  position: relative;
+}
+
+.kg-action-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kg-action-menu-trigger:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.kg-action-menu-trigger.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-lighter);
+}
+
+.kg-action-menu-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kg-action-menu-trigger svg:first-child {
+  width: 16px;
+  height: 16px;
+}
+
+.kg-action-menu-chevron {
+  transition: transform 0.2s ease;
+  margin-left: 2px;
+}
+
+.kg-action-menu-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.kg-action-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  z-index: 1000;
+  padding: 6px 0;
+  animation: kg-action-menu-fadeIn 0.15s ease;
+}
+
+@keyframes kg-action-menu-fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kg-action-menu-section {
+  padding: 0;
+}
+
+.kg-action-menu-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 8px 12px 4px;
+  letter-spacing: 0.5px;
+}
+
+.kg-action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.kg-action-menu-item:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+.kg-action-menu-item:disabled,
+.kg-action-menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kg-action-menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.kg-action-menu-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.kg-action-menu-item-label {
+  flex: 1;
+}
+
+.kg-action-menu-item-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.kg-action-menu-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 6px 0;
+}
+
+.kg-action-menu-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: kg-action-menu-spin 0.8s linear infinite;
+}
+
+@keyframes kg-action-menu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================
+   Responsive Action Menu - Single Compact Mode
+   ========================================== */
+
+@media (max-width: 1000px) {
+  .kg-action-menu-trigger {
+    padding: 8px;
+    min-width: 36px;
+    justify-content: center;
+  }
+
+  .kg-action-menu-trigger span:not(.kg-action-menu-chevron) {
+    display: none;
+  }
+
+  .kg-action-menu-chevron {
+    display: none;
+  }
+
+  .kg-action-menu-trigger svg:first-child {
+    margin: 0;
+  }
+}

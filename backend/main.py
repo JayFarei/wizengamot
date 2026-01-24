@@ -1935,6 +1935,190 @@ async def update_synthesizer_source(
     return updated
 
 
+# =============================================================================
+# Note Quality & Scoring Endpoints
+# =============================================================================
+
+class NoteStarRequest(BaseModel):
+    """Request to toggle star on a note."""
+    starred: bool
+
+
+class NoteScoreRequest(BaseModel):
+    """Request to score a note."""
+    score: int  # 1-5
+    notes: Optional[str] = None
+
+
+@app.post("/api/conversations/{conversation_id}/notes/{note_id}/star")
+async def toggle_note_star(conversation_id: str, note_id: str, request: NoteStarRequest):
+    """Toggle star status on a note."""
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Find and update the note
+    updated_note = None
+    for msg in conversation.get("messages", []):
+        if msg.get("role") == "assistant" and msg.get("notes"):
+            for note in msg["notes"]:
+                if note.get("id") == note_id:
+                    if "quality" not in note:
+                        note["quality"] = {}
+                    note["quality"]["starred"] = request.starred
+                    updated_note = note
+                    break
+            if updated_note:
+                break
+
+    if not updated_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Save the updated conversation
+    storage.save_conversation(conversation)
+
+    return {"success": True, "note_id": note_id, "starred": request.starred}
+
+
+@app.post("/api/conversations/{conversation_id}/notes/{note_id}/score")
+async def score_note(conversation_id: str, note_id: str, request: NoteScoreRequest):
+    """Score a note with 1-5 rating and optional review notes."""
+    if request.score < 1 or request.score > 5:
+        raise HTTPException(status_code=400, detail="Score must be between 1 and 5")
+
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Find and update the note
+    updated_note = None
+    for msg in conversation.get("messages", []):
+        if msg.get("role") == "assistant" and msg.get("notes"):
+            for note in msg["notes"]:
+                if note.get("id") == note_id:
+                    if "quality" not in note:
+                        note["quality"] = {}
+                    note["quality"]["score"] = request.score
+                    note["quality"]["review_status"] = "reviewed"
+                    note["quality"]["reviewed_at"] = datetime.utcnow().isoformat()
+                    if request.notes:
+                        note["quality"]["review_notes"] = request.notes
+                    updated_note = note
+                    break
+            if updated_note:
+                break
+
+    if not updated_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Save the updated conversation
+    storage.save_conversation(conversation)
+
+    return {"success": True, "note_id": note_id, "quality": updated_note.get("quality")}
+
+
+@app.get("/api/notes/unscored")
+async def get_unscored_notes(limit: int = 50):
+    """Get notes that haven't been scored yet."""
+    conversations = storage.list_conversations()
+    unscored = []
+
+    for conv_summary in conversations:
+        if conv_summary.get("mode") != "synthesizer":
+            continue
+
+        conv = storage.get_conversation(conv_summary["id"])
+        if not conv:
+            continue
+
+        for msg in conv.get("messages", []):
+            if msg.get("role") == "assistant" and msg.get("notes"):
+                for note in msg["notes"]:
+                    quality = note.get("quality", {})
+                    if quality.get("score") is None:
+                        unscored.append({
+                            "conversation_id": conv["id"],
+                            "conversation_title": conv.get("title", "Untitled"),
+                            "note_id": note.get("id"),
+                            "note_title": note.get("title"),
+                            "note_body": note.get("body", "")[:200] + "..." if len(note.get("body", "")) > 200 else note.get("body", ""),
+                            "tags": note.get("tags", []),
+                            "starred": quality.get("starred", False),
+                            "created_at": conv.get("created_at"),
+                        })
+
+        if len(unscored) >= limit:
+            break
+
+    # Sort by created_at (oldest first)
+    unscored.sort(key=lambda x: x.get("created_at", ""), reverse=False)
+
+    return {"unscored_notes": unscored[:limit]}
+
+
+@app.get("/api/notes/quality-stats")
+async def get_note_quality_stats():
+    """Get statistics about note quality across all conversations."""
+    conversations = storage.list_conversations()
+
+    stats = {
+        "total_notes": 0,
+        "scored_notes": 0,
+        "unscored_notes": 0,
+        "starred_notes": 0,
+        "avg_score": 0.0,
+        "score_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+        "review_status": {
+            "unreviewed": 0,
+            "reviewed": 0,
+            "flagged": 0,
+        },
+    }
+
+    total_score = 0
+
+    for conv_summary in conversations:
+        if conv_summary.get("mode") != "synthesizer":
+            continue
+
+        conv = storage.get_conversation(conv_summary["id"])
+        if not conv:
+            continue
+
+        for msg in conv.get("messages", []):
+            if msg.get("role") == "assistant" and msg.get("notes"):
+                for note in msg["notes"]:
+                    stats["total_notes"] += 1
+                    quality = note.get("quality", {})
+
+                    # Starred count
+                    if quality.get("starred"):
+                        stats["starred_notes"] += 1
+
+                    # Score tracking
+                    score = quality.get("score")
+                    if score is not None:
+                        stats["scored_notes"] += 1
+                        total_score += score
+                        if 1 <= score <= 5:
+                            stats["score_distribution"][score] += 1
+                    else:
+                        stats["unscored_notes"] += 1
+
+                    # Review status
+                    status = quality.get("review_status", "unreviewed")
+                    if status in stats["review_status"]:
+                        stats["review_status"][status] += 1
+                    else:
+                        stats["review_status"]["unreviewed"] += 1
+
+    # Calculate average
+    if stats["scored_notes"] > 0:
+        stats["avg_score"] = round(total_score / stats["scored_notes"], 2)
+
+    return stats
+
+
 # Synthesizer Settings Endpoints
 
 class UpdateFirecrawlApiKeyRequest(BaseModel):
@@ -3779,6 +3963,7 @@ async def migrate_visualisation_links():
 # ===== Knowledge Graph Endpoints =====
 
 from . import knowledge_graph
+from . import graph_curation
 
 
 class ManualLinkRequest(BaseModel):
@@ -4496,6 +4681,384 @@ async def delete_sleep_compute_session(session_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"status": "deleted"}
+
+
+# =============================================================================
+# Knowledge Graph Curation Endpoints
+# =============================================================================
+
+class CurationAnalyzeRequest(BaseModel):
+    """Request to analyze the knowledge graph for curation candidates."""
+    rubrics: List[str] = ["duplicates", "missing", "suspect"]
+    threshold: float = 0.7  # For duplicate detection
+    min_co_occurrence: int = 3  # For missing relationship detection
+
+
+class CurationExecuteRequest(BaseModel):
+    """Request to execute a curation action."""
+    candidate_id: str
+    action: str  # "merge", "create_relationship", "delete_relationship", "dismiss"
+    params: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/knowledge-graph/curation/analyze")
+async def analyze_for_curation(request: CurationAnalyzeRequest):
+    """
+    Analyze the knowledge graph and generate curation candidates.
+
+    Returns a curation session with candidates for review.
+    """
+    session = graph_curation.create_curation_session(
+        rubrics=request.rubrics,
+        threshold=request.threshold,
+        min_co_occurrence=request.min_co_occurrence
+    )
+    return session.to_dict()
+
+
+@app.get("/api/knowledge-graph/curation/sessions")
+async def list_curation_sessions(limit: int = 20):
+    """List recent curation sessions."""
+    return {"sessions": graph_curation.list_curation_sessions(limit=limit)}
+
+
+@app.get("/api/knowledge-graph/curation/sessions/{session_id}")
+async def get_curation_session(session_id: str):
+    """Get a curation session by ID."""
+    session = graph_curation.get_curation_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Curation session not found")
+    return session.to_dict()
+
+
+@app.post("/api/knowledge-graph/curation/execute")
+async def execute_curation_action(request: CurationExecuteRequest):
+    """
+    Execute a curation action (merge, create_relationship, delete_relationship, dismiss).
+
+    Params vary by action type:
+    - merge: {"canonical_id": str, "merge_ids": [str]}
+    - create_relationship: {"source_id": str, "target_id": str, "relationship_type": str}
+    - delete_relationship: {"relationship_id": str}
+    - dismiss: {} (no additional params)
+    """
+    params = request.params or {}
+
+    if request.action == "merge":
+        if "canonical_id" not in params or "merge_ids" not in params:
+            raise HTTPException(status_code=400, detail="merge requires canonical_id and merge_ids")
+        result = graph_curation.execute_merge(
+            canonical_id=params["canonical_id"],
+            merge_ids=params["merge_ids"],
+            candidate_id=request.candidate_id
+        )
+
+    elif request.action == "create_relationship":
+        if not all(k in params for k in ["source_id", "target_id", "relationship_type"]):
+            raise HTTPException(status_code=400, detail="create_relationship requires source_id, target_id, relationship_type")
+        result = graph_curation.execute_create_relationship(
+            source_id=params["source_id"],
+            target_id=params["target_id"],
+            relationship_type=params["relationship_type"],
+            candidate_id=request.candidate_id
+        )
+
+    elif request.action == "delete_relationship":
+        if "relationship_id" not in params:
+            raise HTTPException(status_code=400, detail="delete_relationship requires relationship_id")
+        result = graph_curation.execute_delete_relationship(
+            relationship_id=params["relationship_id"],
+            candidate_id=request.candidate_id
+        )
+
+    elif request.action == "dismiss":
+        result = graph_curation.dismiss_candidate(request.candidate_id)
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {request.action}")
+
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return {"success": True, "result": result}
+
+
+@app.get("/api/knowledge-graph/curation/history")
+async def get_curation_history(limit: int = 50):
+    """Get recent curation action history."""
+    return {"history": graph_curation.get_curation_history(limit=limit)}
+
+
+@app.post("/api/knowledge-graph/curation/candidates/{candidate_id}/dismiss")
+async def dismiss_curation_candidate(candidate_id: str):
+    """Dismiss a curation candidate (won't be suggested again)."""
+    result = graph_curation.dismiss_candidate(candidate_id)
+    return result
+
+
+# =============================================================================
+# Agent-Enhanced Curation Endpoints
+# =============================================================================
+
+class AgentCurationAnalyzeRequest(BaseModel):
+    """Request for agent-enhanced curation analysis."""
+    rubrics: Optional[List[str]] = None
+    threshold: float = 0.7
+    max_candidates: int = 50
+
+
+@app.post("/api/knowledge-graph/curation/analyze-with-agent")
+async def analyze_curation_with_agent(request: AgentCurationAnalyzeRequest):
+    """
+    Analyze curation candidates with LLM-powered semantic reasoning.
+
+    This replaces simple fuzzy matching with three-way classification:
+    - SAME: Identical concept, naming variation (merge)
+    - RELATED: Distinct but connected concepts (create relationship)
+    - UNRELATED: False positive (dismiss)
+    """
+    from . import graph_curation_agent
+
+    rubrics = request.rubrics or ["duplicates"]
+
+    all_candidates = []
+
+    if "duplicates" in rubrics:
+        # Use agent-enhanced duplicate detection
+        duplicates = await graph_curation_agent.find_duplicate_candidates_with_agent(
+            threshold=request.threshold,
+            max_candidates=request.max_candidates,
+        )
+        all_candidates.extend([c.to_dict() for c in duplicates])
+
+    # For other rubrics, fall back to standard detection
+    if "missing" in rubrics:
+        missing = graph_curation.find_missing_relationship_candidates(
+            min_co_occurrence=3,
+            max_candidates=request.max_candidates,
+        )
+        all_candidates.extend([c.to_dict() for c in missing])
+
+    if "suspect" in rubrics:
+        suspect = graph_curation.validate_existing_relationships(
+            max_candidates=request.max_candidates,
+        )
+        all_candidates.extend([c.to_dict() for c in suspect])
+
+    return {"candidates": all_candidates}
+
+
+class AgentDecisionFeedbackRequest(BaseModel):
+    """Request to record user feedback on agent decision."""
+    candidate_id: str
+    agent_decision: str
+    agent_reasoning: str
+    user_action: str
+    override_reason: Optional[str] = None
+
+
+@app.post("/api/knowledge-graph/curation/agent-feedback")
+async def record_agent_decision_feedback(request: AgentDecisionFeedbackRequest):
+    """Record whether user agreed with agent's curation decision."""
+    from . import graph_curation_agent
+
+    graph_curation_agent.record_decision_outcome(
+        candidate_id=request.candidate_id,
+        agent_decision=request.agent_decision,
+        agent_reasoning=request.agent_reasoning,
+        user_action=request.user_action,
+        user_override_reason=request.override_reason,
+    )
+    return {"success": True}
+
+
+@app.get("/api/knowledge-graph/curation/agent-stats")
+async def get_agent_accuracy_stats():
+    """Get agent decision accuracy statistics."""
+    from . import graph_curation_agent
+
+    return graph_curation_agent.get_agent_accuracy_stats()
+
+
+# =============================================================================
+# Entity & Relationship Quality Endpoints
+# =============================================================================
+
+class EntityValidateRequest(BaseModel):
+    """Request to validate an entity."""
+    action: str  # "validate", "correct", "reject"
+    correction: Optional[Dict[str, Any]] = None
+    reason: Optional[str] = None
+
+
+class ManualEntityRequest(BaseModel):
+    """Request to manually add an entity."""
+    name: str
+    entity_type: str
+    context: Optional[str] = None
+
+
+class RelationshipValidateRequest(BaseModel):
+    """Request to validate a relationship."""
+    action: str  # "validate", "reject", "correct_type"
+    new_type: Optional[str] = None
+    reason: Optional[str] = None
+
+
+@app.post("/api/entities/{entity_id}/validate")
+async def validate_entity_endpoint(entity_id: str, request: EntityValidateRequest):
+    """Validate, correct, or reject an entity."""
+    from . import graph_quality
+
+    result = graph_quality.validate_entity(
+        entity_id=entity_id,
+        action=request.action,
+        correction=request.correction,
+        reason=request.reason,
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@app.post("/api/conversations/{conversation_id}/notes/{note_id}/entities")
+async def add_manual_entity(
+    conversation_id: str,
+    note_id: str,
+    request: ManualEntityRequest
+):
+    """Manually add an entity that was missed by extraction."""
+    from . import graph_quality
+
+    # Build full note ID
+    full_note_id = f"note:{conversation_id}:{note_id}"
+
+    result = graph_quality.add_manual_entity(
+        note_id=full_note_id,
+        name=request.name,
+        entity_type=request.entity_type,
+        context=request.context,
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@app.get("/api/entities/unvalidated")
+async def get_unvalidated_entities_endpoint(limit: int = 50):
+    """Get entities pending review."""
+    from . import graph_quality
+    return {"entities": graph_quality.get_unvalidated_entities(limit=limit)}
+
+
+@app.get("/api/conversations/{conversation_id}/notes/{note_id}/entities/review")
+async def get_entities_for_review(conversation_id: str, note_id: str):
+    """Get entities for a specific note for review."""
+    from . import graph_quality
+
+    full_note_id = f"note:{conversation_id}:{note_id}"
+    return {"entities": graph_quality.get_entities_for_note(full_note_id)}
+
+
+@app.post("/api/relationships/{relationship_id}/validate")
+async def validate_relationship_endpoint(
+    relationship_id: str,
+    request: RelationshipValidateRequest
+):
+    """Validate, reject, or correct a relationship."""
+    from . import graph_quality
+
+    result = graph_quality.validate_relationship(
+        relationship_id=relationship_id,
+        action=request.action,
+        new_type=request.new_type,
+        reason=request.reason,
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@app.get("/api/relationships/unvalidated")
+async def get_unvalidated_relationships_endpoint(limit: int = 50):
+    """Get relationships pending review."""
+    from . import graph_quality
+    return {"relationships": graph_quality.get_unvalidated_relationships(limit=limit)}
+
+
+@app.get("/api/knowledge-graph/quality")
+async def get_quality_metrics_endpoint():
+    """Get overall quality metrics for the knowledge graph."""
+    from . import graph_quality
+    return graph_quality.get_quality_metrics()
+
+
+@app.get("/api/knowledge-graph/feedback")
+async def get_feedback_dashboard_endpoint():
+    """Get feedback learning dashboard data."""
+    from . import graph_feedback
+    return graph_feedback.get_feedback_dashboard()
+
+
+@app.get("/api/knowledge-graph/feedback/patterns")
+async def get_correction_patterns_endpoint():
+    """Get correction pattern analysis."""
+    from . import graph_feedback
+    return graph_feedback.analyze_correction_patterns()
+
+
+@app.get("/api/knowledge-graph/feedback/confidence")
+async def get_confidence_accuracy_endpoint():
+    """Get confidence calibration analysis."""
+    from . import graph_feedback
+    return graph_feedback.analyze_confidence_accuracy()
+
+
+@app.get("/api/knowledge-graph/feedback/recommendations")
+async def get_prompt_recommendations_endpoint():
+    """Get prompt refinement recommendations."""
+    from . import graph_feedback
+    return graph_feedback.get_prompt_recommendations()
+
+
+@app.get("/api/knowledge-graph/provenance")
+async def get_provenance_stats_endpoint():
+    """Get provenance statistics for entities."""
+    from . import graph_quality
+    return graph_quality.get_provenance_stats()
+
+
+@app.get("/api/knowledge-graph/provenance/entities")
+async def get_entities_by_provenance_endpoint(
+    source: Optional[str] = None,
+    model: Optional[str] = None,
+    validated_by: Optional[str] = None,
+    limit: int = 100
+):
+    """Get entities filtered by provenance criteria."""
+    from . import graph_quality
+    return {"entities": graph_quality.get_entities_by_provenance(
+        source=source,
+        model=model,
+        validated_by=validated_by,
+        limit=limit
+    )}
+
+
+@app.get("/api/knowledge-graph/provenance/entities/{entity_id}")
+async def get_entity_provenance_detail_endpoint(entity_id: str):
+    """Get detailed provenance for a specific entity."""
+    from . import graph_quality
+    result = graph_quality.get_entity_provenance_detail(entity_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return result
 
 
 # =============================================================================

@@ -14,15 +14,23 @@ import EntryPointSelector from './EntryPointSelector';
  * - Sleep Time Compute: Multi-turn brainstorming with style selection and budget controls
  *
  * Note: Review functionality has been moved to KnowledgeGraphReview component
+ *
+ * Props:
+ * - mode: 'quick' | 'sleep' - the discovery mode (passed from parent)
+ * - onClose: close handler
+ * - onRefreshGraph: callback to refresh the graph
+ * - activeWorkers: array of active sleep compute workers
+ * - setActiveWorkers: setter for active workers
  */
 export default function KnowledgeGraphDiscover({
+  mode: initialMode = 'quick',
   onClose,
   onRefreshGraph,
   activeWorkers = [],      // Lifted to parent for persistence
   setActiveWorkers = null, // Lifted to parent for persistence
 }) {
-  // Mode toggle: 'quick' or 'sleep'
-  const [mode, setMode] = useState('quick');
+  // Mode state - initialized from prop, can be toggled by user within panel
+  const [mode, setMode] = useState(initialMode);
 
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,6 +58,11 @@ export default function KnowledgeGraphDiscover({
     "What patterns am I missing in my research?",
     "Suggest bridge notes connecting different domains",
   ];
+
+  // Sync mode when prop changes
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   // Auto-switch to sleep mode when there are active workers
   useEffect(() => {

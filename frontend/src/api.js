@@ -157,6 +157,76 @@ export const api = {
     return response.json();
   },
 
+  // ==========================================================================
+  // Note Quality & Scoring API
+  // ==========================================================================
+
+  /**
+   * Toggle star status on a note.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} noteId - The note ID
+   * @param {boolean} starred - Star status
+   */
+  async toggleNoteStar(conversationId, noteId, starred) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/notes/${noteId}/star`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starred }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to update star status');
+    }
+    return response.json();
+  },
+
+  /**
+   * Score a note with 1-5 rating.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} noteId - The note ID
+   * @param {number} score - Score from 1-5
+   * @param {string} notes - Optional review notes
+   */
+  async scoreNote(conversationId, noteId, score, notes = null) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/notes/${noteId}/score`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, notes }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to score note');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get unscored notes.
+   * @param {number} limit - Maximum notes to return
+   */
+  async getUnscoredNotes(limit = 50) {
+    const response = await fetch(`${API_BASE}/api/notes/unscored?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to get unscored notes');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get note quality statistics.
+   */
+  async getNoteQualityStats() {
+    const response = await fetch(`${API_BASE}/api/notes/quality-stats`);
+    if (!response.ok) {
+      throw new Error('Failed to get quality stats');
+    }
+    return response.json();
+  },
+
   /**
    * Mark a conversation as read.
    */
@@ -3422,6 +3492,381 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to update sleep compute settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Knowledge Graph Curation API
+  // ==========================================================================
+
+  /**
+   * Analyze the knowledge graph and generate curation candidates.
+   * @param {Object} options - Analysis options
+   * @param {Array<string>} options.rubrics - Rubrics to analyze ("duplicates", "missing", "suspect")
+   * @param {number} options.threshold - Similarity threshold for duplicate detection (0-1)
+   * @param {number} options.minCoOccurrence - Minimum co-occurrence for relationship suggestions
+   * @returns {Object} Curation session with candidates
+   */
+  async analyzeCuration(options = {}) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rubrics: options.rubrics || ['duplicates', 'missing', 'suspect'],
+        threshold: options.threshold || 0.7,
+        min_co_occurrence: options.minCoOccurrence || 3,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to analyze curation');
+    }
+    return response.json();
+  },
+
+  /**
+   * List recent curation sessions.
+   * @param {number} limit - Maximum sessions to return
+   */
+  async listCurationSessions(limit = 20) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/sessions?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to list curation sessions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a curation session by ID.
+   * @param {string} sessionId - The session ID
+   */
+  async getCurationSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/sessions/${sessionId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get curation session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Execute a curation action.
+   * @param {string} candidateId - The curation candidate ID
+   * @param {string} action - Action type: "merge", "create_relationship", "delete_relationship", "dismiss"
+   * @param {Object} params - Action-specific parameters
+   */
+  async executeCurationAction(candidateId, action, params = {}) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate_id: candidateId,
+        action: action,
+        params: params,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to execute curation action');
+    }
+    return response.json();
+  },
+
+  /**
+   * Dismiss a curation candidate (won't be suggested again).
+   * @param {string} candidateId - The candidate ID to dismiss
+   */
+  async dismissCurationCandidate(candidateId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/candidates/${candidateId}/dismiss`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to dismiss curation candidate');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get curation action history.
+   * @param {number} limit - Maximum history items to return
+   */
+  async getCurationHistory(limit = 50) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/history?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to get curation history');
+    }
+    return response.json();
+  },
+
+  /**
+   * Analyze curation with LLM-powered semantic reasoning.
+   * This uses three-way classification: SAME/RELATED/UNRELATED.
+   * @param {Object} options - Analysis options
+   * @param {Array<string>} options.rubrics - Rubrics to analyze
+   * @param {number} options.threshold - Similarity threshold
+   * @param {number} options.maxCandidates - Maximum candidates to return
+   */
+  async analyzeCurationWithAgent(options = {}) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/analyze-with-agent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rubrics: options.rubrics || ['duplicates'],
+        threshold: options.threshold || 0.7,
+        max_candidates: options.maxCandidates || 50,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to analyze curation with agent');
+    }
+    return response.json();
+  },
+
+  /**
+   * Record user feedback on agent decision.
+   * @param {Object} feedback - Feedback data
+   */
+  async recordAgentFeedback(feedback) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/agent-feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate_id: feedback.candidateId,
+        agent_decision: feedback.agentDecision,
+        agent_reasoning: feedback.agentReasoning,
+        user_action: feedback.userAction,
+        override_reason: feedback.overrideReason,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to record agent feedback');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get agent decision accuracy statistics.
+   */
+  async getAgentAccuracyStats() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/curation/agent-stats`);
+    if (!response.ok) {
+      throw new Error('Failed to get agent stats');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Entity & Relationship Quality API
+  // ==========================================================================
+
+  /**
+   * Validate, correct, or reject an entity.
+   * @param {string} entityId - The entity ID
+   * @param {string} action - "validate", "correct", or "reject"
+   * @param {object} options - Additional options (correction, reason)
+   */
+  async validateEntity(entityId, action, options = {}) {
+    const response = await fetch(`${API_BASE}/api/entities/${entityId}/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        correction: options.correction,
+        reason: options.reason,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to validate entity');
+    }
+    return response.json();
+  },
+
+  /**
+   * Manually add an entity to a note.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} noteId - The note ID
+   * @param {string} name - Entity name
+   * @param {string} entityType - Entity type
+   * @param {string} context - Context where entity appears
+   */
+  async addManualEntity(conversationId, noteId, name, entityType, context = null) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/notes/${noteId}/entities`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          entity_type: entityType,
+          context,
+        }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to add entity');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get unvalidated entities.
+   * @param {number} limit - Maximum entities to return
+   */
+  async getUnvalidatedEntities(limit = 50) {
+    const response = await fetch(`${API_BASE}/api/entities/unvalidated?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to get unvalidated entities');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get entities for a note for review.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} noteId - The note ID
+   */
+  async getEntitiesForReview(conversationId, noteId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/notes/${noteId}/entities/review`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get entities for review');
+    }
+    return response.json();
+  },
+
+  /**
+   * Validate, reject, or correct a relationship.
+   * @param {string} relationshipId - The relationship ID
+   * @param {string} action - "validate", "reject", or "correct_type"
+   * @param {object} options - Additional options (new_type, reason)
+   */
+  async validateRelationship(relationshipId, action, options = {}) {
+    const response = await fetch(`${API_BASE}/api/relationships/${relationshipId}/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        new_type: options.newType,
+        reason: options.reason,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to validate relationship');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get unvalidated relationships.
+   * @param {number} limit - Maximum relationships to return
+   */
+  async getUnvalidatedRelationships(limit = 50) {
+    const response = await fetch(`${API_BASE}/api/relationships/unvalidated?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to get unvalidated relationships');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get quality metrics for the knowledge graph.
+   */
+  async getKnowledgeGraphQuality() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/quality`);
+    if (!response.ok) {
+      throw new Error('Failed to get quality metrics');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get feedback learning dashboard data.
+   */
+  async getKnowledgeGraphFeedback() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/feedback`);
+    if (!response.ok) {
+      throw new Error('Failed to get feedback data');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get correction pattern analysis.
+   */
+  async getKnowledgeGraphFeedbackPatterns() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/feedback/patterns`);
+    if (!response.ok) {
+      throw new Error('Failed to get correction patterns');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get confidence calibration analysis.
+   */
+  async getKnowledgeGraphConfidenceAccuracy() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/feedback/confidence`);
+    if (!response.ok) {
+      throw new Error('Failed to get confidence accuracy');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get prompt refinement recommendations.
+   */
+  async getKnowledgeGraphRecommendations() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/feedback/recommendations`);
+    if (!response.ok) {
+      throw new Error('Failed to get recommendations');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get provenance statistics for entities.
+   */
+  async getProvenanceStats() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/provenance`);
+    if (!response.ok) {
+      throw new Error('Failed to get provenance stats');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get entities filtered by provenance criteria.
+   * @param {Object} params - Filter parameters
+   * @param {string} [params.source] - Filter by source (extraction, manual, inference)
+   * @param {string} [params.model] - Filter by extraction model
+   * @param {string} [params.validatedBy] - Filter by validator (user, auto)
+   * @param {number} [params.limit] - Maximum results
+   */
+  async getEntitiesByProvenance(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.source) queryParams.append('source', params.source);
+    if (params.model) queryParams.append('model', params.model);
+    if (params.validatedBy) queryParams.append('validated_by', params.validatedBy);
+    if (params.limit) queryParams.append('limit', params.limit);
+
+    const url = `${API_BASE}/api/knowledge-graph/provenance/entities${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to get entities by provenance');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get detailed provenance for a specific entity.
+   * @param {string} entityId - The entity ID
+   */
+  async getEntityProvenanceDetail(entityId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/provenance/entities/${entityId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get entity provenance');
     }
     return response.json();
   },

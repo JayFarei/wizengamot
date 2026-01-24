@@ -14,6 +14,12 @@ from difflib import SequenceMatcher
 from .openrouter import query_model
 from .storage import get_conversation, list_conversations
 from .settings import get_knowledge_graph_model
+from .source_metadata import (
+    SourceMetadata,
+    extract_source_metadata,
+    build_source_context_prompt,
+    EntityInfo
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +102,9 @@ def save_manual_links(data: Dict[str, Any]):
         json.dump(data, f, indent=2)
 
 
-# Entity extraction prompt
+# Entity extraction prompt (with optional source context)
 ENTITY_EXTRACTION_PROMPT = """Extract key entities from this knowledge note. Return a JSON array.
-
+{source_context}
 Title: {title}
 Content: {body}
 
@@ -109,6 +115,7 @@ Rules:
 - Extract only significant, reusable entities (not generic terms like "technology", "system", "data")
 - Normalize names (e.g., "AI" not "artificial intelligence" if that's the common form)
 - Type must be one of: person, organization, concept, technology, event
+- If source context mentions an author/creator, include them if they are relevant to the note content
 - Maximum 5 entities per note
 - Return empty array [] if no significant entities found
 - Return ONLY the JSON array, no explanation"""
@@ -143,13 +150,16 @@ VALID_RELATIONSHIP_TYPES = {
     "builds_on",
     "contrasts_with",
     "applies_to",
-    "created_by"
+    "created_by",
+    "published_on",
+    "mentioned_in"
 }
 
 
 async def extract_entities_from_note(
     note: Dict[str, Any],
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    source_context: Optional[SourceMetadata] = None
 ) -> List[Dict[str, Any]]:
     """
     Extract entities from a single note using LLM.
@@ -157,6 +167,7 @@ async def extract_entities_from_note(
     Args:
         note: Note dict with title and body
         model: Model to use for extraction (defaults to settings)
+        source_context: Optional SourceMetadata for enriching extraction
 
     Returns:
         List of entity dicts with name, type, context
@@ -164,9 +175,17 @@ async def extract_entities_from_note(
     if model is None:
         model = get_knowledge_graph_model()
 
+    # Build source context section if available
+    source_context_str = ""
+    if source_context:
+        source_context_str = build_source_context_prompt(source_context)
+        if source_context_str:
+            source_context_str = "\n" + source_context_str + "\n"
+
     prompt = ENTITY_EXTRACTION_PROMPT.format(
         title=note.get("title", ""),
-        body=note.get("body", "")
+        body=note.get("body", ""),
+        source_context=source_context_str
     )
 
     messages = [
@@ -503,7 +522,8 @@ def standardize_entity(
 
 async def extract_entities_for_conversation(
     conversation_id: str,
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    use_source_context: bool = True
 ) -> Dict[str, Any]:
     """
     Extract entities from all notes in a conversation.
@@ -511,6 +531,7 @@ async def extract_entities_for_conversation(
     Args:
         conversation_id: Conversation ID
         model: Model to use for extraction (defaults to settings)
+        use_source_context: Whether to extract and use source metadata
 
     Returns:
         Dict with extracted entity count and details
@@ -536,6 +557,70 @@ async def extract_entities_for_conversation(
     total_extracted = 0
     total_relationships = 0
     notes_processed = 0
+    source_entities_created = 0
+
+    # Extract source metadata once per conversation
+    source_metadata = None
+    source_url = None
+    source_type = "article"
+    source_title = conversation.get("title", "Untitled")
+
+    if use_source_context:
+        # Find source info from first assistant message
+        for msg in conversation.get("messages", []):
+            if msg.get("role") == "assistant":
+                source_url = msg.get("source_url")
+                source_type = msg.get("source_type", "article")
+                if msg.get("source_title"):
+                    source_title = msg["source_title"]
+                break
+
+        # Extract source metadata (use Crawl4AI for articles, LLM for others)
+        if source_url:
+            try:
+                source_metadata = await extract_source_metadata(
+                    url=source_url,
+                    title=source_title,
+                    source_type=source_type,
+                    use_crawler=(source_type == "article"),
+                    use_llm=True
+                )
+                logger.info(f"Extracted source metadata for {conversation_id}: {source_metadata.content_type}")
+            except Exception as e:
+                logger.warning(f"Failed to extract source metadata: {e}")
+
+    # Create source entities (author, publisher) once per conversation
+    source_entity_ids = []
+    if source_metadata:
+        # Create author entities
+        for author_entity in source_metadata.author_entities:
+            entity_id = standardize_entity(
+                {
+                    "name": author_entity.name,
+                    "type": author_entity.type,
+                    "context": f"{author_entity.role} of content from {source_title}"
+                },
+                existing_entities,
+                conversation_id,
+                "__source__"  # Special note ID for source-level entities
+            )
+            source_entity_ids.append((entity_id, "created_by", author_entity.role))
+            source_entities_created += 1
+
+        # Create context entities (publisher, publication)
+        for context_entity in source_metadata.context_entities:
+            entity_id = standardize_entity(
+                {
+                    "name": context_entity.name,
+                    "type": context_entity.type,
+                    "context": f"{context_entity.role} of {source_title}"
+                },
+                existing_entities,
+                conversation_id,
+                "__source__"
+            )
+            source_entity_ids.append((entity_id, "published_on", context_entity.role))
+            source_entities_created += 1
 
     # Process each message with notes
     for msg in conversation.get("messages", []):
@@ -547,8 +632,8 @@ async def extract_entities_for_conversation(
         for note in notes:
             note_key = f"{conversation_id}:{note['id']}"
 
-            # Extract entities
-            entities = await extract_entities_from_note(note, model)
+            # Extract entities with source context
+            entities = await extract_entities_from_note(note, model, source_metadata)
 
             # Standardize and store
             entity_ids = []
@@ -603,6 +688,42 @@ async def extract_entities_for_conversation(
 
             notes_processed += 1
 
+            # Create source-level relationships for this note's entities
+            if source_entity_ids and entity_ids:
+                for note_entity_id in entity_ids:
+                    note_entity = existing_entities.get(note_entity_id, {})
+                    note_entity_name = note_entity.get("name", "")
+
+                    for source_entity_id, rel_type, role in source_entity_ids:
+                        # Don't create self-referential relationships
+                        if source_entity_id == note_entity_id:
+                            continue
+
+                        # Check if relationship already exists
+                        existing_rel = any(
+                            r["source_entity_id"] == note_entity_id and
+                            r["target_entity_id"] == source_entity_id and
+                            r["type"] == rel_type
+                            for r in entity_relationships
+                        )
+
+                        if not existing_rel:
+                            source_entity = existing_entities.get(source_entity_id, {})
+                            source_entity_name = source_entity.get("name", "")
+
+                            entity_relationships.append({
+                                "id": f"rel_src_{uuid.uuid4().hex[:8]}",
+                                "source_entity_id": note_entity_id,
+                                "target_entity_id": source_entity_id,
+                                "source_entity_name": note_entity_name,
+                                "target_entity_name": source_entity_name,
+                                "type": rel_type,
+                                "bidirectional": False,
+                                "source_note": f"note:{conversation_id}:{note['id']}",
+                                "auto_generated": True
+                            })
+                            total_relationships += 1
+
     # Mark conversation as processed
     processed = data.get("processed_conversations", [])
     if conversation_id not in processed:
@@ -620,7 +741,9 @@ async def extract_entities_for_conversation(
         "notes_processed": notes_processed,
         "entities_extracted": total_extracted,
         "relationships_extracted": total_relationships,
-        "unique_entities": len(existing_entities)
+        "unique_entities": len(existing_entities),
+        "source_entities_created": source_entities_created,
+        "source_metadata": source_metadata.to_dict() if source_metadata else None
     }
 
 
@@ -705,6 +828,7 @@ def build_graph() -> Dict[str, Any]:
                 "sourceUrl": source_url,  # URL of original source
                 "sourceType": source_type,  # Type of source (youtube, podcast, pdf, article)
                 "created_at": full_conv.get("created_at"),  # Conversation creation time
+                "quality": note.get("quality", {}),  # Include quality data for starring
             })
             node_ids.add(note_id)
 
