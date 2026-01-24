@@ -347,6 +347,51 @@
   line-height: 1.3;
 }
 
+.note-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.note-star-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.note-star-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--warning);
+}
+
+.note-star-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.note-star-btn.starred {
+  color: var(--warning);
+}
+
+.note-star-btn.starred:hover {
+  color: var(--text-muted);
+}
+
+.note-star-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .note-model {
   font-size: 11px;
   color: var(--text-tertiary);

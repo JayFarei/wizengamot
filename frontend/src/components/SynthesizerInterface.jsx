@@ -332,6 +332,38 @@ export default function SynthesizerInterface({
     }
   }, [onConversationUpdate]);
 
+  // Handle note quality update (star, score, etc.)
+  const handleNoteQualityUpdate = useCallback((noteId, qualityUpdate) => {
+    if (!conversation || !onConversationUpdate) return;
+
+    // Create updated conversation with the quality update applied
+    const updatedConversation = {
+      ...conversation,
+      messages: conversation.messages.map(msg => {
+        if (msg.role === 'assistant' && msg.notes) {
+          return {
+            ...msg,
+            notes: msg.notes.map(note => {
+              if (note.id === noteId) {
+                return {
+                  ...note,
+                  quality: {
+                    ...(note.quality || {}),
+                    ...qualityUpdate,
+                  },
+                };
+              }
+              return note;
+            }),
+          };
+        }
+        return msg;
+      }),
+    };
+
+    onConversationUpdate(updatedConversation);
+  }, [conversation, onConversationUpdate]);
+
   // Get pinned notes info for conversation view header
   const pinnedNotesInfo = useMemo(() => {
     if (!followUpMessages.length || !latestNotes) return [];
@@ -451,6 +483,7 @@ export default function SynthesizerInterface({
                 reviewSessionCount={reviewSessionCount}
                 onToggleReviewSidebar={onToggleReviewSidebar}
                 onNavigateToGraphEntity={onNavigateToGraphEntity}
+                onNoteQualityUpdate={handleNoteQualityUpdate}
               />
             )
           )}
