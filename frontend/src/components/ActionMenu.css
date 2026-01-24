@@ -171,3 +171,25 @@
 .action-menu-submenu-back svg {
   color: var(--text-secondary);
 }
+
+/* Hint at bottom */
+.action-menu-hint {
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-menu-hint kbd {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text-secondary);
+}

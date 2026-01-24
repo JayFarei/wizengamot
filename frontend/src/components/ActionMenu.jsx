@@ -150,6 +150,10 @@ function ActionMenuDivider() {
   return <div className="action-menu-divider" />;
 }
 
+function ActionMenuHint({ children }) {
+  return <div className="action-menu-hint">{children}</div>;
+}
+
 function ActionMenuSubmenu({ id, icon, label, badge, children, onOpenSubmenu }) {
   const handleClick = () => {
     onOpenSubmenu?.();
@@ -175,3 +179,4 @@ function ActionMenuSubmenu({ id, icon, label, badge, children, onOpenSubmenu }) 
 ActionMenu.Item = ActionMenuItem;
 ActionMenu.Divider = ActionMenuDivider;
 ActionMenu.Submenu = ActionMenuSubmenu;
+ActionMenu.Hint = ActionMenuHint;

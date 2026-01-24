@@ -236,6 +236,106 @@ export default function CouncilDiscussionView({
     setActiveModelIndex(0);
   }, [activeStage]);
 
+  // Command palette action listener
+  useEffect(() => {
+    const handleCommandPaletteAction = async (e) => {
+      const { action } = e.detail;
+      switch (action) {
+        case 'copyResponse':
+          // Copy current stage response to clipboard
+          if (latestCouncilMessage?.message) {
+            let content = '';
+            if (activeStage === 3 && latestCouncilMessage.message.stage3) {
+              content = latestCouncilMessage.message.stage3;
+            } else if (activeStage === 2 && latestCouncilMessage.message.stage2?.[activeModelIndex]) {
+              content = latestCouncilMessage.message.stage2[activeModelIndex].evaluation;
+            } else if (activeStage === 1 && latestCouncilMessage.message.stage1?.[activeModelIndex]) {
+              content = latestCouncilMessage.message.stage1[activeModelIndex].content;
+            }
+            if (content) {
+              try {
+                await navigator.clipboard.writeText(content);
+              } catch (err) {
+                console.error('Failed to copy:', err);
+              }
+            }
+          }
+          break;
+        case 'addToContext':
+          // Add current response to context stack
+          if (onAddContextSegment && latestCouncilMessage?.message) {
+            let content = '';
+            let label = '';
+            if (activeStage === 3 && latestCouncilMessage.message.stage3) {
+              content = latestCouncilMessage.message.stage3;
+              label = 'Stage 3 - Final Answer';
+            } else if (activeStage === 2 && latestCouncilMessage.message.stage2?.[activeModelIndex]) {
+              const model = latestCouncilMessage.message.stage2[activeModelIndex].model;
+              content = latestCouncilMessage.message.stage2[activeModelIndex].evaluation;
+              label = `Stage 2 - ${model?.split('/')[1] || model}`;
+            } else if (activeStage === 1 && latestCouncilMessage.message.stage1?.[activeModelIndex]) {
+              const model = latestCouncilMessage.message.stage1[activeModelIndex].model;
+              content = latestCouncilMessage.message.stage1[activeModelIndex].content;
+              label = `Stage 1 - ${model?.split('/')[1] || model}`;
+            }
+            if (content) {
+              onAddContextSegment({
+                id: `stage-${activeStage}-${activeModelIndex}-${Date.now()}`,
+                sourceType: 'council',
+                stage: activeStage,
+                model: activeStage === 3 ? 'chairman' : (latestCouncilMessage.message[`stage${activeStage}`]?.[activeModelIndex]?.model || 'unknown'),
+                messageIndex: latestCouncilMessage.index,
+                label: label,
+                content: content,
+              });
+            }
+          }
+          break;
+        case 'exportConversation':
+          // Export full conversation as markdown
+          if (conversation?.messages) {
+            const parts = [];
+            parts.push(`# Council Discussion: ${conversation.title || 'Untitled'}`);
+            parts.push('');
+
+            for (const msg of conversation.messages) {
+              if (msg.role === 'user') {
+                parts.push('## Question');
+                parts.push(msg.content);
+                parts.push('');
+              } else if (msg.role === 'assistant') {
+                if (msg.stage1) {
+                  parts.push('## Stage 1: Individual Responses');
+                  msg.stage1.forEach((r, i) => {
+                    parts.push(`### ${r.model?.split('/')[1] || r.model}`);
+                    parts.push(r.content);
+                    parts.push('');
+                  });
+                }
+                if (msg.stage3) {
+                  parts.push('## Final Answer');
+                  parts.push(msg.stage3);
+                  parts.push('');
+                }
+              }
+            }
+
+            try {
+              await navigator.clipboard.writeText(parts.join('\n'));
+            } catch (err) {
+              console.error('Failed to export:', err);
+            }
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('commandPalette:action', handleCommandPaletteAction);
+    return () => window.removeEventListener('commandPalette:action', handleCommandPaletteAction);
+  }, [activeStage, activeModelIndex, latestCouncilMessage, onAddContextSegment, conversation]);
+
   // Get current active model
   const activeModel = stageModels[activeModelIndex] || null;
 
@@ -441,6 +541,9 @@ export default function CouncilDiscussionView({
                   onClick={onToggleReviewSidebar}
                 />
               )}
+              <ActionMenu.Hint>
+                <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> Command Palette
+              </ActionMenu.Hint>
             </ActionMenu>
           </div>
         </div>

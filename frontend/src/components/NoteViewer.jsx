@@ -524,6 +524,38 @@ export default function NoteViewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Command palette action listener
+  useEffect(() => {
+    const handleCommandPaletteAction = (e) => {
+      const { action } = e.detail;
+      switch (action) {
+        case 'copyNote':
+          copyNoteToClipboard();
+          break;
+        case 'copyAllNotes':
+          copyAllNotesToClipboard();
+          break;
+        case 'browseRelated':
+          setShowPanesView(true);
+          break;
+        case 'editSourceInfo':
+          handleOpenSourceMetadata();
+          break;
+        case 'viewLinkedDiagrams':
+          // If there are linked visualisations, navigate to first one
+          if (linkedVisualisations.length > 0 && onSelectConversation) {
+            onSelectConversation(linkedVisualisations[0].id);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('commandPalette:action', handleCommandPaletteAction);
+    return () => window.removeEventListener('commandPalette:action', handleCommandPaletteAction);
+  }, [copyNoteToClipboard, copyAllNotesToClipboard, handleOpenSourceMetadata, linkedVisualisations, onSelectConversation]);
+
   // Wheel navigation for swipe view
   useEffect(() => {
     if (viewMode !== 'swipe' || focusMode) return;
@@ -941,6 +973,9 @@ export default function NoteViewer({
                 onClick={() => window.open(sourceUrl, '_blank')}
               />
             )}
+            <ActionMenu.Hint>
+              <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> Command Palette
+            </ActionMenu.Hint>
           </ActionMenu>
         </div>
       </div>

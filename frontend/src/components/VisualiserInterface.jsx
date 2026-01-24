@@ -126,6 +126,41 @@ export default function VisualiserInterface({ conversation, conversations, onCon
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fullscreenMode, showPromptModal, currentImage, isSpellChecking]);
 
+  // Command palette action listener
+  useEffect(() => {
+    const handleCommandPaletteAction = (e) => {
+      const { action } = e.detail;
+      switch (action) {
+        case 'downloadDiagram':
+          if (currentImage) handleDownload();
+          break;
+        case 'spellCheck':
+          if (currentImage && !isSpellChecking) handleSpellCheck();
+          break;
+        case 'newDiagram':
+          handleNewDiagram();
+          break;
+        case 'prevVersion':
+          goPrevVersion();
+          break;
+        case 'nextVersion':
+          goNextVersion();
+          break;
+        case 'enterFullscreen':
+          if (currentImage) setFullscreenMode(true);
+          break;
+        case 'copySourceContent':
+          handleCopySource();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('commandPalette:action', handleCommandPaletteAction);
+    return () => window.removeEventListener('commandPalette:action', handleCommandPaletteAction);
+  }, [currentImage, isSpellChecking]);
+
   // Focus source options for keyboard navigation when no image exists
   useEffect(() => {
     if (!latestImage && sourceOptionsRef.current) {
@@ -549,6 +584,9 @@ export default function VisualiserInterface({ conversation, conversations, onCon
                   label="New Diagram"
                   onClick={handleNewDiagram}
                 />
+                <ActionMenu.Hint>
+                  <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> Command Palette
+                </ActionMenu.Hint>
               </ActionMenu>
             </div>
           </div>
