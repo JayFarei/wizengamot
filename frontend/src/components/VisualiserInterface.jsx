@@ -12,6 +12,8 @@ export default function VisualiserInterface({ conversation, conversations, onCon
   const [selectedConversationTitle, setSelectedConversationTitle] = useState(null);
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
+  const [referenceImage, setReferenceImage] = useState(null);
+  const [referenceImagePreview, setReferenceImagePreview] = useState(null);
   const [selectedStyle, setSelectedStyle] = useState('bento');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
@@ -244,6 +246,41 @@ export default function VisualiserInterface({ conversation, conversations, onCon
     loadDiagramStyles();
   }, []);
 
+  const handleReferenceImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image file must be less than 5MB');
+      return;
+    }
+
+    // Read and convert to base64
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target.result;
+      setReferenceImage(base64String);
+      setReferenceImagePreview(base64String);
+      setError(null);
+    };
+    reader.onerror = () => {
+      setError('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveReferenceImage = () => {
+    setReferenceImage(null);
+    setReferenceImagePreview(null);
+  };
+
   const handleGenerate = async () => {
     if (!sourceType) {
       setError('Please select a content source');
@@ -278,6 +315,7 @@ export default function VisualiserInterface({ conversation, conversations, onCon
         source_url: sourceType === 'url' ? url.trim() : undefined,
         source_text: sourceType === 'text' ? text.trim() : undefined,
         style: selectedStyle,
+        reference_image: sourceType === 'text' && referenceImage ? referenceImage : undefined,
       });
 
       // Update conversation
@@ -292,6 +330,8 @@ export default function VisualiserInterface({ conversation, conversations, onCon
       setSelectedConversationTitle(null);
       setUrl('');
       setText('');
+      setReferenceImage(null);
+      setReferenceImagePreview(null);
     } catch (err) {
       console.error('Visualise error:', err);
       setError(err.message || 'Failed to generate diagram');
@@ -317,6 +357,8 @@ export default function VisualiserInterface({ conversation, conversations, onCon
     setSelectedConversationTitle(null);
     setUrl('');
     setText('');
+    setReferenceImage(null);
+    setReferenceImagePreview(null);
     setError(null);
   };
 
@@ -846,13 +888,56 @@ export default function VisualiserInterface({ conversation, conversations, onCon
               )}
 
               {sourceType === 'text' && (
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Paste or type content to visualize..."
-                  rows={6}
-                  className="visualiser-text-input"
-                />
+                <>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Paste or type content to visualize..."
+                    rows={6}
+                    className="visualiser-text-input"
+                  />
+
+                  <div className="visualiser-reference-image-section">
+                    <label className="visualiser-reference-image-label">
+                      Reference Image (Optional)
+                      <span className="visualiser-reference-image-hint">
+                        Upload an image to extend the prompt with a reference image.
+                      </span>
+                    </label>
+
+                    {!referenceImagePreview ? (
+                      <label className="visualiser-reference-image-upload">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleReferenceImageChange}
+                          style={{ display: 'none' }}
+                        />
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span>Click to upload reference image</span>
+                      </label>
+                    ) : (
+                      <div className="visualiser-reference-image-preview">
+                        <img src={referenceImagePreview} alt="Reference" />
+                        <button
+                          type="button"
+                          className="visualiser-reference-image-remove"
+                          onClick={handleRemoveReferenceImage}
+                          title="Remove reference image"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}

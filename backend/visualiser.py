@@ -49,7 +49,8 @@ async def generate_diagram(
     content: str,
     style: str,
     model: Optional[str] = None,
-    custom_prompt: Optional[str] = None
+    custom_prompt: Optional[str] = None,
+    reference_image: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate a diagram image from content using specified style.
@@ -59,6 +60,7 @@ async def generate_diagram(
         style: Diagram style key (bento, whiteboard, system_diagram, napkin, cheatsheet, cartoon, or custom)
         model: Model to use (defaults to configured visualiser model)
         custom_prompt: Optional custom prompt to use instead of style-based prompt
+        reference_image: Optional base64-encoded reference image to guide the generation
 
     Returns:
         {
@@ -99,10 +101,31 @@ Remember: Output the actual image, not a description."""
         "Content-Type": "application/json",
     }
 
+    # Build message content (TextContent + ImageContentPart if reference image provided)
+    if reference_image:
+        # If reference_image already has data URL prefix, use as-is; otherwise add it
+        if not reference_image.startswith("data:"):
+            image_url = f"data:image/png;base64,{reference_image}"
+        else:
+            image_url = reference_image
+
+        message_content = [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                    "detail": content
+                }
+            },
+            {"type": "text", "text": full_prompt}
+        ]
+    else:
+        message_content = full_prompt
+
     payload = {
         "model": model,
         "messages": [
-            {"role": "user", "content": full_prompt}
+            {"role": "user", "content": message_content}
         ],
     }
 

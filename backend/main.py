@@ -2089,6 +2089,7 @@ class VisualiseRequest(BaseModel):
     source_text: Optional[str] = None
     style: str = "bento"
     model: Optional[str] = None
+    reference_image: Optional[str] = None  # Base64-encoded reference image
 
 
 @app.post("/api/conversations/{conversation_id}/visualise")
@@ -2160,7 +2161,8 @@ async def visualise_content(conversation_id: str, request: VisualiseRequest):
     result = await visualiser.generate_diagram(
         source_content,
         request.style,
-        request.model
+        request.model,
+        reference_image=request.reference_image
     )
 
     if result.get("error"):
