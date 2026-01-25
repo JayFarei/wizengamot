@@ -15,6 +15,8 @@ import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
 import PodcastInterface from './components/PodcastInterface';
 import PodcastReplayView from './components/PodcastReplayView';
+import MiniPlayer from './components/MiniPlayer';
+import { PodcastPlayerProvider } from './contexts/PodcastPlayerContext';
 import ImageGallery from './components/ImageGallery';
 import ConversationGallery from './components/ConversationGallery';
 import PodcastGallery from './components/PodcastGallery';
@@ -1947,7 +1949,23 @@ function App() {
     return [];
   }, [currentConversation, currentConversationId, totalContextItems, dispatchCommandPaletteAction, handleNavigateToPodcast, handleNavigateToVisualiser, handleSelectConversation, setShowCommitSidebar]);
 
+  // Handle expand from MiniPlayer - navigate to podcast replay
+  const handleExpandPodcast = useCallback((session) => {
+    if (session?.session_id) {
+      setCurrentPodcastId(session.session_id);
+      setCurrentConversationId(null);
+      setCurrentMonitorId(null);
+      setShowPodcastGallery(false);
+      setShowImageGallery(false);
+      setShowCouncilGallery(false);
+      setShowNotesGallery(false);
+      setShowKnowledgeGraph(false);
+      setShowPodcastSetup(false);
+    }
+  }, []);
+
   return (
+    <PodcastPlayerProvider onExpand={handleExpandPodcast}>
     <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''} ${showCommitSidebar ? 'right-open' : ''}`}>
       <Sidebar
         conversations={conversations}
@@ -2416,7 +2434,9 @@ function App() {
         mode={currentConversation?.mode}
         actions={commandPaletteActions}
       />
+      <MiniPlayer />
     </div>
+    </PodcastPlayerProvider>
   );
 }
 

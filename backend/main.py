@@ -14,7 +14,7 @@ import threading
 import time
 import os
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, synthesizer_kg, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles
+from . import storage, config, prompts, threads, settings, content, synthesizer, synthesizer_kg, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles, podcast_characters
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
@@ -3378,6 +3378,12 @@ class CreatePodcastSessionRequest(BaseModel):
     style: str = "conversational"
 
 
+class DiscoverNotesRequest(BaseModel):
+    """Request to discover relevant notes for podcast source material."""
+    topic: str
+    limit: int = 10
+
+
 class SpeakerConfigRequest(BaseModel):
     """Request to update host or expert speaker config."""
     voice_id: Optional[str] = None
@@ -3658,6 +3664,21 @@ def _generate_podcast_audio_background_sync(session_id: str):
             podcast_storage.save_podcast_session(sess)
     finally:
         loop.close()
+
+
+@app.post("/api/podcast/discover-notes")
+async def discover_podcast_notes(request: DiscoverNotesRequest):
+    """
+    Discover relevant notes from Knowledge Graph for podcast source material.
+
+    Uses semantic search to find synthesizer notes matching the topic.
+    Returns full note content including title, body, source URL.
+    """
+    notes = await podcast.discover_relevant_notes(request.topic, request.limit)
+    return {
+        "notes": notes,
+        "total": len(notes)
+    }
 
 
 @app.post("/api/podcast/sessions")
@@ -3946,6 +3967,163 @@ async def get_podcast_audio_endpoint(session_id: str):
         return FileResponse(str(elevenlabs_path), media_type="audio/mpeg")
 
     raise HTTPException(status_code=404, detail="No audio generated for this session")
+
+
+# ===== Podcast Character Endpoints =====
+
+from fastapi import File, Form, UploadFile
+
+
+class CreateCharacterPersonality(BaseModel):
+    """Personality configuration for a character."""
+    traits: str = ""
+    key_phrases: List[str] = Field(default_factory=list)
+    expertise_areas: List[str] = Field(default_factory=list)
+    speaking_role: str = "host"
+    emotion_style: str = ""
+
+
+class UpdateCharacterRequest(BaseModel):
+    """Request to update a character."""
+    name: Optional[str] = None
+    personality: Optional[CreateCharacterPersonality] = None
+    voice_config: Optional[Dict[str, Any]] = None
+
+
+class PreviewVoiceRequest(BaseModel):
+    """Request to preview a character's voice."""
+    text: Optional[str] = None
+
+
+@app.get("/api/podcast/characters")
+async def list_podcast_characters():
+    """List all podcast characters."""
+    characters = await podcast_characters.list_characters()
+    return {"characters": characters, "count": len(characters)}
+
+
+@app.get("/api/podcast/characters/prebuilt-voices")
+async def get_prebuilt_voices():
+    """Get list of available prebuilt voices from Qwen3-TTS."""
+    voices = await podcast_characters.get_prebuilt_voices()
+    return {"voices": voices}
+
+
+@app.get("/api/podcast/characters/tts-health")
+async def check_tts_health():
+    """Check if the Qwen3-TTS service is available."""
+    status = await podcast_characters.check_tts_service_health()
+    return status
+
+
+@app.post("/api/podcast/characters")
+async def create_podcast_character(
+    name: str = Form(...),
+    voice_mode: str = Form(...),
+    voice_config: str = Form(...),
+    personality: str = Form(...),
+    audio_file: UploadFile = File(None),
+):
+    """
+    Create a new podcast character.
+
+    For clone mode, include audio_file with the voice sample.
+    voice_config and personality should be JSON strings.
+    """
+    try:
+        voice_config_dict = json.loads(voice_config)
+        personality_dict = json.loads(personality)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+
+    audio_bytes = None
+    if audio_file:
+        audio_bytes = await audio_file.read()
+
+    try:
+        character = await podcast_characters.create_character(
+            name=name,
+            voice_mode=voice_mode,
+            voice_config=voice_config_dict,
+            personality=personality_dict,
+            audio_file=audio_bytes,
+        )
+        return character
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/podcast/characters/{character_id}")
+async def get_podcast_character(character_id: str):
+    """Get a specific character."""
+    character = await podcast_characters.get_character(character_id)
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return character
+
+
+@app.put("/api/podcast/characters/{character_id}")
+async def update_podcast_character(character_id: str, request: UpdateCharacterRequest):
+    """Update character details."""
+    updates = {}
+    if request.name is not None:
+        updates["name"] = request.name
+    if request.personality is not None:
+        updates["personality"] = request.personality.model_dump()
+    if request.voice_config is not None:
+        updates["voice_config"] = request.voice_config
+
+    character = await podcast_characters.update_character(character_id, updates)
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return character
+
+
+@app.delete("/api/podcast/characters/{character_id}")
+async def delete_podcast_character(character_id: str):
+    """Delete a character and associated voice."""
+    deleted = await podcast_characters.delete_character(character_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return {"deleted": True, "character_id": character_id}
+
+
+@app.post("/api/podcast/characters/{character_id}/preview")
+async def preview_character_voice(character_id: str, request: PreviewVoiceRequest = None):
+    """Generate preview audio for a character."""
+    from fastapi.responses import Response
+
+    text = request.text if request else None
+    audio_bytes = await podcast_characters.preview_character_voice(character_id, text)
+
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate preview. Check if TTS service is running."
+        )
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/wav",
+        headers={"Content-Disposition": f"inline; filename=preview_{character_id}.wav"}
+    )
+
+
+@app.post("/api/podcast/characters/{character_id}/re-register-voice")
+async def re_register_character_voice(character_id: str):
+    """
+    Re-register a character's voice with the TTS service.
+
+    This is useful when the TTS service has been restarted and lost
+    the voice registration, or when the voice needs to be refreshed.
+    """
+    result = await podcast_characters.re_register_character_voice(character_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Character not found, not a clone, or reference audio missing"
+        )
+    return result
 
 
 # ===== Migration Endpoints =====

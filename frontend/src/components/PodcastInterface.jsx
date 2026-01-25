@@ -16,9 +16,14 @@ import {
   ArrowLeft,
   Download,
   Info,
-  ExternalLink,
+  Minimize2,
+  Users,
+  Mic,
+  MessageSquare,
+  Compass,
 } from 'lucide-react';
 import { api } from '../api';
+import { usePodcastPlayer } from '../contexts/PodcastPlayerContext';
 import Teleprompter from './Teleprompter';
 import EmojiReactions from './EmojiReactions';
 import ActionMenu from './ActionMenu';
@@ -30,7 +35,10 @@ import './PodcastInterface.css';
  * Features:
  * - Select synthesizer conversation as source
  * - Choose narration style
- * - Generate audio with two speakers (host + expert)
+ * - Choose episode mode: Explainer (1 narrator) or Question Time (host + expert)
+ * - Select characters for the episode
+ * - Optional KG discovery for topic-based note selection
+ * - Generate audio with Qwen3-TTS
  * - Play with teleprompter sync using real word timestamps
  */
 export default function PodcastInterface({
@@ -41,6 +49,9 @@ export default function PodcastInterface({
   onClose,
   onPodcastCreated,
 }) {
+  // Podcast player context
+  const { setSession: setPlayerSession, minimize } = usePodcastPlayer();
+
   // View state: 'setup', 'generating', 'player'
   const [view, setView] = useState('setup');
 
@@ -53,6 +64,22 @@ export default function PodcastInterface({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Episode mode: 'explainer' (1 narrator) or 'question_time' (host + expert)
+  const [episodeMode, setEpisodeMode] = useState('explainer');
+
+  // Character selection
+  const [characters, setCharacters] = useState([]);
+  const [loadingCharacters, setLoadingCharacters] = useState(true);
+  const [selectedNarrator, setSelectedNarrator] = useState(null);
+  const [selectedHost, setSelectedHost] = useState(null);
+  const [selectedExpert, setSelectedExpert] = useState(null);
+
+  // KG Discovery
+  const [useKgDiscovery, setUseKgDiscovery] = useState(false);
+  const [kgTopic, setKgTopic] = useState('');
+  const [kgDiscoveredNotes, setKgDiscoveredNotes] = useState([]);
+  const [isDiscovering, setIsDiscovering] = useState(false);
 
   // Session state
   const [session, setSession] = useState(null);
@@ -68,17 +95,26 @@ export default function PodcastInterface({
   // Settings check
   const [podcastSettings, setPodcastSettings] = useState(null);
   const [checkingSettings, setCheckingSettings] = useState(true);
+  const [ttsHealthy, setTtsHealthy] = useState(null);
 
   // Narration styles from API
   const [narrationStyles, setNarrationStyles] = useState({});
   const [stylesLoading, setStylesLoading] = useState(true);
 
-  // Load podcast settings and styles
+  // Load podcast settings, styles, and characters
   useEffect(() => {
     const checkSettings = async () => {
       try {
         const settings = await api.getPodcastSettings();
         setPodcastSettings(settings);
+
+        // Check TTS health
+        try {
+          const health = await api.checkTtsHealth();
+          setTtsHealthy(health.healthy);
+        } catch {
+          setTtsHealthy(false);
+        }
       } catch (err) {
         console.error('Failed to check podcast settings:', err);
       } finally {
@@ -103,6 +139,41 @@ export default function PodcastInterface({
       }
     };
     loadStyles();
+
+    const loadCharacters = async () => {
+      try {
+        const data = await api.listPodcastCharacters();
+        const chars = data.characters || [];
+        setCharacters(chars);
+
+        // Auto-select first narrator for explainer mode
+        const narrators = chars.filter(c => c.personality?.speaking_role === 'narrator');
+        if (narrators.length > 0) {
+          setSelectedNarrator(narrators[0].id);
+        } else if (chars.length > 0) {
+          setSelectedNarrator(chars[0].id);
+        }
+
+        // Auto-select host and expert for question time
+        const hosts = chars.filter(c => c.personality?.speaking_role === 'host');
+        const experts = chars.filter(c => c.personality?.speaking_role === 'expert');
+        if (hosts.length > 0) {
+          setSelectedHost(hosts[0].id);
+        } else if (chars.length > 0) {
+          setSelectedHost(chars[0].id);
+        }
+        if (experts.length > 0) {
+          setSelectedExpert(experts[0].id);
+        } else if (chars.length > 1) {
+          setSelectedExpert(chars[1].id);
+        }
+      } catch (err) {
+        console.error('Failed to load characters:', err);
+      } finally {
+        setLoadingCharacters(false);
+      }
+    };
+    loadCharacters();
   }, []);
 
   // Filter synthesizer conversations
@@ -136,13 +207,46 @@ export default function PodcastInterface({
     return () => clearTimeout(searchTimeout);
   }, [searchQuery]);
 
+  // Handle KG Discovery
+  const handleKgDiscover = async () => {
+    if (!kgTopic.trim()) return;
+
+    setIsDiscovering(true);
+    setError(null);
+    try {
+      const results = await api.discoverPodcastNotes(kgTopic.trim(), 10);
+      setKgDiscoveredNotes(results.notes || []);
+      if (results.notes?.length === 0) {
+        setError('No related notes found for this topic.');
+      }
+    } catch (err) {
+      console.error('KG discovery failed:', err);
+      setError('Failed to discover related notes.');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   const selectedConversation = useMemo(() => {
     return conversations.find(c => c.id === selectedConvId);
   }, [conversations, selectedConvId]);
 
+  // Check if character selection is valid
+  const isCharacterSelectionValid = useMemo(() => {
+    if (episodeMode === 'explainer') {
+      return !!selectedNarrator;
+    }
+    // Question Time needs host and expert to be different
+    return selectedHost && selectedExpert && selectedHost !== selectedExpert;
+  }, [episodeMode, selectedNarrator, selectedHost, selectedExpert]);
+
   // Start podcast generation
   const handleStartPodcast = async () => {
-    if (!selectedConvId) return;
+    if (!selectedConvId && !kgDiscoveredNotes.length) return;
+    if (!isCharacterSelectionValid) {
+      setError('Please select valid characters for this mode.');
+      return;
+    }
 
     setError(null);
     setView('generating');
@@ -150,11 +254,18 @@ export default function PodcastInterface({
     setGenerationStatus('Creating session...');
 
     try {
+      // Build character config based on mode
+      const characterConfig = episodeMode === 'explainer'
+        ? { narrator: selectedNarrator }
+        : { host: selectedHost, expert: selectedExpert };
+
       // Create session
       const sessionResult = await api.createPodcastSession(
         selectedConvId,
         selectedNotes.length > 0 ? selectedNotes : null,
-        style
+        style,
+        episodeMode,
+        characterConfig
       );
       setSession(sessionResult);
 
@@ -196,6 +307,7 @@ export default function PodcastInterface({
               // Fallback: show player view if no callback
               api.getPodcastSession(sessionResult.session_id).then(fullSession => {
                 setSession(fullSession);
+                setPlayerSession(fullSession); // Set in context for MiniPlayer
                 setView('player');
               });
             }
@@ -240,6 +352,7 @@ export default function PodcastInterface({
 
         if (sessionData.status === 'ready') {
           setSession(sessionData);
+          setPlayerSession(sessionData);
           setView('player');
           return;
         } else if (sessionData.status === 'error') {
@@ -272,6 +385,17 @@ export default function PodcastInterface({
     setView('setup');
   };
 
+  // Handle minimize - keep playing in MiniPlayer
+  const handleMinimize = () => {
+    if (session) {
+      setPlayerSession(session);
+      minimize();
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+
   // Loading state
   if (checkingSettings) {
     return (
@@ -284,21 +408,21 @@ export default function PodcastInterface({
     );
   }
 
-  // Setup required
-  if (!podcastSettings?.podcast_configured) {
+  // Setup required - check TTS health instead of ElevenLabs
+  if (!ttsHealthy) {
     return (
       <div className="podcast-interface">
         <div className="podcast-setup-required">
           <AlertCircle size={48} className="warning-icon" />
           <h2>Setup Required</h2>
-          <p>To use Podcast mode, you need to configure ElevenLabs:</p>
+          <p>To use Podcast mode, ensure the TTS service is running:</p>
 
           <div className="config-checklist">
-            <div className={`config-item ${podcastSettings?.elevenlabs_configured ? 'configured' : 'not-configured'}`}>
+            <div className={`config-item ${ttsHealthy ? 'configured' : 'not-configured'}`}>
               <span className="config-status">
-                {podcastSettings?.elevenlabs_configured ? '✓' : '✗'}
+                {ttsHealthy ? '\u2713' : '\u2717'}
               </span>
-              <span className="config-label">ElevenLabs API Key</span>
+              <span className="config-label">Qwen3-TTS Service</span>
               <span className="config-desc">For text-to-speech voice generation</span>
             </div>
           </div>
@@ -320,6 +444,9 @@ export default function PodcastInterface({
       </div>
     );
   }
+
+  // Check if we have enough characters
+  const hasEnoughCharacters = characters.length >= (episodeMode === 'explainer' ? 1 : 2);
 
   // Generating view with stepper
   if (view === 'generating') {
@@ -386,11 +513,17 @@ export default function PodcastInterface({
         <PodcastPlayer
           session={session}
           onEnd={handleEndPodcast}
+          onMinimize={handleMinimize}
           onSelectConversation={onSelectConversation}
         />
       </div>
     );
   }
+
+  // Get character options for dropdowns
+  const narratorOptions = characters;
+  const hostOptions = characters;
+  const expertOptions = characters.filter(c => c.id !== selectedHost);
 
   // Setup view
   return (
@@ -407,7 +540,7 @@ export default function PodcastInterface({
         </div>
 
         <p className="setup-description">
-          Generate an audio explanation of your Synthesizer notes with two speakers.
+          Generate an audio explanation of your Synthesizer notes.
         </p>
 
         {error && (
@@ -417,8 +550,168 @@ export default function PodcastInterface({
           </div>
         )}
 
+        {/* Episode Mode Selection */}
+        <div className="setup-section">
+          <label>Episode Mode</label>
+          <div className="mode-selector">
+            <button
+              className={`mode-option ${episodeMode === 'explainer' ? 'selected' : ''}`}
+              onClick={() => setEpisodeMode('explainer')}
+            >
+              <Mic size={20} />
+              <div className="mode-info">
+                <span className="mode-name">Explainer</span>
+                <span className="mode-desc">Single narrator explains the content</span>
+              </div>
+            </button>
+            <button
+              className={`mode-option ${episodeMode === 'question_time' ? 'selected' : ''}`}
+              onClick={() => setEpisodeMode('question_time')}
+            >
+              <MessageSquare size={20} />
+              <div className="mode-info">
+                <span className="mode-name">Question Time</span>
+                <span className="mode-desc">Host interviews an expert</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Character Selection */}
+        <div className="setup-section">
+          <label>
+            <Users size={16} />
+            Character Selection
+          </label>
+          {loadingCharacters ? (
+            <div className="loading-characters">
+              <Loader2 className="spin" size={16} />
+              Loading characters...
+            </div>
+          ) : !hasEnoughCharacters ? (
+            <div className="characters-warning">
+              <AlertCircle size={16} />
+              <span>
+                {episodeMode === 'explainer'
+                  ? 'You need at least 1 character. Create one in Settings.'
+                  : 'You need at least 2 characters for Question Time. Create more in Settings.'}
+              </span>
+              <button
+                className="btn-link"
+                onClick={() => onOpenSettings?.('podcast')}
+              >
+                Open Settings
+              </button>
+            </div>
+          ) : episodeMode === 'explainer' ? (
+            <div className="character-select-row">
+              <label>Narrator</label>
+              <select
+                value={selectedNarrator || ''}
+                onChange={(e) => setSelectedNarrator(e.target.value)}
+              >
+                <option value="">Select narrator...</option>
+                {narratorOptions.map(char => (
+                  <option key={char.id} value={char.id}>
+                    {char.name} ({char.personality?.speaking_role || 'narrator'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="character-select-row">
+                <label>Host</label>
+                <select
+                  value={selectedHost || ''}
+                  onChange={(e) => setSelectedHost(e.target.value)}
+                >
+                  <option value="">Select host...</option>
+                  {hostOptions.map(char => (
+                    <option key={char.id} value={char.id}>
+                      {char.name} ({char.personality?.speaking_role || 'host'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="character-select-row">
+                <label>Expert</label>
+                <select
+                  value={selectedExpert || ''}
+                  onChange={(e) => setSelectedExpert(e.target.value)}
+                  disabled={!selectedHost}
+                >
+                  <option value="">Select expert...</option>
+                  {expertOptions.map(char => (
+                    <option key={char.id} value={char.id}>
+                      {char.name} ({char.personality?.speaking_role || 'expert'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* KG Discovery Toggle */}
+        <div className="setup-section">
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={useKgDiscovery}
+              onChange={(e) => {
+                setUseKgDiscovery(e.target.checked);
+                if (!e.target.checked) {
+                  setKgDiscoveredNotes([]);
+                  setKgTopic('');
+                }
+              }}
+            />
+            <Compass size={16} />
+            <span>Discover from Knowledge Graph</span>
+          </label>
+          <p className="section-hint">
+            Find related notes by topic instead of selecting a specific conversation.
+          </p>
+        </div>
+
         {/* Source Selection */}
-        {preSelectedConversationId && selectedConversation ? (
+        {useKgDiscovery ? (
+          <div className="setup-section">
+            <label>Topic Discovery</label>
+            <div className="kg-discovery-input">
+              <input
+                type="text"
+                value={kgTopic}
+                onChange={(e) => setKgTopic(e.target.value)}
+                placeholder="Enter a topic to discover related notes..."
+                onKeyDown={(e) => e.key === 'Enter' && handleKgDiscover()}
+              />
+              <button
+                className="btn-discover"
+                onClick={handleKgDiscover}
+                disabled={!kgTopic.trim() || isDiscovering}
+              >
+                {isDiscovering ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
+                Discover
+              </button>
+            </div>
+            {kgDiscoveredNotes.length > 0 && (
+              <div className="discovered-notes">
+                <p className="discovered-count">Found {kgDiscoveredNotes.length} related notes</p>
+                <div className="discovered-list">
+                  {kgDiscoveredNotes.map(note => (
+                    <div key={note.id} className="discovered-note">
+                      <FileText size={14} />
+                      <span>{note.title || 'Untitled'}</span>
+                      <span className="note-score">{Math.round(note.score * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : preSelectedConversationId && selectedConversation ? (
           <div className="setup-section">
             <label>Source Notes</label>
             <div className="selected-note-badge">
@@ -523,7 +816,11 @@ export default function PodcastInterface({
         {/* Start Button */}
         <button
           className="start-podcast-btn"
-          disabled={!selectedConvId}
+          disabled={
+            (!selectedConvId && !kgDiscoveredNotes.length) ||
+            !isCharacterSelectionValid ||
+            !hasEnoughCharacters
+          }
           onClick={handleStartPodcast}
         >
           <Play size={18} />
@@ -537,7 +834,7 @@ export default function PodcastInterface({
 /**
  * PodcastPlayer - Audio player with teleprompter sync.
  */
-function PodcastPlayer({ session, onEnd, onSelectConversation }) {
+function PodcastPlayer({ session, onEnd, onMinimize, onSelectConversation }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -738,6 +1035,11 @@ function PodcastPlayer({ session, onEnd, onSelectConversation }) {
               />
             )}
           </ActionMenu>
+          {onMinimize && (
+            <button className="minimize-btn" onClick={onMinimize} title="Minimize player">
+              <Minimize2 size={16} />
+            </button>
+          )}
           <button className="end-btn" onClick={onEnd}>
             <Square size={16} />
             Close

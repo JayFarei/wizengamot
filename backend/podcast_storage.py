@@ -181,6 +181,7 @@ def list_podcast_sessions(
                         "source_conversation_id": session.get("source_conversation_id"),
                         "status": session.get("status", "created"),
                         "style": session.get("style", "conversational"),
+                        "mode": session.get("mode", "question_time"),  # New: episode mode
                         "created_at": session.get("created_at"),
                         "started_at": session.get("started_at"),
                         "ended_at": session.get("ended_at"),
@@ -189,6 +190,8 @@ def list_podcast_sessions(
                         "title": session.get("title"),
                         "summary": session.get("summary", ""),
                         "cover_url": cover_url,
+                        "characters": session.get("characters", []),  # New: character refs
+                        "audio_duration_ms": session.get("audio_duration_ms"),
                     })
                 except (json.JSONDecodeError, KeyError):
                     # Skip malformed files
@@ -329,3 +332,135 @@ def get_session_word_timings(session_id: str) -> List[Dict[str, Any]]:
     if session:
         return session.get("word_timings", [])
     return []
+
+
+def update_session_mode(
+    session_id: str,
+    mode: str,
+) -> None:
+    """
+    Update the episode mode for a session.
+
+    Args:
+        session_id: The session ID
+        mode: "explainer" for single narrator, "question_time" for host/expert
+    """
+    if mode not in ("explainer", "question_time"):
+        raise ValueError(f"Invalid mode: {mode}")
+
+    session = get_podcast_session(session_id)
+    if session:
+        session["mode"] = mode
+        save_podcast_session(session)
+
+
+def update_session_characters(
+    session_id: str,
+    characters: List[Dict[str, Any]],
+) -> None:
+    """
+    Update the characters for a session.
+
+    Args:
+        session_id: The session ID
+        characters: List of character references with character_id and role
+            [{"character_id": "...", "role": "narrator"}, ...]
+    """
+    session = get_podcast_session(session_id)
+    if session:
+        session["characters"] = characters
+        save_podcast_session(session)
+
+
+def update_session_extracted_questions(
+    session_id: str,
+    questions: List[str],
+) -> None:
+    """
+    Store extracted questions for a question_time session.
+
+    Args:
+        session_id: The session ID
+        questions: List of question strings
+    """
+    session = get_podcast_session(session_id)
+    if session:
+        session["extracted_questions"] = questions
+        save_podcast_session(session)
+
+
+def get_session_extracted_questions(session_id: str) -> List[str]:
+    """
+    Get the extracted questions for a session.
+
+    Args:
+        session_id: The session ID
+
+    Returns:
+        List of question strings, empty if none
+    """
+    session = get_podcast_session(session_id)
+    if session:
+        return session.get("extracted_questions", [])
+    return []
+
+
+def create_session_with_mode(
+    session_id: str,
+    source_conversation_id: str,
+    notes: List[Dict[str, Any]],
+    mode: str,
+    characters: List[Dict[str, Any]],
+    style: str = "conversational",
+    title: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Create a new podcast session with mode and character configuration.
+
+    This is the new session creation function that supports episode modes.
+
+    Args:
+        session_id: Unique session identifier
+        source_conversation_id: ID of the source synthesizer conversation
+        notes: List of notes for the podcast content
+        mode: "explainer" or "question_time"
+        characters: List of character references with character_id and role
+        style: Narration style
+        title: Optional episode title
+
+    Returns:
+        The created session dict
+    """
+    if mode not in ("explainer", "question_time"):
+        raise ValueError(f"Invalid mode: {mode}")
+
+    # Generate title if not provided
+    if not title:
+        if notes:
+            title = notes[0].get("title", "Podcast Episode")
+        else:
+            title = "Podcast Episode"
+
+    session = {
+        "id": session_id,
+        "source_conversation_id": source_conversation_id,
+        "notes": notes,
+        "mode": mode,
+        "characters": characters,
+        "style": style,
+        "title": title,
+        "summary": "",
+        "status": "created",
+        "created_at": datetime.utcnow().isoformat(),
+        # Audio generation fields
+        "audio_path": None,
+        "audio_duration_ms": None,
+        "word_timings": [],
+        "dialogue_segments": [],
+        "generation_progress": 0,
+        # Question Time specific
+        "extracted_questions": [],
+    }
+
+    save_podcast_session(session)
+    return session

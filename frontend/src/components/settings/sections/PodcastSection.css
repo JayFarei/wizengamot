@@ -1,95 +1,172 @@
-.podcast-section .api-key-block {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-secondary, #e5e5e5);
-}
+/* =============================================================================
+   TTS Service Status Section
+   ============================================================================= */
 
-.podcast-section .api-key-block:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.podcast-section .api-key-header {
+.podcast-section .tts-status-block {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
   margin-bottom: 12px;
 }
 
-.podcast-section .api-key-header strong {
-  font-weight: 600;
-  color: var(--text-primary);
+.podcast-section .tts-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
 }
 
-.podcast-section .api-key-hint {
-  font-size: 0.875rem;
+.podcast-section .tts-status.checking {
   color: var(--text-secondary);
 }
 
-.podcast-section .api-key-hint a {
+.podcast-section .tts-status.checking svg {
   color: var(--podcast-primary, #8b5cf6);
-  text-decoration: none;
 }
 
-.podcast-section .api-key-hint a:hover {
-  text-decoration: underline;
+.podcast-section .tts-status.healthy svg {
+  color: var(--success, #10b981);
 }
 
-.podcast-section .api-key-status {
+.podcast-section .tts-status.unhealthy svg {
+  color: var(--error, #dc2626);
+}
+
+.podcast-section .tts-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.podcast-section .tts-status-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.podcast-section .tts-status-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.podcast-section .tts-status.healthy .tts-status-text {
+  color: var(--success, #10b981);
+}
+
+.podcast-section .tts-status.unhealthy .tts-status-text {
+  color: var(--error, #dc2626);
+}
+
+.podcast-section .btn-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.podcast-section .btn-refresh:hover:not(:disabled) {
+  background: var(--bg-hover, #e5e5e5);
+  color: var(--text-primary);
+}
+
+.podcast-section .btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.podcast-section .tts-setup-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--warning-bg, rgba(245, 158, 11, 0.1));
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.podcast-section .tts-setup-hint svg {
+  flex-shrink: 0;
+  color: var(--warning, #f59e0b);
+  margin-top: 2px;
+}
+
+.podcast-section .tts-setup-hint p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Spinning animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.podcast-section .spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* =============================================================================
+   Characters Section
+   ============================================================================= */
+
+.podcast-section .characters-back-header {
+  margin-bottom: 16px;
+}
+
+.podcast-section .btn-back {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
-}
-
-.podcast-section .status-indicator {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.podcast-section .status-indicator.configured {
-  background: var(--success-bg);
-  color: var(--success);
-}
-
-.podcast-section .status-indicator.not-configured {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.podcast-section .status-source {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-}
-
-.podcast-section .api-key-input-group {
-  display: flex;
-  gap: 8px;
-}
-
-.podcast-section .api-key-input {
-  flex: 1;
   padding: 8px 12px;
+  background: transparent;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
   font-size: 0.875rem;
+  transition: all 0.2s;
 }
 
-.podcast-section .api-key-input:focus {
-  outline: none;
-  border-color: var(--podcast-primary, #8b5cf6);
-  box-shadow: 0 0 0 3px var(--podcast-badge-bg, rgba(139, 92, 246, 0.15));
+.podcast-section .btn-back:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
-.podcast-section .btn-clear {
-  margin-top: 8px;
-  font-size: 0.75rem;
-  padding: 4px 12px;
+.podcast-section .btn-manage-characters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--podcast-primary, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 16px;
+}
+
+.podcast-section .btn-manage-characters:hover {
+  background: var(--podcast-primary-hover, #7c3aed);
 }
 
 /* Speaker Configuration Blocks */

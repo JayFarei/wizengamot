@@ -137,6 +137,38 @@ fi
 # Set environment variables to suppress warnings
 export TOKENIZERS_PARALLELISM=false
 
+# Start Qwen3-TTS service if not already running (native for MPS acceleration)
+QWEN_TTS_PORT=${QWEN_TTS_PORT:-7860}
+QWEN_TTS_PID=""
+if ! lsof -nP -iTCP:$QWEN_TTS_PORT -sTCP:LISTEN >/dev/null 2>&1; then
+    if [ -d "$SCRIPT_DIR/services/qwen3-tts" ]; then
+        echo "Starting Qwen3-TTS on http://localhost:$QWEN_TTS_PORT..."
+        cd "$SCRIPT_DIR/services/qwen3-tts"
+        uv run uvicorn server:app --host 0.0.0.0 --port $QWEN_TTS_PORT &
+        QWEN_TTS_PID=$!
+        cd "$SCRIPT_DIR"
+
+        # Wait for health check
+        echo -n "Waiting for Qwen3-TTS to be ready"
+        for i in {1..30}; do
+            if curl -s "http://localhost:$QWEN_TTS_PORT/health" >/dev/null 2>&1; then
+                echo -e " ${GREEN}ready${NC}"
+                break
+            fi
+            echo -n "."
+            sleep 1
+        done
+
+        if ! curl -s "http://localhost:$QWEN_TTS_PORT/health" >/dev/null 2>&1; then
+            echo -e " ${YELLOW}timeout (will continue anyway)${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Qwen3-TTS service not found, skipping...${NC}"
+    fi
+else
+    echo -e "Qwen3-TTS already running on http://localhost:$QWEN_TTS_PORT"
+fi
+
 # Start backend with auto-restart (dev process manager)
 # This mimics Docker's supervisord behavior for seamless updates
 echo "Starting backend on http://localhost:8001..."
@@ -172,8 +204,11 @@ cd "$SCRIPT_DIR"
 
 echo ""
 echo -e "${GREEN}Wizengamot is running!${NC}"
-echo "  Backend:  http://localhost:8001"
-echo "  Frontend: http://localhost:5173"
+echo "  Backend:   http://localhost:8001"
+echo "  Frontend:  http://localhost:5173"
+if [ -n "$QWEN_TTS_PID" ] || lsof -nP -iTCP:$QWEN_TTS_PORT -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "  Qwen3-TTS: http://localhost:$QWEN_TTS_PORT"
+fi
 echo ""
 echo "Press Ctrl+C to stop all servers"
 
@@ -181,10 +216,33 @@ echo "Press Ctrl+C to stop all servers"
 cleanup() {
     echo ""
     echo "Shutting down..."
+
+    # Stop Qwen3-TTS gracefully first (SIGINT allows lifespan cleanup)
+    if [ -n "$QWEN_TTS_PID" ]; then
+        echo "Stopping Qwen3-TTS service..."
+        kill -INT $QWEN_TTS_PID 2>/dev/null
+
+        # Wait up to 10 seconds for graceful shutdown
+        for i in {1..10}; do
+            if ! kill -0 $QWEN_TTS_PID 2>/dev/null; then
+                echo "  Qwen3-TTS stopped cleanly"
+                break
+            fi
+            sleep 1
+        done
+
+        # Force kill if still running
+        if kill -0 $QWEN_TTS_PID 2>/dev/null; then
+            echo "  Force stopping Qwen3-TTS..."
+            kill -9 $QWEN_TTS_PID 2>/dev/null
+        fi
+    fi
+
     # Kill process groups to ensure child processes are also terminated
     kill -- -$BACKEND_PID 2>/dev/null || kill $BACKEND_PID 2>/dev/null
     kill $FRONTEND_PID 2>/dev/null
     wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
+
     # Stop Crawl4AI container
     if docker ps --format '{{.Names}}' | grep -q "^${CRAWLER_CONTAINER}$"; then
         echo "Stopping Crawl4AI container..."

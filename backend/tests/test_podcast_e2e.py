@@ -45,9 +45,6 @@ except ImportError:
     pytest = DummyPytest()
 
 from backend.settings import (
-    get_elevenlabs_api_key,
-    get_host_voice_config,
-    get_expert_voice_config,
     get_synthesizer_model,
     get_podcast_settings,
 )
@@ -62,10 +59,11 @@ from backend.podcast_storage import (
     delete_podcast_session,
     list_podcast_sessions,
 )
-from backend.podcast_elevenlabs import (
-    generate_speech_with_timestamps,
+from backend.podcast_qwen import (
+    generate_single_audio,
     get_podcast_audio_path,
     delete_podcast_audio,
+    check_tts_service,
 )
 import httpx
 from backend.storage import get_conversation, list_conversations
@@ -144,7 +142,7 @@ def list_synthesizer_conversations():
 # =============================================================================
 
 class TestPodcastGeneration:
-    """E2E tests for podcast generation using real ElevenLabs API."""
+    """E2E tests for podcast generation using Qwen3-TTS service."""
 
     session_id: Optional[str] = None
     conversation_id: Optional[str] = None
@@ -153,11 +151,6 @@ class TestPodcastGeneration:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Setup test fixtures."""
-        # Check API key
-        api_key = get_elevenlabs_api_key()
-        if not api_key:
-            pytest.skip("ElevenLabs API key not configured")
-
         # Use TEST_CONVERSATION_ID or find one
         if TEST_CONVERSATION_ID:
             TestPodcastGeneration.conversation_id = TEST_CONVERSATION_ID
@@ -175,26 +168,13 @@ class TestPodcastGeneration:
         """Verify all required configuration is present."""
         print_header("TEST 1: Configuration Check")
 
-        # ElevenLabs API key
-        api_key = get_elevenlabs_api_key()
-        print_config("ElevenLabs API Key", api_key, masked=True)
-        assert api_key is not None, "ElevenLabs API key not configured"
+        # Qwen3-TTS service health
+        tts_health = await check_tts_service()
+        print_config("TTS Service Healthy", tts_health.get("healthy"))
+        print_config("TTS Service Details", tts_health.get("details"))
 
-        # Host voice config
-        host_config = get_host_voice_config()
-        print("\n  Host Voice Config:")
-        print_config("    voice_id", host_config.get("voice_id"))
-        print_config("    model", host_config.get("model"))
-        print_config("    voice_settings", host_config.get("voice_settings"))
-        assert host_config.get("voice_id"), "Host voice_id not configured"
-
-        # Expert voice config
-        expert_config = get_expert_voice_config()
-        print("\n  Expert Voice Config:")
-        print_config("    voice_id", expert_config.get("voice_id"))
-        print_config("    model", expert_config.get("model"))
-        print_config("    voice_settings", expert_config.get("voice_settings"))
-        assert expert_config.get("voice_id"), "Expert voice_id not configured"
+        if not tts_health.get("healthy"):
+            pytest.skip("Qwen3-TTS service not available")
 
         # Synthesizer model (for dialogue generation)
         synth_model = get_synthesizer_model()
@@ -205,59 +185,27 @@ class TestPodcastGeneration:
         settings = get_podcast_settings()
         print("\n  Podcast Settings Status:")
         print_config("    podcast_configured", settings.get("podcast_configured"))
-        print_config("    elevenlabs_configured", settings.get("elevenlabs_configured"))
 
         print("\n  [PASS] All configuration verified")
 
     @pytest.mark.asyncio
-    async def test_02_validate_voice_ids(self):
-        """Verify voice IDs are accessible via ElevenLabs API."""
-        print_header("TEST 2: Validate Voice IDs")
+    async def test_02_validate_tts_service(self):
+        """Verify Qwen3-TTS service is accessible."""
+        print_header("TEST 2: Validate TTS Service")
 
-        api_key = get_elevenlabs_api_key()
-        host_config = get_host_voice_config()
-        expert_config = get_expert_voice_config()
+        tts_health = await check_tts_service()
+        print_config("Service Healthy", tts_health.get("healthy"))
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Check host voice
-            host_voice_id = host_config.get("voice_id")
-            print(f"\n  Checking host voice: {host_voice_id}")
+        if tts_health.get("healthy"):
+            details = tts_health.get("details", {})
+            print_config("Service Name", details.get("service"))
+            print_config("Version", details.get("version"))
+            print_config("Model Loaded", details.get("model_loaded"))
+            print("  [OK] TTS service accessible")
+        else:
+            print(f"  [WARN] TTS service not healthy: {tts_health.get('details')}")
 
-            try:
-                response = await client.get(
-                    f"https://api.elevenlabs.io/v1/voices/{host_voice_id}",
-                    headers={"xi-api-key": api_key}
-                )
-                if response.status_code == 200:
-                    voice_data = response.json()
-                    print_config("    Name", voice_data.get("name"))
-                    print_config("    Category", voice_data.get("category"))
-                    print("    [OK] Host voice accessible")
-                else:
-                    print(f"    [WARN] Response: {response.status_code} - {response.text}")
-            except Exception as e:
-                print(f"    [WARN] Could not verify: {e}")
-
-            # Check expert voice
-            expert_voice_id = expert_config.get("voice_id")
-            print(f"\n  Checking expert voice: {expert_voice_id}")
-
-            try:
-                response = await client.get(
-                    f"https://api.elevenlabs.io/v1/voices/{expert_voice_id}",
-                    headers={"xi-api-key": api_key}
-                )
-                if response.status_code == 200:
-                    voice_data = response.json()
-                    print_config("    Name", voice_data.get("name"))
-                    print_config("    Category", voice_data.get("category"))
-                    print("    [OK] Expert voice accessible")
-                else:
-                    print(f"    [WARN] Response: {response.status_code} - {response.text}")
-            except Exception as e:
-                print(f"    [WARN] Could not verify: {e}")
-
-        print("\n  [PASS] Voice ID validation complete")
+        print("\n  [PASS] TTS service validation complete")
 
     @pytest.mark.asyncio
     async def test_03_verify_source_conversation(self):
@@ -376,27 +324,36 @@ class TestPodcastGeneration:
         """Test TTS generation for a single segment (isolated)."""
         print_header("TEST 6: Generate Single Audio Segment")
 
-        api_key = get_elevenlabs_api_key()
-        host_config = get_host_voice_config()
+        # Check TTS service is available
+        tts_health = await check_tts_service()
+        if not tts_health.get("healthy"):
+            pytest.skip("Qwen3-TTS service not available")
+
+        # Use a default character config for testing
+        test_character = {
+            "name": "TestHost",
+            "voice_mode": "prebuilt",
+            "voice": {"prebuilt_voice": "serena"},
+            "personality": {"emotion_style": "warm"}
+        }
 
         test_text = "Hello, welcome to our podcast. Today we'll be discussing some fascinating topics."
         print_config("Test text", test_text[:50] + "...")
-        print_config("Voice ID", host_config.get("voice_id"))
-        print_config("Model", host_config.get("model"))
+        print_config("Voice mode", test_character.get("voice_mode"))
+        print_config("Voice ID", test_character["voice"]["prebuilt_voice"])
 
         try:
-            print("\n  Calling generate_speech_with_timestamps()...")
+            print("\n  Calling generate_single_audio()...")
 
-            audio_bytes, word_timings = await generate_speech_with_timestamps(
+            audio_bytes, word_timings, duration_ms = await generate_single_audio(
                 text=test_text,
-                voice_id=host_config["voice_id"],
-                model=host_config["model"],
-                voice_settings=host_config["voice_settings"],
-                api_key=api_key,
+                character=test_character,
+                emotion="warm",
             )
 
             print_config("Audio bytes", len(audio_bytes))
             print_config("Word timings", len(word_timings))
+            print_config("Duration (ms)", duration_ms)
 
             if word_timings:
                 print("\n  First 5 word timings:")
@@ -521,22 +478,19 @@ async def run_diagnostic(conversation_id: Optional[str] = None):
     # Step 1: Configuration
     print_header("STEP 1: Configuration Check")
 
-    api_key = get_elevenlabs_api_key()
-    if not api_key:
-        print("  [FAIL] ElevenLabs API key not configured!")
-        print("  Configure via Settings > Podcast > ElevenLabs API Key")
+    # Check Qwen3-TTS service
+    tts_health = await check_tts_service()
+    print_config("TTS Service Healthy", tts_health.get("healthy"))
+    if not tts_health.get("healthy"):
+        print(f"  [FAIL] Qwen3-TTS service not available!")
+        print(f"  Details: {tts_health.get('details')}")
+        print("  Start the TTS service with: cd services/qwen3-tts && python server.py")
         return False
-    print_config("ElevenLabs API Key", api_key, masked=True)
 
-    host_config = get_host_voice_config()
-    print_config("Host voice_id", host_config.get("voice_id"))
-    if not host_config.get("voice_id"):
-        print("  [WARN] Host voice_id not set, using default")
-
-    expert_config = get_expert_voice_config()
-    print_config("Expert voice_id", expert_config.get("voice_id"))
-    if not expert_config.get("voice_id"):
-        print("  [WARN] Expert voice_id not set, using default")
+    details = tts_health.get("details", {})
+    print_config("TTS Service", details.get("service"))
+    print_config("TTS Version", details.get("version"))
+    print_config("Model Loaded", details.get("model_loaded"))
 
     synth_model = get_synthesizer_model()
     print_config("Synthesizer model", synth_model)
@@ -596,19 +550,25 @@ async def run_diagnostic(conversation_id: Optional[str] = None):
         return False
 
     # Step 4: Test single TTS call
-    print_header("STEP 4: ElevenLabs TTS Test")
+    print_header("STEP 4: Qwen3-TTS Test")
     print("  Testing TTS with short text...")
 
+    test_character = {
+        "name": "TestHost",
+        "voice_mode": "prebuilt",
+        "voice": {"prebuilt_voice": "serena"},
+        "personality": {"emotion_style": "warm"}
+    }
+
     try:
-        audio_bytes, word_timings = await generate_speech_with_timestamps(
+        audio_bytes, word_timings, duration_ms = await generate_single_audio(
             text="Hello, this is a test.",
-            voice_id=host_config["voice_id"],
-            model=host_config["model"],
-            voice_settings=host_config["voice_settings"],
-            api_key=api_key,
+            character=test_character,
+            emotion="warm",
         )
         print_config("Audio bytes", len(audio_bytes))
         print_config("Word timings", len(word_timings))
+        print_config("Duration (ms)", duration_ms)
 
         if not audio_bytes:
             print("  [FAIL] No audio generated!")

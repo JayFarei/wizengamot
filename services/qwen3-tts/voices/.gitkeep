@@ -1,0 +1,4 @@
+# This directory stores cloned and designed voice embeddings
+# Files:
+#   - metadata.json: Voice registry with names, types, descriptions
+#   - {voice_id}.json: Individual voice embedding data

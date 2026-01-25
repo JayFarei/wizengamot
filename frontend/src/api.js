@@ -2495,6 +2495,28 @@ export const api = {
   },
 
   /**
+   * Discover relevant notes from Knowledge Graph for podcast source material.
+   * Uses semantic search to find synthesizer notes matching the topic.
+   * @param {string} topic - The topic or query to search for
+   * @param {number} limit - Maximum number of notes to return
+   * @returns {Promise<{notes: Array, total: number}>}
+   */
+  async discoverPodcastNotes(topic, limit = 10) {
+    const response = await fetch(`${API_BASE}/api/podcast/discover-notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ topic, limit }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to discover podcast notes');
+    }
+    return response.json();
+  },
+
+  /**
    * List podcast sessions.
    * @param {string} conversationId - Optional filter by source conversation
    * @param {number} limit - Maximum sessions to return
@@ -2661,6 +2683,147 @@ export const api = {
    */
   getPodcastAudioUrl(sessionId) {
     return `${API_BASE}/api/podcast/sessions/${sessionId}/audio`;
+  },
+
+  // ==========================================================================
+  // Podcast Character API Methods
+  // ==========================================================================
+
+  /**
+   * List all podcast characters.
+   * @returns {Object} Object with characters array and count
+   */
+  async listPodcastCharacters() {
+    const response = await fetch(`${API_BASE}/api/podcast/characters`);
+    if (!response.ok) {
+      throw new Error('Failed to list podcast characters');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific podcast character.
+   * @param {string} characterId - The character ID
+   */
+  async getPodcastCharacter(characterId) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/${characterId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get podcast character');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new podcast character.
+   * @param {FormData} formData - Form data containing:
+   *   - name: Character display name
+   *   - voice_mode: "clone", "design", or "prebuilt"
+   *   - voice_config: JSON string of voice configuration
+   *   - personality: JSON string of personality settings
+   *   - audio_file: (optional) Audio file for clone mode
+   */
+  async createPodcastCharacter(formData) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to create podcast character');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an existing podcast character.
+   * @param {string} characterId - The character ID
+   * @param {Object} updates - Fields to update (name, personality, voice_config)
+   */
+  async updatePodcastCharacter(characterId, updates) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/${characterId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update podcast character');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a podcast character.
+   * @param {string} characterId - The character ID
+   */
+  async deletePodcastCharacter(characterId) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/${characterId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete podcast character');
+    }
+    return response.json();
+  },
+
+  /**
+   * Preview a character's voice by generating sample audio.
+   * @param {string} characterId - The character ID
+   * @param {string} text - Optional text to synthesize
+   * @returns {Blob} Audio blob (WAV format)
+   */
+  async previewPodcastCharacter(characterId, text = null) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/${characterId}/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to preview character voice');
+    }
+    return response.blob();
+  },
+
+  /**
+   * Re-register a character's voice with the TTS service.
+   * This is useful when the TTS service has been restarted and lost
+   * the voice registration.
+   * @param {string} characterId - The character ID
+   * @returns {Object} Updated character data
+   */
+  async reRegisterCharacterVoice(characterId) {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/${characterId}/re-register-voice`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to re-register character voice');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get list of available prebuilt voices from Qwen3-TTS.
+   * @returns {Object} Object with voices array
+   */
+  async getPrebuiltVoices() {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/prebuilt-voices`);
+    if (!response.ok) {
+      throw new Error('Failed to get prebuilt voices');
+    }
+    return response.json();
+  },
+
+  /**
+   * Check if the Qwen3-TTS service is available.
+   * @returns {Object} Health status with healthy boolean and details
+   */
+  async checkTtsHealth() {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/tts-health`);
+    if (!response.ok) {
+      throw new Error('Failed to check TTS health');
+    }
+    return response.json();
   },
 
   // ==========================================================================

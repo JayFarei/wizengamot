@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Info, Image, Mic, User, GraduationCap, ChevronDown, ChevronUp, Radio, Plus, Trash2, Edit3 } from 'lucide-react';
+import { Info, Image, Radio, Plus, Trash2, Edit3, Check, X, AlertCircle, RefreshCw, Users } from 'lucide-react';
 import { api } from '../../../api';
+import CharacterList from '../../CharacterList';
 import './PodcastSection.css';
 
 export default function PodcastSection({
@@ -11,34 +12,9 @@ export default function PodcastSection({
   setSuccess,
   onReload,
 }) {
-  // ElevenLabs API Key state
-  const [elevenLabsKey, setElevenLabsKey] = useState('');
-
-  // Host speaker state
-  const [hostConfig, setHostConfig] = useState({
-    voice_id: '',
-    model: '',
-    stability: 0.5,
-    similarity_boost: 0.75,
-    style: 0.3,
-    speed: 1.0,
-    system_prompt: '',
-  });
-  const [hostDirty, setHostDirty] = useState(false);
-  const [hostExpanded, setHostExpanded] = useState(true);
-
-  // Expert speaker state
-  const [expertConfig, setExpertConfig] = useState({
-    voice_id: '',
-    model: '',
-    stability: 0.5,
-    similarity_boost: 0.75,
-    style: 0.3,
-    speed: 1.0,
-    system_prompt: '',
-  });
-  const [expertDirty, setExpertDirty] = useState(false);
-  const [expertExpanded, setExpertExpanded] = useState(false);
+  // TTS Health state
+  const [ttsHealth, setTtsHealth] = useState(null);
+  const [checkingHealth, setCheckingHealth] = useState(true);
 
   // Cover art state
   const [coverPrompt, setCoverPrompt] = useState('');
@@ -49,42 +25,18 @@ export default function PodcastSection({
   // Narration styles state
   const [narrationStyles, setNarrationStyles] = useState({});
   const [stylesLoading, setStylesLoading] = useState(true);
-  const [editingStyle, setEditingStyle] = useState(null); // style id being edited
+  const [editingStyle, setEditingStyle] = useState(null);
   const [styleForm, setStyleForm] = useState({ id: '', name: '', description: '', prompt: '' });
   const [styleDirty, setStyleDirty] = useState(false);
   const [showNewStyleForm, setShowNewStyleForm] = useState(false);
 
-  // Initialize host config from settings
-  useEffect(() => {
-    if (podcastSettings?.host_config && !hostDirty) {
-      const hc = podcastSettings.host_config;
-      setHostConfig({
-        voice_id: hc.voice_id || '',
-        model: hc.model || '',
-        stability: hc.voice_settings?.stability ?? 0.5,
-        similarity_boost: hc.voice_settings?.similarity_boost ?? 0.75,
-        style: hc.voice_settings?.style ?? 0.3,
-        speed: hc.voice_settings?.speed ?? 1.0,
-        system_prompt: hc.system_prompt || '',
-      });
-    }
-  }, [podcastSettings?.host_config, hostDirty]);
+  // Characters view toggle
+  const [showCharacters, setShowCharacters] = useState(false);
 
-  // Initialize expert config from settings
+  // Check TTS health on mount
   useEffect(() => {
-    if (podcastSettings?.expert_config && !expertDirty) {
-      const ec = podcastSettings.expert_config;
-      setExpertConfig({
-        voice_id: ec.voice_id || '',
-        model: ec.model || '',
-        stability: ec.voice_settings?.stability ?? 0.5,
-        similarity_boost: ec.voice_settings?.similarity_boost ?? 0.75,
-        style: ec.voice_settings?.style ?? 0.3,
-        speed: ec.voice_settings?.speed ?? 1.0,
-        system_prompt: ec.system_prompt || '',
-      });
-    }
-  }, [podcastSettings?.expert_config, expertDirty]);
+    checkTtsHealth();
+  }, []);
 
   // Initialize cover prompt from settings
   useEffect(() => {
@@ -115,139 +67,18 @@ export default function PodcastSection({
     loadStyles();
   }, []);
 
-  // ElevenLabs API Key handlers
-  const handleSaveElevenLabsKey = async () => {
-    if (!elevenLabsKey.trim()) {
-      setError('Please enter an ElevenLabs API key');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
+  // TTS health check
+  const checkTtsHealth = async () => {
+    setCheckingHealth(true);
     try {
-      await api.updateElevenLabsApiKey(elevenLabsKey.trim());
-      setSuccess('ElevenLabs API key saved successfully');
-      setElevenLabsKey('');
-      await onReload();
+      const health = await api.checkTtsHealth();
+      setTtsHealth(health);
     } catch (err) {
-      setError('Failed to save ElevenLabs API key');
+      console.error('Failed to check TTS health:', err);
+      setTtsHealth({ healthy: false, error: 'Failed to connect to TTS service' });
     } finally {
-      setLoading(false);
+      setCheckingHealth(false);
     }
-  };
-
-  const handleClearElevenLabsKey = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await api.clearElevenLabsApiKey();
-      setSuccess('ElevenLabs API key cleared');
-      await onReload();
-    } catch (err) {
-      setError('Failed to clear ElevenLabs API key');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Host config handlers
-  const handleHostChange = (field) => (e) => {
-    const value = e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
-    setHostConfig(prev => ({ ...prev, [field]: value }));
-    setHostDirty(true);
-  };
-
-  const handleSaveHostConfig = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await api.updateHostConfig({
-        voice_id: hostConfig.voice_id,
-        model: hostConfig.model,
-        stability: hostConfig.stability,
-        similarity_boost: hostConfig.similarity_boost,
-        style: hostConfig.style,
-        speed: hostConfig.speed,
-        system_prompt: hostConfig.system_prompt,
-      });
-      setSuccess('Host configuration saved successfully');
-      setHostDirty(false);
-      await onReload();
-    } catch (err) {
-      setError('Failed to save host configuration');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetHostConfig = () => {
-    if (podcastSettings?.host_config) {
-      const hc = podcastSettings.host_config;
-      setHostConfig({
-        voice_id: hc.voice_id || '',
-        model: hc.model || '',
-        stability: hc.voice_settings?.stability ?? 0.5,
-        similarity_boost: hc.voice_settings?.similarity_boost ?? 0.75,
-        style: hc.voice_settings?.style ?? 0.3,
-        speed: hc.voice_settings?.speed ?? 1.0,
-        system_prompt: hc.system_prompt || '',
-      });
-    }
-    setHostDirty(false);
-  };
-
-  // Expert config handlers
-  const handleExpertChange = (field) => (e) => {
-    const value = e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
-    setExpertConfig(prev => ({ ...prev, [field]: value }));
-    setExpertDirty(true);
-  };
-
-  const handleSaveExpertConfig = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await api.updateExpertConfig({
-        voice_id: expertConfig.voice_id,
-        model: expertConfig.model,
-        stability: expertConfig.stability,
-        similarity_boost: expertConfig.similarity_boost,
-        style: expertConfig.style,
-        speed: expertConfig.speed,
-        system_prompt: expertConfig.system_prompt,
-      });
-      setSuccess('Expert configuration saved successfully');
-      setExpertDirty(false);
-      await onReload();
-    } catch (err) {
-      setError('Failed to save expert configuration');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetExpertConfig = () => {
-    if (podcastSettings?.expert_config) {
-      const ec = podcastSettings.expert_config;
-      setExpertConfig({
-        voice_id: ec.voice_id || '',
-        model: ec.model || '',
-        stability: ec.voice_settings?.stability ?? 0.5,
-        similarity_boost: ec.voice_settings?.similarity_boost ?? 0.75,
-        style: ec.voice_settings?.style ?? 0.3,
-        speed: ec.voice_settings?.speed ?? 1.0,
-        system_prompt: ec.system_prompt || '',
-      });
-    }
-    setExpertDirty(false);
   };
 
   // Cover prompt handlers
@@ -418,289 +249,106 @@ export default function PodcastSection({
     setStyleDirty(false);
   };
 
-  // Get available voices and models from settings
-  const availableVoices = podcastSettings?.available_voices || {};
-  const availableModels = podcastSettings?.available_models || {};
-
-  // Render speaker config section
-  const renderSpeakerConfig = (
-    title,
-    icon,
-    config,
-    handleChange,
-    handleSave,
-    handleReset,
-    isDirty,
-    expanded,
-    setExpanded,
-    colorClass
-  ) => (
-    <div className={`speaker-config-block ${colorClass}`}>
-      <button
-        className="speaker-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="speaker-title">
-          {icon}
-          <span>{title}</span>
-          {isDirty && <span className="dirty-indicator">*</span>}
+  // Render characters view
+  if (showCharacters) {
+    return (
+      <div className="settings-section podcast-section">
+        <div className="characters-back-header">
+          <button className="btn-back" onClick={() => setShowCharacters(false)}>
+            <X size={16} />
+            Back to Settings
+          </button>
         </div>
-        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-
-      {expanded && (
-        <div className="speaker-content">
-          {/* Voice Selection */}
-          <div className="voice-setting-row">
-            <label>Voice</label>
-            <select
-              value={config.voice_id}
-              onChange={handleChange('voice_id')}
-            >
-              {Object.entries(availableVoices).map(([id, voice]) => (
-                <option key={id} value={id}>
-                  {voice.name} - {voice.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Model Selection */}
-          <div className="voice-setting-row">
-            <label>Model</label>
-            <select
-              value={config.model}
-              onChange={handleChange('model')}
-            >
-              {Object.entries(availableModels).map(([id, model]) => (
-                <option key={id} value={id}>
-                  {model.name} - {model.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stability Slider */}
-          <div className="voice-setting-row slider-row">
-            <label>
-              Stability
-              <span className="slider-value">{config.stability.toFixed(2)}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={config.stability}
-              onChange={handleChange('stability')}
-            />
-            <div className="slider-labels">
-              <span>Variable</span>
-              <span>Stable</span>
-            </div>
-          </div>
-
-          {/* Similarity Boost Slider */}
-          <div className="voice-setting-row slider-row">
-            <label>
-              Similarity Boost
-              <span className="slider-value">{config.similarity_boost.toFixed(2)}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={config.similarity_boost}
-              onChange={handleChange('similarity_boost')}
-            />
-            <div className="slider-labels">
-              <span>Low</span>
-              <span>High</span>
-            </div>
-          </div>
-
-          {/* Style Slider */}
-          <div className="voice-setting-row slider-row">
-            <label>
-              Style
-              <span className="slider-value">{config.style.toFixed(2)}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={config.style}
-              onChange={handleChange('style')}
-            />
-            <div className="slider-labels">
-              <span>Neutral</span>
-              <span>Expressive</span>
-            </div>
-          </div>
-
-          {/* Speed Slider */}
-          <div className="voice-setting-row slider-row">
-            <label>
-              Speed
-              <span className="slider-value">{config.speed.toFixed(2)}x</span>
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.05"
-              value={config.speed}
-              onChange={handleChange('speed')}
-            />
-            <div className="slider-labels">
-              <span>0.5x</span>
-              <span>2x</span>
-            </div>
-          </div>
-
-          {/* System Prompt */}
-          <div className="voice-setting-row">
-            <label>System Prompt</label>
-            <textarea
-              className="system-prompt-textarea"
-              value={config.system_prompt}
-              onChange={handleChange('system_prompt')}
-              placeholder={`Enter the ${title.toLowerCase()}'s personality and speaking style...`}
-              rows={6}
-            />
-          </div>
-
-          {/* Save/Reset buttons */}
-          <div className="btn-group">
-            <button
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={loading || !isDirty}
-            >
-              {loading ? 'Saving...' : `Save ${title} Config`}
-            </button>
-            {isDirty && (
-              <button
-                className="btn-secondary"
-                onClick={handleReset}
-                disabled={loading}
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        <CharacterList />
+      </div>
+    );
+  }
 
   return (
     <div className="settings-section podcast-section">
-      {/* ElevenLabs API Key Section */}
+      {/* TTS Service Status Section */}
       <div id="podcast-tts" className="modal-section">
         <h3>
-          <Mic size={18} />
-          ElevenLabs TTS
+          <Radio size={18} />
+          Voice Service Status
         </h3>
         <p className="section-description">
-          Configure ElevenLabs API for high-quality text-to-speech voice generation.
-          Get your API key at{' '}
-          <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">
-            elevenlabs.io
-          </a>
+          Podcast voice generation uses Qwen3-TTS for high-quality text-to-speech synthesis.
         </p>
 
-        <div className="api-key-block">
-          <div className="api-key-header">
-            <strong>API Key</strong>
-          </div>
-          {podcastSettings && (
-            <div className="api-key-status">
-              <span className={`status-indicator ${podcastSettings.elevenlabs_configured ? 'configured' : 'not-configured'}`}>
-                {podcastSettings.elevenlabs_configured ? 'Configured' : 'Not Configured'}
-              </span>
-              {podcastSettings.elevenlabs_configured && podcastSettings.elevenlabs_source && (
-                <span className="status-source">
-                  (via {podcastSettings.elevenlabs_source === 'settings' ? 'saved settings' : 'environment variable'})
+        <div className="tts-status-block">
+          {checkingHealth ? (
+            <div className="tts-status checking">
+              <RefreshCw size={16} className="spinning" />
+              <span>Checking TTS service...</span>
+            </div>
+          ) : ttsHealth?.healthy ? (
+            <div className="tts-status healthy">
+              <Check size={16} />
+              <div className="tts-status-info">
+                <span className="tts-status-label">Qwen3-TTS Service</span>
+                <span className="tts-status-text">Connected and ready</span>
+              </div>
+            </div>
+          ) : (
+            <div className="tts-status unhealthy">
+              <AlertCircle size={16} />
+              <div className="tts-status-info">
+                <span className="tts-status-label">Qwen3-TTS Service</span>
+                <span className="tts-status-text">
+                  {ttsHealth?.error || 'Not available'}
                 </span>
-              )}
+              </div>
             </div>
           )}
-          <input
-            type="password"
-            placeholder="Enter ElevenLabs API key..."
-            value={elevenLabsKey}
-            onChange={(e) => setElevenLabsKey(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSaveElevenLabsKey()}
-          />
-          <div className="btn-group">
-            <button
-              className="btn-primary"
-              onClick={handleSaveElevenLabsKey}
-              disabled={loading || !elevenLabsKey.trim()}
-            >
-              {loading ? 'Saving...' : 'Save Key'}
-            </button>
-            {podcastSettings?.elevenlabs_source === 'settings' && (
-              <button
-                className="btn-secondary"
-                onClick={handleClearElevenLabsKey}
-                disabled={loading}
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          <button
+            className="btn-refresh"
+            onClick={checkTtsHealth}
+            disabled={checkingHealth}
+            title="Refresh status"
+          >
+            <RefreshCw size={14} className={checkingHealth ? 'spinning' : ''} />
+          </button>
         </div>
-      </div>
 
-      {/* Speaker Configuration - only show if ElevenLabs is configured */}
-      {podcastSettings?.elevenlabs_configured && (
-        <div id="podcast-speakers" className="modal-section">
-          <h3>Speaker Configuration</h3>
-          <p className="section-description">
-            Configure the two speakers for your podcast. Each speaker has their own voice, settings, and personality prompt.
-          </p>
-
-          {/* Host Configuration */}
-          {renderSpeakerConfig(
-            'Host',
-            <User size={18} />,
-            hostConfig,
-            handleHostChange,
-            handleSaveHostConfig,
-            handleResetHostConfig,
-            hostDirty,
-            hostExpanded,
-            setHostExpanded,
-            'host-config'
-          )}
-
-          {/* Expert Configuration */}
-          {renderSpeakerConfig(
-            'Expert',
-            <GraduationCap size={18} />,
-            expertConfig,
-            handleExpertChange,
-            handleSaveExpertConfig,
-            handleResetExpertConfig,
-            expertDirty,
-            expertExpanded,
-            setExpertExpanded,
-            'expert-config'
-          )}
-
-          <div className="info-box">
-            <Info size={20} />
+        {!ttsHealth?.healthy && !checkingHealth && (
+          <div className="tts-setup-hint">
+            <Info size={16} />
             <p>
-              The Host introduces topics and guides the conversation while the Expert provides detailed explanations and insights.
-              Customize their voices and personalities to match your podcast style.
+              To use podcast voice generation, ensure the Qwen3-TTS service is running.
+              Check the documentation for setup instructions.
             </p>
           </div>
+        )}
+      </div>
+
+      {/* Characters Section */}
+      <div id="podcast-characters" className="modal-section">
+        <h3>
+          <Users size={18} />
+          Voice Characters
+        </h3>
+        <p className="section-description">
+          Create and manage podcast characters with unique voices and personalities.
+          Each character can be assigned as host, expert, or narrator.
+        </p>
+
+        <button
+          className="btn-manage-characters"
+          onClick={() => setShowCharacters(true)}
+        >
+          <Users size={16} />
+          Manage Characters
+        </button>
+
+        <div className="info-box">
+          <Info size={20} />
+          <p>
+            You need at least 2 characters for Question Time mode (host + expert).
+            Explainer mode requires only 1 narrator character.
+          </p>
         </div>
-      )}
+      </div>
 
       {/* Cover Art Settings */}
       <div id="podcast-cover-art" className="modal-section">
