@@ -220,6 +220,10 @@ export default function Sidebar({
   const [modeFilter, setModeFilter] = useState(null); // 'agent' | 'user' | null
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
 
+  // Advanced filters collapse state
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [showFilterTrigger, setShowFilterTrigger] = useState(false);
+
   // Persist sidebar style to localStorage
   useEffect(() => {
     localStorage.setItem('sidebarStyle', sidebarStyle);
@@ -530,81 +534,95 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Separator line */}
-      <div className="sidebar-separator"></div>
+      {/* Separator line with Advanced Filters trigger */}
+      <div
+        className={`sidebar-separator-trigger ${showFilterTrigger ? 'hovering' : ''} ${filtersExpanded ? 'expanded' : ''}`}
+        onMouseEnter={() => setShowFilterTrigger(true)}
+        onMouseLeave={() => setShowFilterTrigger(false)}
+        onClick={() => !collapsed && setFiltersExpanded(!filtersExpanded)}
+      >
+        {!collapsed && showFilterTrigger && (
+          <span className="filter-trigger-label">
+            Advanced Filters = {filtersExpanded ? 'ON' : 'OFF'}
+          </span>
+        )}
+      </div>
 
-      {/* Style selector - below top actions */}
-      {!collapsed && (
-        <div className="sidebar-style-selector">
-          <div className="style-toggle-container">
-            <button
-              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.LIST ? 'active' : ''}`}
-              onClick={() => setSidebarStyle(SIDEBAR_STYLES.LIST)}
-              title="List view"
-            >
-              {StyleIcons.list}
-              <span>List</span>
-            </button>
-            <button
-              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.CATEGORY ? 'active' : ''}`}
-              onClick={() => setSidebarStyle(SIDEBAR_STYLES.CATEGORY)}
-              title="Category view"
-            >
-              {StyleIcons.category}
-              <span>Category</span>
-            </button>
-            <button
-              className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.FOCUS ? 'active' : ''}`}
-              onClick={() => setSidebarStyle(SIDEBAR_STYLES.FOCUS)}
-              title="Focus view"
-            >
-              {StyleIcons.focus}
-              <span>Single</span>
-            </button>
+      {/* Collapsible filter controls */}
+      {filtersExpanded && !collapsed && (
+        <>
+          {/* Style selector - below top actions */}
+          <div className="sidebar-style-selector">
+            <div className="style-toggle-container">
+              <button
+                className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.LIST ? 'active' : ''}`}
+                onClick={() => setSidebarStyle(SIDEBAR_STYLES.LIST)}
+                title="List view"
+              >
+                {StyleIcons.list}
+                <span>List</span>
+              </button>
+              <button
+                className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.CATEGORY ? 'active' : ''}`}
+                onClick={() => setSidebarStyle(SIDEBAR_STYLES.CATEGORY)}
+                title="Category view"
+              >
+                {StyleIcons.category}
+                <span>Category</span>
+              </button>
+              <button
+                className={`style-btn ${sidebarStyle === SIDEBAR_STYLES.FOCUS ? 'active' : ''}`}
+                onClick={() => setSidebarStyle(SIDEBAR_STYLES.FOCUS)}
+                title="Focus view"
+              >
+                {StyleIcons.focus}
+                <span>Single</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Filter bar - shown in Focus and List modes */}
-      {!collapsed && (sidebarStyle === SIDEBAR_STYLES.FOCUS || sidebarStyle === SIDEBAR_STYLES.LIST) && (
-        <div className="sidebar-filter-bar">
-          <button
-            className="filter-btn active"
-            onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}
-          >
-            Recent {sortDirection === 'desc' ? '↓' : '↑'}
-          </button>
-          <button
-            className={`filter-btn ${typeDropdownOpen || selectedTypes.length > 0 ? 'active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setTypeDropdownOpen(!typeDropdownOpen);
-            }}
-          >
-            Type {selectedTypes.length > 0 && `(${selectedTypes.length})`}
-          </button>
-          <button
-            className={`filter-btn ${modeFilter ? 'active' : ''}`}
-            onClick={toggleModeFilter}
-          >
-            {modeFilter ? (modeFilter === 'agent' ? 'Agent' : 'User') : 'Mode'}
-          </button>
-        </div>
-      )}
-      {/* Type filter dropdown - positioned below filter bar */}
-      {!collapsed && typeDropdownOpen && (
-        <div className="sidebar-filter-dropdown">
-          {['youtube', 'podcast', 'pdf', 'article', 'text'].map(type => (
-            <label key={type} className="filter-dropdown-item">
-              <input
-                type="checkbox"
-                checked={selectedTypes.includes(type)}
-                onChange={() => toggleType(type)}
-              />
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </label>
-          ))}
-        </div>
+          {/* Filter bar - shown in Focus and List modes */}
+          {(sidebarStyle === SIDEBAR_STYLES.FOCUS || sidebarStyle === SIDEBAR_STYLES.LIST) && (
+            <div className="sidebar-filter-bar">
+              <button
+                className="filter-btn active"
+                onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}
+              >
+                Recent {sortDirection === 'desc' ? '↓' : '↑'}
+              </button>
+              <button
+                className={`filter-btn ${typeDropdownOpen || selectedTypes.length > 0 ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTypeDropdownOpen(!typeDropdownOpen);
+                }}
+              >
+                Type {selectedTypes.length > 0 && `(${selectedTypes.length})`}
+              </button>
+              <button
+                className={`filter-btn ${modeFilter ? 'active' : ''}`}
+                onClick={toggleModeFilter}
+              >
+                {modeFilter ? (modeFilter === 'agent' ? 'Agent' : 'User') : 'Mode'}
+              </button>
+            </div>
+          )}
+          {/* Type filter dropdown - positioned below filter bar */}
+          {typeDropdownOpen && (
+            <div className="sidebar-filter-dropdown">
+              {['youtube', 'podcast', 'pdf', 'article', 'text'].map(type => (
+                <label key={type} className="filter-dropdown-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedTypes.includes(type)}
+                    onChange={() => toggleType(type)}
+                  />
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </label>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Generating podcasts section */}

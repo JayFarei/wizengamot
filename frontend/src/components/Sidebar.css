@@ -33,6 +33,61 @@
   flex-shrink: 0;
 }
 
+/* Advanced Filters trigger - replaces separator when interactive */
+.sidebar-separator-trigger {
+  position: relative;
+  height: 1px;
+  background: var(--border-primary);
+  margin: 0 12px 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-separator-trigger.hovering {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.sidebar-separator-trigger.expanded {
+  background: var(--bg-active);
+}
+
+.sidebar-separator-trigger.expanded.hovering {
+  background: var(--bg-hover);
+}
+
+.filter-trigger-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+}
+
+.sidebar-separator-trigger:hover .filter-trigger-label {
+  color: var(--text-secondary);
+}
+
+.sidebar-separator-trigger.expanded .filter-trigger-label {
+  color: var(--primary);
+}
+
+/* Hide trigger in collapsed sidebar */
+.sidebar.collapsed .sidebar-separator-trigger {
+  cursor: default;
+}
+
+.sidebar.collapsed .sidebar-separator-trigger.hovering {
+  height: 1px;
+  background: var(--border-primary);
+  border-radius: 0;
+}
+
 /* Thin separator between search and feature quick access */
 .sidebar-quick-separator {
   height: 1px;
