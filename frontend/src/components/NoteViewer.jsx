@@ -9,6 +9,7 @@ import ActionMenu from './ActionMenu';
 import ReviewSessionsButton from './ReviewSessionsButton';
 import SourceMetadataModal from './SourceMetadataModal';
 import NotePanesView from './NotePanesView';
+import ProgressRail from './ProgressRail';
 import { api } from '../api';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
@@ -679,6 +680,14 @@ export default function NoteViewer({
     [comments]
   );
 
+  // Build rail items for ProgressRail component
+  const railItems = useMemo(() => notes.map((note, index) => ({
+    id: note.id,
+    title: note.title,
+    index,
+    commentCount: comments.filter((c) => c.note_id === note.id).length,
+  })), [notes, comments]);
+
   // Apply highlights to keyboard sentence container in focus mode
   useEffect(() => {
     if (!focusMode || !currentNoteComments.length) return;
@@ -1047,11 +1056,11 @@ export default function NoteViewer({
               </svg>
             </button>
 
-            <div className="nav-indicator">
-              <span className="nav-current">{safeIndex + 1}</span>
-              <span className="nav-separator">/</span>
-              <span className="nav-total">{notes.length}</span>
-            </div>
+            <ProgressRail
+              items={railItems}
+              activeIndex={safeIndex}
+              onIndexChange={setCurrentIndex}
+            />
 
             <button
               className="nav-btn nav-next"
@@ -1239,11 +1248,11 @@ export default function NoteViewer({
                 </svg>
               </button>
 
-              <div className="nav-indicator">
-                <span className="nav-current">{safeIndex + 1}</span>
-                <span className="nav-separator">/</span>
-                <span className="nav-total">{notes.length}</span>
-              </div>
+              <ProgressRail
+                items={railItems}
+                activeIndex={safeIndex}
+                onIndexChange={setCurrentIndex}
+              />
 
               <button
                 className="nav-btn nav-next"

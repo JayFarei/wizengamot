@@ -1,0 +1,173 @@
+/* Progress Rail - Zoomable navigation component */
+
+.progress-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  min-width: 200px;
+  flex: 1;
+  padding: 0 4px;
+  margin: 0 12px;
+  outline: none;
+  gap: 6px;
+}
+
+.progress-rail:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Ticks container */
+.progress-rail-ticks {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 28px;
+  z-index: 1;
+}
+
+/* Individual tick button - rendered at MAX size, scaled DOWN for crisp genie effect */
+.progress-rail-tick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  will-change: transform;
+  transform-origin: center bottom;
+  transform: scaleX(0.33) scaleY(0.5); /* Default scaled-down state */
+  transition: opacity 0.15s ease;
+}
+
+.progress-rail-tick:focus-visible {
+  outline: none;
+}
+
+.progress-rail-tick:focus-visible .tick-marker {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+/* Tick marker (the visual bar) - rendered at MAX size, scaled DOWN for crispness */
+.tick-marker {
+  width: 6px;
+  height: 28px;
+  background: var(--text-muted);
+  border-radius: 1px;
+  transition: background-color 0.15s ease;
+}
+
+.progress-rail-tick:hover .tick-marker {
+  background: var(--primary);
+}
+
+.progress-rail-tick.active .tick-marker {
+  background: var(--error);
+}
+
+/* Comment dots container */
+.comment-dots {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+  height: 6px;
+}
+
+/* Individual comment dot */
+.comment-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--highlight-border);
+}
+
+/* Glow effect for 3+ comments */
+.comment-dot.glow {
+  box-shadow: 0 0 4px 1px var(--highlight-border);
+}
+
+/* Playhead marker - hidden, using active tick styling instead */
+.progress-rail-playhead {
+  display: none;
+}
+
+/* Hover label */
+.progress-rail-label {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background: var(--bg-active); /* Darker in light mode for better contrast */
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-primary);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Dark mode: use darker background for tooltip */
+[data-theme="dark"] .progress-rail-label {
+  background: var(--bg-tertiary);
+}
+
+.progress-rail-label-title {
+  font-weight: 500;
+  max-width: 400px;
+}
+
+.progress-rail-label-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.progress-rail-label-comments {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.progress-rail-label-comments svg {
+  width: 12px;
+  height: 12px;
+}
+
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .progress-rail-tick {
+    will-change: auto;
+    transition: none;
+  }
+
+  .tick-marker {
+    transition: none;
+  }
+
+  .progress-rail-playhead {
+    transition: none;
+  }
+}
+
+
+/* Card counter below ticks */
+.progress-rail-counter {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
