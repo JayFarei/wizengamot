@@ -556,15 +556,18 @@ export default function NoteViewer({
     return () => window.removeEventListener('commandPalette:action', handleCommandPaletteAction);
   }, [copyNoteToClipboard, copyAllNotesToClipboard, handleOpenSourceMetadata, linkedVisualisations, onSelectConversation]);
 
-  // Wheel navigation for swipe view
+  // Wheel navigation for swipe view and focus mode
   useEffect(() => {
-    if (viewMode !== 'swipe' || focusMode) return;
+    if (viewMode !== 'swipe') return;
     if (!notes?.length) return;
 
     const handleWheel = (e) => {
-      // Only handle wheel events on the swipe view
-      const swipeView = document.querySelector('.swipe-view');
-      if (!swipeView || !swipeView.contains(e.target)) return;
+      // In focus mode, allow scroll anywhere (fullscreen)
+      // In swipe view, only handle when mouse is on the card
+      if (!focusMode) {
+        const swipeView = document.querySelector('.swipe-view');
+        if (!swipeView || !swipeView.contains(e.target)) return;
+      }
 
       e.preventDefault();
 

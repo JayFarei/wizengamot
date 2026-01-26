@@ -82,14 +82,14 @@ class TestPrebuiltVoices:
         data = response.json()
         assert "voices" in data
         assert "count" in data
-        assert data["count"] == 9
+        assert data["count"] == 9  # Qwen3-TTS has 9 prebuilt voices
 
-        # Verify expected voices exist
+        # Verify expected voices exist (lowercase IDs)
         voice_ids = [v["id"] for v in data["voices"]]
         assert "aiden" in voice_ids
-        assert "ryan" in voice_ids
-        assert "ono_anna" in voice_ids
         assert "serena" in voice_ids
+        assert "ryan" in voice_ids
+        assert "vivian" in voice_ids
 
     def test_prebuilt_voice_structure(self, client):
         """Test that prebuilt voices have expected structure."""
@@ -105,10 +105,14 @@ class TestPrebuiltVoices:
 
 
 class TestVoiceClone:
-    """Tests for voice cloning endpoint."""
+    """Tests for voice cloning endpoint.
 
-    def test_clone_voice(self, client, clean_voices_dir):
-        """Test voice cloning with audio file."""
+    Voice cloning now uses local CSM model (mlx-community/csm-1b).
+    No external Colab/ngrok dependencies required.
+    """
+
+    def test_clone_voice_local(self, client, clean_voices_dir):
+        """Test that voice cloning works with local CSM model."""
         # Create a simple test WAV file
         sample_rate = 24000
         duration_seconds = 3
@@ -131,6 +135,7 @@ class TestVoiceClone:
             },
         )
 
+        # Voice cloning should succeed with local CSM model
         assert response.status_code == 200
         data = response.json()
         assert "voice_id" in data
@@ -207,7 +212,7 @@ class TestSynthesizeSingle:
             "/synthesize",
             json={
                 "text": "Hello, this is a test of text to speech.",
-                "voice_id": "aiden",
+                "voice_id": "Aiden",
                 "voice_mode": "prebuilt",
             },
         )
@@ -234,7 +239,7 @@ class TestSynthesizeSingle:
             "/synthesize",
             json={
                 "text": "This is exciting news!",
-                "voice_id": "ono_anna",
+                "voice_id": "Chelsie",
                 "voice_mode": "prebuilt",
                 "emotion": "enthusiastic",
             },
@@ -250,7 +255,7 @@ class TestSynthesizeSingle:
             "/synthesize",
             json={
                 "text": "Speaking quickly now.",
-                "voice_id": "ryan",
+                "voice_id": "Ethan",
                 "voice_mode": "prebuilt",
                 "speed": 1.5,
             },
@@ -263,7 +268,7 @@ class TestSynthesizeSingle:
         response = client.post(
             "/synthesize",
             json={
-                "voice_id": "aiden",
+                "voice_id": "Aiden",
             },
         )
         assert response.status_code == 422
@@ -278,8 +283,8 @@ class TestSynthesizeDialogue:
             "/synthesize-dialogue",
             json={
                 "speakers": {
-                    "Sarah": {"voice_mode": "prebuilt", "voice_id": "ono_anna"},
-                    "Mike": {"voice_mode": "prebuilt", "voice_id": "ryan"},
+                    "Sarah": {"voice_mode": "prebuilt", "voice_id": "Chelsie"},
+                    "Mike": {"voice_mode": "prebuilt", "voice_id": "Ethan"},
                 },
                 "dialogue": [
                     {"speaker": "Sarah", "text": "Welcome to the show!", "emotion": "enthusiastic"},
@@ -310,7 +315,7 @@ class TestSynthesizeDialogue:
             "/synthesize-dialogue",
             json={
                 "speakers": {
-                    "Host": {"voice_mode": "prebuilt", "voice_id": "vivian"},
+                    "Host": {"voice_mode": "prebuilt", "voice_id": "Vivian"},
                     "Guest": {
                         "voice_mode": "design",
                         "description": "warm British accent, male, mid-40s",
@@ -333,7 +338,7 @@ class TestSynthesizeDialogue:
             "/synthesize-dialogue",
             json={
                 "speakers": {
-                    "A": {"voice_mode": "prebuilt", "voice_id": "aiden"},
+                    "A": {"voice_mode": "prebuilt", "voice_id": "Aiden"},
                 },
                 "dialogue": [],
             },
@@ -408,7 +413,7 @@ class TestVoiceManagement:
 
     def test_delete_prebuilt_voice(self, client):
         """Test that prebuilt voices cannot be deleted."""
-        response = client.delete("/voices/aiden")
+        response = client.delete("/voices/Aiden")
         assert response.status_code == 400
         assert "prebuilt" in response.json()["detail"].lower()
 
@@ -422,7 +427,7 @@ class TestWordTimings:
             "/synthesize",
             json={
                 "text": "One two three four five.",
-                "voice_id": "aiden",
+                "voice_id": "Aiden",
                 "voice_mode": "prebuilt",
             },
         )
@@ -448,7 +453,7 @@ class TestWordTimings:
             "/synthesize",
             json={
                 "text": "First second third.",
-                "voice_id": "ono_anna",
+                "voice_id": "Chelsie",
                 "voice_mode": "prebuilt",
             },
         )
@@ -491,4 +496,5 @@ class TestErrorHandling:
                 "name": "Test",
             },
         )
+        # With local CSM, returns 500 for invalid audio format
         assert response.status_code == 500

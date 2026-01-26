@@ -1,0 +1,5 @@
+{
+  "reference_audio_path": "/Users/jayfarei/Development/llm-council/services/qwen3-tts/voices/clone_59832efa.wav",
+  "reference_transcript": "Hello, this is a test of voice cloning.",
+  "sample_rate": 24000
+}

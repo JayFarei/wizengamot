@@ -89,6 +89,25 @@
   border-radius: 4px;
 }
 
+/* Alpha pill for experimental features */
+.sidebar-action-btn .alpha-pill {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar.collapsed .sidebar-action-btn .alpha-pill {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .council-config {
   border-bottom: 1px solid var(--border-primary);
   padding: 12px 16px;
@@ -871,6 +890,77 @@
   font-size: 10px;
   color: var(--success-color, #10b981);
   text-transform: capitalize;
+}
+
+/* Generating podcasts section */
+.generating-podcasts-section {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-primary);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.generating-podcasts-section .section-header {
+  color: #ef4444;
+}
+
+/* Recording dot - pulsing red indicator */
+.recording-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 6px;
+  animation: recording-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes recording-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  }
+}
+
+/* Podcast item in generating state */
+.podcast-item.generating {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 6px;
+}
+
+.podcast-item.generating:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Inline progress bar */
+.podcast-inline-progress {
+  height: 3px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  margin: 4px 0 2px;
+  overflow: hidden;
+}
+
+.podcast-inline-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Step label below progress */
+.podcast-step-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Sidebar Discovery Tab - Sticky section above footer */

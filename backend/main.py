@@ -13,6 +13,8 @@ import subprocess
 import threading
 import time
 import os
+import httpx
+from datetime import datetime
 
 from . import storage, config, prompts, threads, settings, content, synthesizer, synthesizer_kg, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles, podcast_characters
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
@@ -3386,12 +3388,6 @@ class DiscoverNotesRequest(BaseModel):
 
 class SpeakerConfigRequest(BaseModel):
     """Request to update host or expert speaker config."""
-    voice_id: Optional[str] = None
-    model: Optional[str] = None
-    stability: Optional[float] = None
-    similarity_boost: Optional[float] = None
-    style: Optional[float] = None
-    speed: Optional[float] = None
     system_prompt: Optional[str] = None
 
 
@@ -3401,74 +3397,17 @@ async def get_podcast_settings_endpoint():
     return settings.get_podcast_settings()
 
 
-class ElevenLabsApiKeyRequest(BaseModel):
-    """Request to set ElevenLabs API key."""
-    api_key: str
-
-
-@app.post("/api/settings/podcast/elevenlabs-api-key")
-async def set_elevenlabs_api_key_endpoint(request: ElevenLabsApiKeyRequest):
-    """Set the ElevenLabs API key."""
-    settings.set_elevenlabs_api_key(request.api_key)
-    return {"success": True, "source": "settings"}
-
-
-@app.delete("/api/settings/podcast/elevenlabs-api-key")
-async def clear_elevenlabs_api_key_endpoint():
-    """Clear the ElevenLabs API key from settings."""
-    settings.clear_elevenlabs_api_key()
-    return {"success": True}
-
-
 @app.put("/api/settings/podcast/host")
 async def update_host_config(request: SpeakerConfigRequest):
     """Update host speaker configuration."""
-    voice_settings = None
-    if any([request.stability is not None, request.similarity_boost is not None,
-            request.style is not None, request.speed is not None]):
-        current = settings.get_host_voice_config()
-        voice_settings = current["voice_settings"].copy()
-        if request.stability is not None:
-            voice_settings["stability"] = request.stability
-        if request.similarity_boost is not None:
-            voice_settings["similarity_boost"] = request.similarity_boost
-        if request.style is not None:
-            voice_settings["style"] = request.style
-        if request.speed is not None:
-            voice_settings["speed"] = request.speed
-
-    settings.set_host_voice_config(
-        voice_id=request.voice_id,
-        model=request.model,
-        voice_settings=voice_settings,
-        system_prompt=request.system_prompt,
-    )
+    settings.set_host_voice_config(system_prompt=request.system_prompt)
     return settings.get_podcast_settings()
 
 
 @app.put("/api/settings/podcast/expert")
 async def update_expert_config(request: SpeakerConfigRequest):
     """Update expert speaker configuration."""
-    voice_settings = None
-    if any([request.stability is not None, request.similarity_boost is not None,
-            request.style is not None, request.speed is not None]):
-        current = settings.get_expert_voice_config()
-        voice_settings = current["voice_settings"].copy()
-        if request.stability is not None:
-            voice_settings["stability"] = request.stability
-        if request.similarity_boost is not None:
-            voice_settings["similarity_boost"] = request.similarity_boost
-        if request.style is not None:
-            voice_settings["style"] = request.style
-        if request.speed is not None:
-            voice_settings["speed"] = request.speed
-
-    settings.set_expert_voice_config(
-        voice_id=request.voice_id,
-        model=request.model,
-        voice_settings=voice_settings,
-        system_prompt=request.system_prompt,
-    )
+    settings.set_expert_voice_config(system_prompt=request.system_prompt)
     return settings.get_podcast_settings()
 
 
@@ -3713,6 +3652,57 @@ async def list_podcast_sessions_endpoint(
     return podcast_storage.list_podcast_sessions(conversation_id, limit)
 
 
+@app.get("/api/podcast/sessions/generating")
+async def list_generating_podcast_sessions_endpoint():
+    """
+    List only podcast sessions that are currently generating.
+
+    Optimized endpoint for frequent polling from the sidebar.
+    Returns sessions with status === "generating" and their progress details.
+    """
+    return podcast_storage.list_generating_sessions()
+
+
+# Cached TTS health check (10 second TTL)
+_tts_health_cache = {"result": None, "checked_at": None}
+
+
+@app.get("/api/podcast/tts-health")
+async def get_tts_health_cached():
+    """
+    Get cached TTS service health status.
+
+    Returns cached result for 10 seconds to avoid hammering
+    the TTS service during frequent polling.
+    """
+    import time
+
+    now = time.time()
+    cache_ttl = 10  # seconds
+
+    # Return cached result if still valid
+    if _tts_health_cache["checked_at"] and (now - _tts_health_cache["checked_at"]) < cache_ttl:
+        return _tts_health_cache["result"]
+
+    # Fetch fresh health status
+    try:
+        status = await podcast_characters.check_tts_service_health()
+        _tts_health_cache["result"] = {
+            "healthy": status.get("available", False),
+            "details": status.get("status", "unknown"),
+            "checked_at": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        _tts_health_cache["result"] = {
+            "healthy": False,
+            "details": str(e),
+            "checked_at": datetime.utcnow().isoformat()
+        }
+
+    _tts_health_cache["checked_at"] = now
+    return _tts_health_cache["result"]
+
+
 @app.get("/api/podcast/sessions/{session_id}")
 async def get_podcast_session_endpoint(session_id: str):
     """Get a specific podcast session."""
@@ -3833,6 +3823,27 @@ async def end_podcast_session_endpoint(session_id: str):
     return {"success": True}
 
 
+@app.post("/api/podcast/sessions/{session_id}/cancel")
+async def cancel_podcast_session_endpoint(session_id: str):
+    """
+    Cancel an in-progress podcast generation.
+
+    This sets a cancellation flag that the generation loop checks between
+    audio segments. The generation will stop at the next segment boundary.
+
+    Returns immediately, the actual cancellation happens asynchronously.
+    """
+    session = podcast_storage.get_podcast_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.get("status") != "generating":
+        return {"success": True, "message": "Session not generating"}
+
+    podcast_storage.cancel_podcast_session(session_id)
+    return {"success": True, "message": "Cancellation requested"}
+
+
 @app.get("/api/podcast/sessions/{session_id}/transcript")
 async def get_podcast_transcript_endpoint(session_id: str):
     """Get the transcript for a podcast session."""
@@ -3941,13 +3952,12 @@ async def upload_podcast_audio_endpoint(session_id: str, audio: UploadFile = Fil
 async def get_podcast_audio_endpoint(session_id: str):
     """Serve the generated audio file for a podcast session."""
     from fastapi.responses import FileResponse
-    from .podcast_elevenlabs import get_podcast_audio_path
 
     session = podcast_storage.get_podcast_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # First check session's stored path (for backwards compatibility)
+    # First check session's stored path
     audio_path = session.get("audio_path")
     if audio_path:
         # Handle relative paths from data directory
@@ -3961,10 +3971,11 @@ async def get_podcast_audio_endpoint(session_id: str):
             media_type = "audio/mpeg" if audio_path.suffix == ".mp3" else "audio/webm"
             return FileResponse(str(audio_path), media_type=media_type)
 
-    # Check new ElevenLabs audio location
-    elevenlabs_path = get_podcast_audio_path(session_id)
-    if elevenlabs_path and elevenlabs_path.exists():
-        return FileResponse(str(elevenlabs_path), media_type="audio/mpeg")
+    # Check default audio location
+    storage_path = podcast_storage.get_podcast_audio_path(session_id)
+    if storage_path and storage_path.exists():
+        media_type = "audio/mpeg" if storage_path.suffix == ".mp3" else "audio/webm"
+        return FileResponse(str(storage_path), media_type=media_type)
 
     raise HTTPException(status_code=404, detail="No audio generated for this session")
 
@@ -4014,6 +4025,55 @@ async def check_tts_health():
     """Check if the Qwen3-TTS service is available."""
     status = await podcast_characters.check_tts_service_health()
     return status
+
+
+QWEN_TTS_URL = os.getenv("QWEN_TTS_URL", "http://localhost:7860")
+
+
+@app.post("/api/podcast/warm")
+async def warm_podcast_models():
+    """Pre-load TTS models for faster generation."""
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(
+            f"{QWEN_TTS_URL}/warm",
+            json={"modes": ["clone", "design"]}
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail="TTS service error")
+        return response.json()
+
+
+@app.post("/api/podcast/transcribe")
+async def transcribe_audio_endpoint(audio: UploadFile = File(...)):
+    """Transcribe audio using TTS service Whisper."""
+    async with httpx.AsyncClient(timeout=300.0) as client:
+        files = {"audio": (audio.filename, await audio.read(), audio.content_type)}
+        response = await client.post(f"{QWEN_TTS_URL}/transcribe", files=files)
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail="Transcription failed")
+        return response.json()
+
+
+@app.post("/api/podcast/characters/init-defaults")
+async def init_default_characters():
+    """Create default host + expert characters if no characters exist."""
+    from .podcast_defaults import DEFAULT_CHARACTERS
+
+    existing = await podcast_characters.list_characters()
+    if existing:
+        return {"created": [], "message": "Characters already exist"}
+
+    created = []
+    for char_def in DEFAULT_CHARACTERS:
+        character = await podcast_characters.create_character(
+            name=char_def["name"],
+            voice_mode=char_def["voice_mode"],
+            voice_config=char_def["voice_config"],
+            personality=char_def["personality"],
+        )
+        created.append(character)
+
+    return {"created": created}
 
 
 @app.post("/api/podcast/characters")

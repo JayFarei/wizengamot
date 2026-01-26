@@ -1,12 +1,14 @@
 """
 Qwen3-TTS integration for podcast audio generation.
-Replaces ElevenLabs with self-hosted Qwen3-TTS service.
 
-Key improvement: Entire podcast audio is generated in ONE API call
-via the /synthesize-dialogue endpoint, enabling natural speaker transitions.
+Supports two modes:
+1. Dialogue mode: Entire podcast in ONE API call (best quality, not cancellable)
+2. Segment mode: Per-segment generation (cancellable, slightly less natural transitions)
 """
 
+import asyncio
 import base64
+import io
 import logging
 import os
 from pathlib import Path
@@ -14,7 +16,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import httpx
 
-from .podcast_storage import get_podcast_audio_path as get_audio_path_from_storage
+from .podcast_storage import (
+    get_podcast_audio_path as get_audio_path_from_storage,
+    is_session_cancelled,
+)
+
+
+class PodcastCancelledException(Exception):
+    """Raised when a podcast generation is cancelled."""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +122,171 @@ async def generate_podcast_audio(
             raise Exception(f"Failed to connect to TTS service at {QWEN_TTS_URL}: {e}")
 
 
+async def generate_podcast_audio_cancellable(
+    session_id: str,
+    dialogue_segments: List[Dict],
+    characters: Dict[str, Dict],
+    progress_callback: Optional[Callable] = None,
+) -> Tuple[bytes, List[Dict], int]:
+    """
+    Generate podcast audio segment-by-segment with cancellation support.
+
+    This approach trades some naturalness for the ability to cancel mid-generation.
+    Checks for cancellation between each segment.
+
+    Args:
+        session_id: The session ID (used to check cancellation state)
+        dialogue_segments: List of dialogue segments with speaker, text, and emotion
+        characters: Character configs keyed by character name
+        progress_callback: Optional callback(progress, message, segment_current, segment_total)
+
+    Returns:
+        Tuple of (audio_bytes, word_timings, duration_ms)
+
+    Raises:
+        PodcastCancelledException: If the session is cancelled
+        Exception: If TTS service returns an error
+    """
+    # Filter out empty segments
+    dialogue = [
+        seg for seg in dialogue_segments
+        if seg.get("text", "").strip()
+    ]
+
+    if not dialogue:
+        logger.warning("No dialogue segments to synthesize")
+        return b"", [], 0
+
+    total_segments = len(dialogue)
+    logger.info(f"Generating podcast audio (cancellable): {total_segments} segments")
+
+    # Collect audio chunks and word timings
+    audio_chunks = []
+    all_word_timings = []
+    total_duration_ms = 0
+
+    for idx, seg in enumerate(dialogue):
+        # Check for cancellation before each segment
+        if is_session_cancelled(session_id):
+            logger.info(f"Podcast generation cancelled at segment {idx}/{total_segments}")
+            raise PodcastCancelledException(f"Generation cancelled at segment {idx}")
+
+        speaker = seg["speaker"]
+        text = seg["text"]
+        emotion = seg.get("emotion")
+
+        # Get character config for this speaker
+        character = characters.get(speaker)
+        if not character:
+            # Fallback to first character if speaker not found
+            character = list(characters.values())[0] if characters else {
+                "voice_mode": "prebuilt",
+                "voice": {"prebuilt_voice": "aiden"}
+            }
+
+        # Report progress
+        if progress_callback:
+            progress = idx / total_segments
+            progress_callback(progress, f"Generating segment {idx + 1} of {total_segments}", idx + 1, total_segments)
+
+        logger.info(f"Generating segment {idx + 1}/{total_segments}: {speaker} ({len(text)} chars)")
+
+        try:
+            # Generate audio for this segment
+            audio_bytes, word_timings, duration_ms = await generate_single_audio(
+                text=text,
+                character=character,
+                emotion=emotion,
+            )
+
+            if audio_bytes:
+                audio_chunks.append(audio_bytes)
+
+                # Adjust word timing offsets for concatenation
+                for timing in word_timings:
+                    timing["start_ms"] += total_duration_ms
+                    timing["end_ms"] += total_duration_ms
+                    timing["segment_index"] = idx
+
+                all_word_timings.extend(word_timings)
+                total_duration_ms += duration_ms
+
+        except Exception as e:
+            logger.error(f"Failed to generate segment {idx}: {e}")
+            # Continue with other segments rather than failing completely
+            continue
+
+    # Check cancellation one more time before combining
+    if is_session_cancelled(session_id):
+        logger.info("Podcast generation cancelled during finalization")
+        raise PodcastCancelledException("Generation cancelled during finalization")
+
+    # Combine audio chunks
+    if not audio_chunks:
+        logger.warning("No audio chunks generated")
+        return b"", [], 0
+
+    combined_audio = _concatenate_wav_audio(audio_chunks)
+
+    if progress_callback:
+        progress_callback(1.0, "Audio generation complete", total_segments, total_segments)
+
+    logger.info(f"Generated {len(combined_audio)} bytes of audio ({total_duration_ms}ms) from {len(audio_chunks)} segments")
+
+    return combined_audio, all_word_timings, total_duration_ms
+
+
+def _concatenate_wav_audio(audio_chunks: List[bytes]) -> bytes:
+    """
+    Concatenate multiple WAV audio chunks into a single WAV file.
+
+    Args:
+        audio_chunks: List of WAV audio bytes
+
+    Returns:
+        Combined WAV audio bytes
+    """
+    import numpy as np
+    import soundfile as sf
+
+    if not audio_chunks:
+        return b""
+
+    if len(audio_chunks) == 1:
+        return audio_chunks[0]
+
+    # Read all audio chunks into numpy arrays
+    audio_arrays = []
+    sample_rate = None
+
+    for chunk in audio_chunks:
+        try:
+            audio_data, sr = sf.read(io.BytesIO(chunk))
+            if sample_rate is None:
+                sample_rate = sr
+            elif sr != sample_rate:
+                # Resample if needed (shouldn't happen with same TTS service)
+                logger.warning(f"Sample rate mismatch: {sr} vs {sample_rate}")
+
+            audio_arrays.append(audio_data)
+        except Exception as e:
+            logger.error(f"Failed to read audio chunk: {e}")
+            continue
+
+    if not audio_arrays:
+        return b""
+
+    # Concatenate arrays
+    combined = np.concatenate(audio_arrays)
+
+    # Write to WAV bytes
+    output = io.BytesIO()
+    sf.write(output, combined, sample_rate, format='WAV')
+    output.seek(0)
+
+    return output.read()
+
+
 def _build_voice_config(character: Dict) -> Dict:
     """
     Build voice config for Qwen3-TTS from character data.
@@ -147,45 +322,63 @@ async def generate_single_audio(
     text: str,
     character: Dict,
     emotion: Optional[str] = None,
+    max_retries: int = 3,
 ) -> Tuple[bytes, List[Dict], int]:
     """
     Generate audio for a single speaker/segment.
 
     Useful for previews or single-speaker podcasts.
+    Includes retry logic with exponential backoff for transient failures.
 
     Args:
         text: Text to synthesize
         character: Character config with voice settings
         emotion: Optional emotion hint
+        max_retries: Maximum number of retry attempts (default: 3)
 
     Returns:
         Tuple of (audio_bytes, word_timings, duration_ms)
+
+    Raises:
+        Exception: If all retry attempts fail
     """
     voice_config = _build_voice_config(character)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{QWEN_TTS_URL}/synthesize",
-            json={
-                "text": text,
-                "voice_id": voice_config.get("voice_id", "aiden"),
-                "voice_mode": voice_config.get("voice_mode", "prebuilt"),
-                "emotion": emotion,
-                "speed": 1.0,
-            }
-        )
-        response.raise_for_status()
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{QWEN_TTS_URL}/synthesize",
+                    json={
+                        "text": text,
+                        "voice_id": voice_config.get("voice_id", "aiden"),
+                        "voice_mode": voice_config.get("voice_mode", "prebuilt"),
+                        "emotion": emotion,
+                        "speed": 1.0,
+                    }
+                )
+                response.raise_for_status()
 
-        data = response.json()
+                data = response.json()
 
-        audio_base64 = data.get("audio_base64", "")
-        audio_bytes = base64.b64decode(audio_base64) if audio_base64 else b""
+                audio_base64 = data.get("audio_base64", "")
+                audio_bytes = base64.b64decode(audio_base64) if audio_base64 else b""
 
-        return (
-            audio_bytes,
-            data.get("word_timings", []),
-            data.get("duration_ms", 0)
-        )
+                return (
+                    audio_bytes,
+                    data.get("word_timings", []),
+                    data.get("duration_ms", 0)
+                )
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait_time = (2 ** attempt) + 0.5  # 1.5s, 2.5s, 4.5s
+                logger.warning(f"TTS attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                await asyncio.sleep(wait_time)
+
+    # All retries failed
+    raise last_error or Exception("TTS generation failed after retries")
 
 
 def save_podcast_audio(session_id: str, audio_bytes: bytes) -> str:

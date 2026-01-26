@@ -320,6 +320,14 @@ export default function PodcastSection({
             </p>
           </div>
         )}
+
+        {/* Voice cloning info */}
+        {ttsHealth?.healthy && (
+          <div className="voice-cloning-info">
+            <Check size={16} />
+            <span>Voice cloning available via local CSM model</span>
+          </div>
+        )}
       </div>
 
       {/* Characters Section */}

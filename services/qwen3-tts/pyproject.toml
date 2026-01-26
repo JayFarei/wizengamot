@@ -1,25 +1,25 @@
 [project]
 name = "qwen3-tts-service"
-version = "0.1.0"
-description = "Qwen3-TTS native service for podcast audio generation"
+version = "0.3.0"
+description = "Qwen3-TTS native service for podcast audio generation (MLX optimized)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    # Pin numba/llvmlite first to get Python 3.12 compatible versions
-    "numba>=0.59.0",
-    "llvmlite>=0.42.0",
-    "librosa>=0.10.0",
-    # Main TTS package
-    "qwen-tts",
+    # MLX-based TTS for Apple Silicon optimization
+    # Installing from main branch to test upstream fixes for speaker encoder
+    "mlx-audio @ git+https://github.com/Blaizzy/mlx-audio.git@main",
     # Web framework
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
     "python-multipart",
+    # HTTP client for Colab communication
+    "requests>=2.31.0",
     # Audio processing
     "soundfile",
     "pydub",
     "faster-whisper>=1.0.0",
     "numpy>=1.24.0",
+    "scipy>=1.10.0",
     # Testing
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
@@ -29,3 +29,7 @@ dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.uv]
+# Allow prereleases for mlx-audio and its dependencies (transformers 5.x)
+prerelease = "allow"

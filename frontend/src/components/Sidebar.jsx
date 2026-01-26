@@ -3,6 +3,7 @@ import * as LucideIcons from 'lucide-react';
 import './Sidebar.css';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
 import { api } from '../api';
+import PodcastProgressModal from './PodcastProgressModal';
 
 // Helper to get Lucide icon component from name
 function getIconComponent(iconName) {
@@ -209,6 +210,11 @@ export default function Sidebar({
   const [discoveryStats, setDiscoveryStats] = useState({ pending: 0, total_discoveries: 0 });
   const [activeWorkers, setActiveWorkers] = useState(0);
 
+  // Generating podcasts state
+  const [generatingPodcasts, setGeneratingPodcasts] = useState([]);
+  const [selectedGeneratingPodcast, setSelectedGeneratingPodcast] = useState(null);
+  const [ttsHealth, setTtsHealth] = useState(null);
+
   // Sidebar style state with localStorage persistence
   const [sidebarStyle, setSidebarStyle] = useState(() => {
     const saved = localStorage.getItem('sidebarStyle');
@@ -264,6 +270,59 @@ export default function Sidebar({
       clearInterval(slowPollInterval);
     };
   }, [fetchDiscoveryData, activeWorkers]);
+
+  // Fetch generating podcasts
+  const fetchGeneratingPodcasts = useCallback(async () => {
+    try {
+      const sessions = await api.listGeneratingPodcastSessions();
+      setGeneratingPodcasts(sessions);
+
+      // Update selected podcast if it's still generating
+      if (selectedGeneratingPodcast) {
+        const updated = sessions.find(s => s.id === selectedGeneratingPodcast.id);
+        if (updated) {
+          setSelectedGeneratingPodcast(updated);
+        } else {
+          // Podcast finished generating, close modal
+          setSelectedGeneratingPodcast(null);
+        }
+      }
+    } catch (err) {
+      console.debug('Failed to fetch generating podcasts:', err);
+    }
+  }, [selectedGeneratingPodcast]);
+
+  // Fetch TTS health when a podcast is generating or modal is open
+  const fetchTtsHealth = useCallback(async () => {
+    try {
+      const health = await api.getTtsHealthCached();
+      setTtsHealth(health);
+    } catch (err) {
+      console.debug('Failed to fetch TTS health:', err);
+    }
+  }, []);
+
+  // Poll generating podcasts every 2 seconds when any are generating
+  useEffect(() => {
+    // Initial fetch
+    fetchGeneratingPodcasts();
+
+    // Poll every 2 seconds when there are generating podcasts
+    const pollInterval = setInterval(() => {
+      if (generatingPodcasts.length > 0 || selectedGeneratingPodcast) {
+        fetchGeneratingPodcasts();
+        fetchTtsHealth();
+      }
+    }, 2000);
+
+    // Also poll every 30 seconds regardless (to catch new generations)
+    const slowPollInterval = setInterval(fetchGeneratingPodcasts, 30000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(slowPollInterval);
+    };
+  }, [fetchGeneratingPodcasts, fetchTtsHealth, generatingPodcasts.length, selectedGeneratingPodcast]);
 
   // Click outside to cancel delete confirmation
   useEffect(() => {
@@ -473,6 +532,7 @@ export default function Sidebar({
             <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
           </svg>
           <span className="action-text">Podcast</span>
+          <span className="alpha-pill">alpha</span>
           <span className="shortcut">⌘O</span>
         </button>
       </div>
@@ -571,6 +631,55 @@ export default function Sidebar({
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </label>
           ))}
+        </div>
+      )}
+
+      {/* Generating podcasts section */}
+      {!collapsed && generatingPodcasts.length > 0 && (
+        <div className="sidebar-section generating-podcasts-section">
+          <div className="section-header">
+            <span className="section-header-icon">
+              <span className="recording-dot" />
+            </span>
+            Recording
+            <span className="section-count">{generatingPodcasts.length}</span>
+          </div>
+          <div className="section-list">
+            {generatingPodcasts.map((podcast) => {
+              const progress = Math.round((podcast.generation_progress || 0) * 100);
+              const stepLabel = podcast.generation_step === 'writing_script' ? 'Writing script...'
+                : podcast.generation_step === 'generating_audio' ? 'Generating audio...'
+                : podcast.generation_step === 'loading_characters' ? 'Loading characters...'
+                : podcast.generation_step === 'finalizing' ? 'Finalizing...'
+                : 'Starting...';
+
+              return (
+                <div
+                  key={podcast.id}
+                  className="conversation-item podcast-item generating"
+                  onClick={() => setSelectedGeneratingPodcast(podcast)}
+                >
+                  <div className="conversation-content">
+                    <div className="conversation-title-row">
+                      <span className="recording-dot" />
+                      <span className="conversation-title">
+                        {podcast.title || 'Podcast'}
+                      </span>
+                    </div>
+                    <div className="podcast-inline-progress">
+                      <div
+                        className="podcast-inline-progress-fill"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="podcast-step-label">
+                      {stepLabel} {progress}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1351,6 +1460,20 @@ export default function Sidebar({
           </svg>
         </button>
       </div>
+
+      {/* Podcast Progress Modal */}
+      {selectedGeneratingPodcast && (
+        <PodcastProgressModal
+          podcast={selectedGeneratingPodcast}
+          ttsHealth={ttsHealth}
+          onClose={() => setSelectedGeneratingPodcast(null)}
+          onDelete={async (sessionId) => {
+            await api.deletePodcastSession(sessionId);
+            // Remove from local state immediately
+            setGeneratingPodcasts(prev => prev.filter(p => p.id !== sessionId));
+          }}
+        />
+      )}
     </div>
   );
 }

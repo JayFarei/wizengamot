@@ -686,62 +686,10 @@ def replace_model(old_model: str, new_model: str, remove_old: bool = True) -> Di
 
 
 # =============================================================================
-# Podcast Settings (ElevenLabs and LiveKit)
+# Podcast Settings (Voice Service)
 # =============================================================================
 
-# ElevenLabs API Key
-def get_elevenlabs_api_key() -> Optional[str]:
-    """
-    Get ElevenLabs API key for TTS.
-    Priority: settings file > environment variable
-    """
-    settings = load_settings()
-    if settings.get("elevenlabs_api_key"):
-        return settings["elevenlabs_api_key"]
-    return os.getenv("ELEVEN_API_KEY")
-
-
-def set_elevenlabs_api_key(api_key: str) -> None:
-    """Set ElevenLabs API key in settings file."""
-    settings = load_settings()
-    settings["elevenlabs_api_key"] = api_key
-    save_settings(settings)
-
-
-def clear_elevenlabs_api_key() -> None:
-    """Clear ElevenLabs API key from settings file."""
-    settings = load_settings()
-    if "elevenlabs_api_key" in settings:
-        del settings["elevenlabs_api_key"]
-    save_settings(settings)
-
-
-def has_elevenlabs_configured() -> bool:
-    """Check if ElevenLabs API key is configured."""
-    return get_elevenlabs_api_key() is not None
-
-
-def get_elevenlabs_source() -> str:
-    """Return where the ElevenLabs API key is coming from."""
-    settings = load_settings()
-    if settings.get("elevenlabs_api_key"):
-        return "settings"
-    if os.getenv("ELEVEN_API_KEY"):
-        return "environment"
-    return "none"
-
-
-# ElevenLabs Voice Settings - Dual Speaker Configuration (Host + Expert)
-DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
-DEFAULT_VOICE_SETTINGS = {
-    "stability": 0.5,
-    "similarity_boost": 0.75,
-    "style": 0.3,
-    "speed": 1.0
-}
-
-# Default host voice - friendly, engaging interviewer
-DEFAULT_HOST_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"  # Sarah - American female
+# Default system prompts for host and expert roles
 DEFAULT_HOST_SYSTEM_PROMPT = """You are the host of an engaging podcast. Your role is to:
 - Ask thoughtful questions that draw out insights from the expert
 - Keep the conversation flowing naturally
@@ -750,8 +698,6 @@ DEFAULT_HOST_SYSTEM_PROMPT = """You are the host of an engaging podcast. Your ro
 - Use phrases like "That's fascinating!", "Tell me more about...", "So what you're saying is..."
 - Keep your responses concise to let the expert shine"""
 
-# Default expert voice - authoritative, knowledgeable explainer
-DEFAULT_EXPERT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # George - British male
 DEFAULT_EXPERT_SYSTEM_PROMPT = """You are the expert guest on a podcast. Your role is to:
 - Explain complex topics in an accessible, engaging way
 - Share insights and unique perspectives on the material
@@ -761,56 +707,26 @@ DEFAULT_EXPERT_SYSTEM_PROMPT = """You are the expert guest on a podcast. Your ro
 - Use phrases like "The key insight here is...", "What's really interesting is...", "Let me break this down..."
 - Provide depth while keeping explanations clear"""
 
-# Available voices for selection
-ELEVENLABS_VOICES = {
-    "JBFqnCBsd6RMkjVDRZzb": {"name": "George", "description": "British male, warm and authoritative"},
-    "onwK4e9ZLuTAKqWW03F9": {"name": "Daniel", "description": "British male, professional and clear"},
-    "ODq5zmih8GrVes37Dizd": {"name": "Patrick", "description": "American male, conversational"},
-    "pNInz6obpgDQGcFmaJgB": {"name": "Adam", "description": "American male, deep and resonant"},
-    "EXAVITQu4vr4xnSDxMaL": {"name": "Sarah", "description": "American female, professional and warm"},
-    "21m00Tcm4TlvDq8ikWAM": {"name": "Rachel", "description": "American female, calm and clear"},
-    "AZnzlk1XvdvUeBnXmlld": {"name": "Domi", "description": "American female, confident and direct"},
-    "MF3mGyEYCl7XYWbV9V6O": {"name": "Elli", "description": "American female, youthful and expressive"},
-}
-
-# Available models for selection
-ELEVENLABS_MODELS = {
-    "eleven_turbo_v2_5": {"name": "Turbo v2.5", "description": "Fast, low latency (recommended)"},
-    "eleven_multilingual_v2": {"name": "Multilingual v2", "description": "High quality, multi-language"},
-    "eleven_flash_v2_5": {"name": "Flash v2.5", "description": "Ultra-fast, lowest latency"},
-}
-
 
 def get_host_voice_config() -> Dict[str, Any]:
     """
     Get host voice configuration.
 
     Returns:
-        Dict with voice_id, model, voice_settings, and system_prompt
+        Dict with system_prompt for host role
     """
     settings = load_settings()
     return {
-        "voice_id": settings.get("host_voice_id") or DEFAULT_HOST_VOICE_ID,
-        "model": settings.get("host_model") or DEFAULT_ELEVENLABS_MODEL,
-        "voice_settings": settings.get("host_voice_settings") or DEFAULT_VOICE_SETTINGS.copy(),
         "system_prompt": settings.get("host_system_prompt") or DEFAULT_HOST_SYSTEM_PROMPT,
     }
 
 
 def set_host_voice_config(
-    voice_id: Optional[str] = None,
-    model: Optional[str] = None,
-    voice_settings: Optional[Dict[str, float]] = None,
     system_prompt: Optional[str] = None,
+    **kwargs,
 ) -> None:
     """Set host voice configuration."""
     settings = load_settings()
-    if voice_id is not None:
-        settings["host_voice_id"] = voice_id
-    if model is not None:
-        settings["host_model"] = model
-    if voice_settings is not None:
-        settings["host_voice_settings"] = voice_settings
     if system_prompt is not None:
         settings["host_system_prompt"] = system_prompt
     save_settings(settings)
@@ -821,71 +737,23 @@ def get_expert_voice_config() -> Dict[str, Any]:
     Get expert voice configuration.
 
     Returns:
-        Dict with voice_id, model, voice_settings, and system_prompt
+        Dict with system_prompt for expert role
     """
     settings = load_settings()
     return {
-        "voice_id": settings.get("expert_voice_id") or DEFAULT_EXPERT_VOICE_ID,
-        "model": settings.get("expert_model") or DEFAULT_ELEVENLABS_MODEL,
-        "voice_settings": settings.get("expert_voice_settings") or DEFAULT_VOICE_SETTINGS.copy(),
         "system_prompt": settings.get("expert_system_prompt") or DEFAULT_EXPERT_SYSTEM_PROMPT,
     }
 
 
 def set_expert_voice_config(
-    voice_id: Optional[str] = None,
-    model: Optional[str] = None,
-    voice_settings: Optional[Dict[str, float]] = None,
     system_prompt: Optional[str] = None,
+    **kwargs,
 ) -> None:
     """Set expert voice configuration."""
     settings = load_settings()
-    if voice_id is not None:
-        settings["expert_voice_id"] = voice_id
-    if model is not None:
-        settings["expert_model"] = model
-    if voice_settings is not None:
-        settings["expert_voice_settings"] = voice_settings
     if system_prompt is not None:
         settings["expert_system_prompt"] = system_prompt
     save_settings(settings)
-
-
-# Legacy function for backwards compatibility
-def get_elevenlabs_voice_settings() -> Dict[str, Any]:
-    """
-    Get ElevenLabs voice configuration (legacy, returns host config).
-
-    Returns:
-        Dict with voice_id, model, and voice_settings
-    """
-    host_config = get_host_voice_config()
-    return {
-        "voice_id": host_config["voice_id"],
-        "model": host_config["model"],
-        "voice_settings": host_config["voice_settings"],
-    }
-
-
-def set_elevenlabs_voice_settings(
-    voice_id: Optional[str] = None,
-    model: Optional[str] = None,
-    voice_settings: Optional[Dict[str, float]] = None
-) -> None:
-    """
-    Set ElevenLabs voice configuration (legacy, updates host config).
-    """
-    set_host_voice_config(voice_id=voice_id, model=model, voice_settings=voice_settings)
-
-
-def get_available_voices() -> Dict[str, Dict[str, str]]:
-    """Get available ElevenLabs voices."""
-    return ELEVENLABS_VOICES
-
-
-def get_available_models() -> Dict[str, Dict[str, str]]:
-    """Get available ElevenLabs models."""
-    return ELEVENLABS_MODELS
 
 
 # OpenAI API Key (for TTS in podcast mode)
@@ -931,8 +799,8 @@ def get_openai_source() -> str:
 
 
 def has_podcast_configured() -> bool:
-    """Check if podcast mode is fully configured (only needs ElevenLabs now)."""
-    return has_elevenlabs_configured()
+    """Check if podcast mode is fully configured (TTS service is local)."""
+    return True
 
 
 # Default cover art prompt
@@ -992,35 +860,21 @@ def get_podcast_settings() -> Dict[str, Any]:
     Get all podcast-related settings.
 
     Returns:
-        Dict with configuration status for podcast mode including dual speaker config
+        Dict with configuration status for podcast mode
     """
     host_config = get_host_voice_config()
     expert_config = get_expert_voice_config()
 
     return {
-        # ElevenLabs is required for TTS
-        "elevenlabs_configured": has_elevenlabs_configured(),
-        "elevenlabs_source": get_elevenlabs_source(),
-        # Available options
-        "available_voices": get_available_voices(),
-        "available_models": get_available_models(),
-        # Host configuration
+        "voice_cloning_available": True,
+        "tts_service": "qwen3-tts",
         "host": {
-            "voice_id": host_config["voice_id"],
-            "model": host_config["model"],
-            "voice_settings": host_config["voice_settings"],
             "system_prompt": host_config["system_prompt"],
         },
-        # Expert configuration
         "expert": {
-            "voice_id": expert_config["voice_id"],
-            "model": expert_config["model"],
-            "voice_settings": expert_config["voice_settings"],
             "system_prompt": expert_config["system_prompt"],
         },
-        # Overall podcast readiness (only needs ElevenLabs now)
         "podcast_configured": has_podcast_configured(),
-        # Cover art settings
         "cover_prompt": get_podcast_cover_prompt(),
         "cover_model": get_podcast_cover_model(),
     }

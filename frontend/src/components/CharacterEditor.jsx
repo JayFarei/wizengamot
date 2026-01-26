@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Mic,
@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { api } from '../api';
+import AudioSnippetSelector from './AudioSnippetSelector';
 import './CharacterEditor.css';
 
 /**
@@ -52,6 +53,14 @@ export default function CharacterEditor({ character, onClose, onSave }) {
   const [audioFileName, setAudioFileName] = useState('');
   const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
   const [transcript, setTranscript] = useState(character?.voice?.reference_transcript || '');
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState(null);
+
+  // Snippet selection state (for voice cloning quality)
+  const [snippetBlob, setSnippetBlob] = useState(null);
+  const [snippetRange, setSnippetRange] = useState({ start: 0, end: 0 });
+  const [audioDurationInfo, setAudioDurationInfo] = useState(null);
+  const [showSnippetSelector, setShowSnippetSelector] = useState(false);
 
   // Design mode state
   const [voiceDescription, setVoiceDescription] = useState(character?.voice?.description || '');
@@ -107,13 +116,48 @@ export default function CharacterEditor({ character, onClose, onSave }) {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  // Handle audio file selection
-  const handleFileSelect = (e) => {
+  // Handle audio file selection - shows snippet selector for long files
+  const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setAudioFile(file);
       setAudioFileName(file.name);
       setAudioPreviewUrl(URL.createObjectURL(file));
+      setTranscriptionError(null);
+      setTranscript(''); // Clear previous transcript
+      setSnippetBlob(null);
+      setShowSnippetSelector(true); // Always show snippet selector for visual feedback
+    }
+  };
+
+  // Handle snippet selection from AudioSnippetSelector
+  const handleSnippetSelect = useCallback((blob, startTime, endTime) => {
+    setSnippetBlob(blob);
+    setSnippetRange({ start: startTime, end: endTime });
+  }, []);
+
+  // Handle audio duration info from snippet selector
+  const handleDurationInfo = useCallback((info) => {
+    setAudioDurationInfo(info);
+  }, []);
+
+  // Transcribe the selected snippet
+  const handleTranscribeSnippet = async () => {
+    if (!snippetBlob) return;
+
+    setTranscribing(true);
+    setTranscriptionError(null);
+
+    try {
+      const result = await api.transcribeAudio(snippetBlob);
+      if (result.transcript) {
+        setTranscript(result.transcript);
+      }
+    } catch (err) {
+      console.error('Snippet transcription failed:', err);
+      setTranscriptionError('Transcription failed. Please enter transcript manually.');
+    } finally {
+      setTranscribing(false);
     }
   };
 
@@ -219,6 +263,10 @@ export default function CharacterEditor({ character, onClose, onSave }) {
         setError('Please upload an audio file for voice cloning');
         return false;
       }
+      if (!isEditing && !snippetBlob) {
+        setError('Please select a 10-15 second audio segment');
+        return false;
+      }
       if (!transcript.trim()) {
         setError('Please enter the transcript of the audio');
         return false;
@@ -275,8 +323,15 @@ export default function CharacterEditor({ character, onClose, onSave }) {
         formData.append('voice_config', JSON.stringify(voiceConfig));
         formData.append('personality', JSON.stringify(personality));
 
-        if (voiceMode === 'clone' && audioFile) {
-          formData.append('audio_file', audioFile);
+        if (voiceMode === 'clone') {
+          // Use the selected snippet blob if available, otherwise fall back to full audio
+          if (snippetBlob) {
+            // Create a File from the Blob with a proper name
+            const snippetFile = new File([snippetBlob], 'voice_snippet.wav', { type: 'audio/wav' });
+            formData.append('audio_file', snippetFile);
+          } else if (audioFile) {
+            formData.append('audio_file', audioFile);
+          }
         }
 
         savedCharacter = await api.createPodcastCharacter(formData);
@@ -339,31 +394,31 @@ export default function CharacterEditor({ character, onClose, onSave }) {
           <div className="form-section voice-config-section">
             {voiceMode === 'clone' && (
               <div className="clone-config">
+                {/* Step 1: Audio Upload */}
                 <div className="audio-upload">
-                  <label className="form-label">Voice Sample (3-10 seconds)</label>
-                  <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
-                    {audioFileName ? (
-                      <div className="upload-preview">
-                        <span className="file-name">{audioFileName}</span>
-                        {audioPreviewUrl && (
-                          <button
-                            className="btn-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleAudioPreview();
-                            }}
-                          >
-                            {previewPlaying ? <Pause size={16} /> : <Play size={16} />}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <Upload size={24} />
-                        <span>Click to upload WAV or MP3</span>
-                      </>
-                    )}
-                  </div>
+                  <label className="form-label">
+                    Voice Sample
+                    <span className="form-label-hint">(select a 10-15 second segment for best quality)</span>
+                  </label>
+
+                  {!audioFile ? (
+                    <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
+                      <Upload size={24} />
+                      <span>Click to upload WAV or MP3</span>
+                      <span className="upload-hint">Any length audio, you'll select the best segment</span>
+                    </div>
+                  ) : (
+                    <div className="upload-preview-bar">
+                      <span className="file-name">{audioFileName}</span>
+                      <button
+                        className="btn-change-file"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Change file
+                      </button>
+                    </div>
+                  )}
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -371,24 +426,79 @@ export default function CharacterEditor({ character, onClose, onSave }) {
                     onChange={handleFileSelect}
                     style={{ display: 'none' }}
                   />
-                  <audio
-                    ref={audioPreviewRef}
-                    src={audioPreviewUrl}
-                    onEnded={() => setPreviewPlaying(false)}
-                    style={{ display: 'none' }}
-                  />
                 </div>
 
-                <div className="transcript-input">
-                  <label className="form-label">Transcript of Audio</label>
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Type exactly what is said in the audio sample..."
-                    value={transcript}
-                    onChange={e => setTranscript(e.target.value)}
-                    rows={3}
-                  />
-                </div>
+                {/* Step 2: Snippet Selector (shown after file upload) */}
+                {audioFile && showSnippetSelector && (
+                  <div className="snippet-selector-wrapper">
+                    <AudioSnippetSelector
+                      audioFile={audioFile}
+                      onSnippetSelect={handleSnippetSelect}
+                      onDurationInfo={handleDurationInfo}
+                      minDuration={10}
+                      maxDuration={15}
+                    />
+                  </div>
+                )}
+
+                {/* Step 3: Transcript */}
+                {audioFile && snippetBlob && (
+                  <div className="transcript-input">
+                    <div className="transcript-header">
+                      <label className="form-label">
+                        Transcript of Selected Segment
+                        {transcribing && (
+                          <span className="transcribing-indicator">
+                            <Loader2 size={14} className="spinning" />
+                            Transcribing...
+                          </span>
+                        )}
+                      </label>
+                      <button
+                        className="btn-transcribe"
+                        onClick={handleTranscribeSnippet}
+                        disabled={transcribing || !snippetBlob}
+                      >
+                        {transcribing ? (
+                          <Loader2 size={14} className="spinning" />
+                        ) : (
+                          <RefreshCw size={14} />
+                        )}
+                        <span>{transcript ? 'Re-transcribe' : 'Auto-transcribe'}</span>
+                      </button>
+                    </div>
+                    <textarea
+                      className="form-textarea"
+                      placeholder={transcribing ? "Transcribing audio..." : "Type exactly what is said in the selected audio segment..."}
+                      value={transcript}
+                      onChange={e => setTranscript(e.target.value)}
+                      rows={3}
+                      disabled={transcribing}
+                    />
+                    {transcriptionError && (
+                      <p className="form-hint form-hint-error">{transcriptionError}</p>
+                    )}
+                    {!transcriptionError && transcript && !transcribing && (
+                      <p className="form-hint form-hint-success">
+                        <Check size={12} />
+                        Review and edit the transcript if needed. Accurate transcripts improve voice quality.
+                      </p>
+                    )}
+                    {!transcript && !transcribing && (
+                      <p className="form-hint">
+                        Click "Auto-transcribe" or type the transcript manually for best cloning quality.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Hidden audio element for legacy preview */}
+                <audio
+                  ref={audioPreviewRef}
+                  src={audioPreviewUrl}
+                  onEnded={() => setPreviewPlaying(false)}
+                  style={{ display: 'none' }}
+                />
 
                 {/* Re-register button for editing existing clone characters */}
                 {isEditing && character?.voice?.reference_audio && (

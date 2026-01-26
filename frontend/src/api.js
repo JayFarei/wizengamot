@@ -2229,7 +2229,7 @@ export const api = {
 
   /**
    * Get podcast settings and configuration status.
-   * Returns ElevenLabs config with host and expert speaker settings.
+   * Returns TTS config with host and expert speaker settings.
    */
   async getPodcastSettings() {
     const response = await fetch(`${API_BASE}/api/settings/podcast`);
@@ -2240,56 +2240,46 @@ export const api = {
   },
 
   /**
-   * Set the ElevenLabs API key for TTS voice generation.
-   * @param {string} apiKey - The ElevenLabs API key
+   * Warm up TTS models for faster first generation.
+   * Call this when entering podcast mode.
    */
-  async updateElevenLabsApiKey(apiKey) {
-    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-api-key`, {
+  async warmPodcastModels() {
+    const response = await fetch(`${API_BASE}/api/podcast/warm`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ api_key: apiKey }),
     });
     if (!response.ok) {
-      throw new Error('Failed to update ElevenLabs API key');
+      throw new Error('Failed to warm podcast models');
     }
     return response.json();
   },
 
   /**
-   * Clear the ElevenLabs API key from settings.
+   * Transcribe audio file using the TTS service.
+   * @param {File} audioFile - Audio file to transcribe
    */
-  async clearElevenLabsApiKey() {
-    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-api-key`, {
-      method: 'DELETE',
+  async transcribeAudio(audioFile) {
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+
+    const response = await fetch(`${API_BASE}/api/podcast/transcribe`, {
+      method: 'POST',
+      body: formData,
     });
     if (!response.ok) {
-      throw new Error('Failed to clear ElevenLabs API key');
+      throw new Error('Failed to transcribe audio');
     }
     return response.json();
   },
 
   /**
-   * Update ElevenLabs voice settings.
-   * @param {Object} settings - Voice settings
-   * @param {string} [settings.voice_id] - Voice ID
-   * @param {string} [settings.model] - Model ID
-   * @param {number} [settings.stability] - Stability (0-1)
-   * @param {number} [settings.similarity_boost] - Similarity boost (0-1)
-   * @param {number} [settings.style] - Style (0-1)
-   * @param {number} [settings.speed] - Speed (0.5-2)
+   * Initialize default podcast characters.
    */
-  async updateElevenLabsVoiceSettings(settings) {
-    const response = await fetch(`${API_BASE}/api/settings/podcast/elevenlabs-voice`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(settings),
+  async initDefaultCharacters() {
+    const response = await fetch(`${API_BASE}/api/podcast/characters/init-defaults`, {
+      method: 'POST',
     });
     if (!response.ok) {
-      throw new Error('Failed to update ElevenLabs voice settings');
+      throw new Error('Failed to initialize default characters');
     }
     return response.json();
   },
@@ -2534,6 +2524,32 @@ export const api = {
   },
 
   /**
+   * List only podcast sessions that are currently generating.
+   * Optimized for frequent polling from the sidebar.
+   * @returns {Array} Sessions with status === "generating" and progress details
+   */
+  async listGeneratingPodcastSessions() {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/generating`);
+    if (!response.ok) {
+      throw new Error('Failed to list generating podcast sessions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get cached TTS service health status.
+   * Returns cached result for 10 seconds to avoid hammering the TTS service.
+   * @returns {Object} Health status with healthy boolean, details, and checked_at
+   */
+  async getTtsHealthCached() {
+    const response = await fetch(`${API_BASE}/api/podcast/tts-health`);
+    if (!response.ok) {
+      throw new Error('Failed to get TTS health');
+    }
+    return response.json();
+  },
+
+  /**
    * Get a specific podcast session.
    * @param {string} sessionId - The session ID
    */
@@ -2580,6 +2596,21 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to end podcast session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel an in-progress podcast generation.
+   * Sets a cancellation flag that stops generation at the next segment boundary.
+   * @param {string} sessionId - The session ID
+   */
+  async cancelPodcastGeneration(sessionId) {
+    const response = await fetch(`${API_BASE}/api/podcast/sessions/${sessionId}/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel podcast generation');
     }
     return response.json();
   },

@@ -405,6 +405,96 @@ def get_session_extracted_questions(session_id: str) -> List[str]:
     return []
 
 
+def list_generating_sessions() -> List[Dict[str, Any]]:
+    """
+    List all podcast sessions that are currently generating.
+
+    Returns only sessions with status === "generating", optimized for
+    frequent polling from the frontend sidebar.
+
+    Returns:
+        List of session metadata with progress details
+    """
+    ensure_podcast_dir()
+    sessions = []
+
+    for entry in PODCAST_DIR.iterdir():
+        if entry.is_dir():
+            session_file = entry / "session.json"
+            if session_file.exists():
+                try:
+                    session = json.loads(session_file.read_text())
+
+                    # Only include generating sessions
+                    if session.get("status") != "generating":
+                        continue
+
+                    # Check for cover file
+                    cover_path = entry / "cover.png"
+                    cover_url = f"/api/podcast/sessions/{session['id']}/cover" if cover_path.exists() else session.get("cover_url")
+
+                    # Return progress-focused metadata
+                    sessions.append({
+                        "id": session["id"],
+                        "title": session.get("title", "Podcast"),
+                        "status": "generating",
+                        "generation_progress": session.get("generation_progress", 0),
+                        "generation_step": session.get("generation_step", "starting"),
+                        "generation_message": session.get("generation_message", "Starting..."),
+                        "last_progress_at": session.get("last_progress_at"),
+                        "audio_current_segment": session.get("audio_current_segment", 0),
+                        "audio_total_segments": session.get("audio_total_segments", 0),
+                        "created_at": session.get("created_at"),
+                        "cover_url": cover_url,
+                        "source_conversation_id": session.get("source_conversation_id"),
+                    })
+                except (json.JSONDecodeError, KeyError):
+                    # Skip malformed files
+                    continue
+
+    # Sort by created_at descending (most recent first)
+    sessions.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return sessions
+
+
+def cancel_podcast_session(session_id: str) -> bool:
+    """
+    Mark a podcast session as cancelled.
+
+    This sets a flag that the generation loop can check to stop processing.
+    The generation loop should check this flag between segments.
+
+    Args:
+        session_id: The session ID to cancel
+
+    Returns:
+        True if cancelled, False if session not found
+    """
+    session = get_podcast_session(session_id)
+    if session:
+        session["cancelled"] = True
+        session["status"] = "cancelled"
+        save_podcast_session(session)
+        return True
+    return False
+
+
+def is_session_cancelled(session_id: str) -> bool:
+    """
+    Check if a session has been cancelled.
+
+    Args:
+        session_id: The session ID to check
+
+    Returns:
+        True if the session is cancelled
+    """
+    session = get_podcast_session(session_id)
+    if session:
+        return session.get("cancelled", False)
+    return False
+
+
 def create_session_with_mode(
     session_id: str,
     source_conversation_id: str,

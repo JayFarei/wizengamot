@@ -20,6 +20,8 @@ from .podcast_storage import (
 )
 from .podcast_qwen import (
     generate_podcast_audio as generate_podcast_audio_qwen,
+    generate_podcast_audio_cancellable,
+    PodcastCancelledException,
     save_podcast_audio,
     get_podcast_audio_path,
     check_tts_service,
@@ -868,6 +870,7 @@ async def generate_podcast(
     session["generation_step"] = "loading_characters"
     session["generation_progress"] = 0.01
     session["generation_message"] = "Loading characters..."
+    session["last_progress_at"] = datetime.utcnow().isoformat()
     save_podcast_session(session)
 
     try:
@@ -905,6 +908,7 @@ async def generate_podcast(
         session["generation_step"] = "writing_script"
         session["generation_progress"] = 0.05
         session["generation_message"] = "Writing dialogue script with AI..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
 
         if progress_callback:
@@ -931,6 +935,7 @@ async def generate_podcast(
         session["generation_step"] = "generating_audio"
         session["generation_progress"] = 0.30
         session["generation_message"] = f"Script ready! Generating audio..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
         logger.info(f"[PODCAST] Dialogue ready with {len(dialogue_segments)} segments")
 
@@ -938,18 +943,23 @@ async def generate_podcast(
             progress_callback(0.30, f"Script ready with {len(dialogue_segments)} segments")
 
         # Phase 3: Generate audio with Qwen3-TTS (30% to 90% of progress)
-        def audio_progress(progress: float, message: str):
+        # Using cancellable generation for better user experience
+        def audio_progress(progress: float, message: str, segment_current: int = 0, segment_total: int = 0):
             # Map progress to 0.30-0.90 range
             overall = 0.30 + (progress * 0.60)
             session["generation_progress"] = overall
             session["generation_message"] = message
+            session["audio_current_segment"] = segment_current
+            session["audio_total_segments"] = segment_total
+            session["last_progress_at"] = datetime.utcnow().isoformat()
             save_podcast_session(session)
             if progress_callback:
                 progress_callback(overall, message)
 
-        logger.info(f"[PODCAST] Generating audio for {len(dialogue_segments)} segments")
+        logger.info(f"[PODCAST] Generating audio for {len(dialogue_segments)} segments (cancellable)")
 
-        audio_bytes, word_timings, duration_ms = await generate_podcast_audio_qwen(
+        audio_bytes, word_timings, duration_ms = await generate_podcast_audio_cancellable(
+            session_id=session_id,
             dialogue_segments=dialogue_segments,
             characters=characters_dict,
             progress_callback=audio_progress,
@@ -959,6 +969,7 @@ async def generate_podcast(
         session["generation_step"] = "finalizing"
         session["generation_progress"] = 0.90
         session["generation_message"] = "Saving audio file..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
 
         if progress_callback:
@@ -988,6 +999,13 @@ async def generate_podcast(
             "dialogue_segments": dialogue_segments,
             "error": None,
         }
+
+    except PodcastCancelledException as e:
+        logger.info(f"Podcast generation cancelled: {e}")
+        session["status"] = "cancelled"
+        session["error"] = "Generation cancelled by user"
+        save_podcast_session(session)
+        return {"error": "Generation cancelled by user", "cancelled": True}
 
     except Exception as e:
         logger.exception(f"Failed to generate podcast: {e}")
@@ -1031,6 +1049,7 @@ async def generate_podcast_audio(
     session["generation_step"] = "starting"
     session["generation_progress"] = 0.01
     session["generation_message"] = "Starting podcast generation..."
+    session["last_progress_at"] = datetime.utcnow().isoformat()
     save_podcast_session(session)
     logger.info(f"[PODCAST] Session {session_id} status set to generating")
 
@@ -1039,6 +1058,7 @@ async def generate_podcast_audio(
         session["generation_step"] = "writing_script"
         session["generation_progress"] = 0.02
         session["generation_message"] = "Writing dialogue script with AI..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
 
         if progress_callback:
@@ -1055,6 +1075,7 @@ async def generate_podcast_audio(
         session["generation_step"] = "generating_audio"
         session["generation_progress"] = 0.1
         session["generation_message"] = f"Script ready! Generating audio..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
         logger.info(f"[PODCAST] Dialogue ready with {len(dialogue_segments)} segments")
 
@@ -1078,17 +1099,21 @@ async def generate_podcast_audio(
             }
         }
 
-        def audio_progress(progress: float, message: str):
+        def audio_progress(progress: float, message: str, segment_current: int = 0, segment_total: int = 0):
             overall = 0.1 + (progress * 0.85)
             session["generation_progress"] = overall
             session["generation_message"] = message
+            session["audio_current_segment"] = segment_current
+            session["audio_total_segments"] = segment_total
+            session["last_progress_at"] = datetime.utcnow().isoformat()
             save_podcast_session(session)
             if progress_callback:
                 progress_callback(overall, message)
 
-        logger.info(f"Generating audio for {len(dialogue_segments)} segments")
+        logger.info(f"Generating audio for {len(dialogue_segments)} segments (cancellable)")
 
-        audio_bytes, word_timings, duration_ms = await generate_podcast_audio_qwen(
+        audio_bytes, word_timings, duration_ms = await generate_podcast_audio_cancellable(
+            session_id=session_id,
             dialogue_segments=dialogue_segments,
             characters=characters,
             progress_callback=audio_progress,
@@ -1098,6 +1123,7 @@ async def generate_podcast_audio(
         session["generation_step"] = "finalizing"
         session["generation_progress"] = 0.95
         session["generation_message"] = "Saving audio file..."
+        session["last_progress_at"] = datetime.utcnow().isoformat()
         save_podcast_session(session)
 
         if progress_callback:
@@ -1127,6 +1153,13 @@ async def generate_podcast_audio(
             "dialogue_segments": dialogue_segments,
             "error": None,
         }
+
+    except PodcastCancelledException as e:
+        logger.info(f"Podcast generation cancelled: {e}")
+        session["status"] = "cancelled"
+        session["error"] = "Generation cancelled by user"
+        save_podcast_session(session)
+        return {"error": "Generation cancelled by user", "cancelled": True}
 
     except Exception as e:
         logger.exception(f"Failed to generate podcast audio: {e}")

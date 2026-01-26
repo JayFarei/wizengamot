@@ -30,5 +30,45 @@
     "description": "Cloned voice for Stephen Fry",
     "gender": null,
     "created_at": "2026-01-24T21:01:09.732271"
+  },
+  "clone_bfddc90f": {
+    "id": "clone_bfddc90f",
+    "name": "Stephen Fry",
+    "type": "cloned",
+    "description": "Cloned voice for Stephen Fry",
+    "gender": null,
+    "created_at": "2026-01-25T09:57:09.508010+00:00"
+  },
+  "clone_6c96c779": {
+    "id": "clone_6c96c779",
+    "name": "Stephen Fry",
+    "type": "cloned",
+    "description": "Cloned voice for Stephen Fry",
+    "gender": null,
+    "created_at": "2026-01-25T10:04:04.747409+00:00"
+  },
+  "design_712a47ad": {
+    "id": "design_712a47ad",
+    "name": "test_warm_male",
+    "type": "designed",
+    "description": "Warm male voice, mid-30s, friendly tone",
+    "gender": null,
+    "created_at": "2026-01-25T18:39:34.158964+00:00"
+  },
+  "clone_2a7b6f65": {
+    "id": "clone_2a7b6f65",
+    "name": "test_stephen_fry",
+    "type": "cloned",
+    "description": "Voice cloned with CSM",
+    "gender": null,
+    "created_at": "2026-01-26T08:53:44.091935+00:00"
+  },
+  "clone_f74c2a85": {
+    "id": "clone_f74c2a85",
+    "name": "David Mitchell",
+    "type": "cloned",
+    "description": "Voice cloned with CSM",
+    "gender": null,
+    "created_at": "2026-01-26T12:44:00.524676+00:00"
   }
 }

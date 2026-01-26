@@ -611,3 +611,120 @@
 .re-register-section .form-hint {
   margin-top: 8px;
 }
+
+/* Snippet Selector Integration */
+.form-label-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 6px;
+  color: var(--text-tertiary);
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.upload-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+
+.btn-change-file {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-change-file:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.snippet-selector-wrapper {
+  margin-top: 8px;
+}
+
+/* Transcript Header with Transcribe Button */
+.transcript-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.transcript-header .form-label {
+  margin-bottom: 0;
+}
+
+.transcribing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.transcribing-indicator .spinning {
+  animation: spin 1s linear infinite;
+}
+
+.btn-transcribe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-transcribe:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(30, 102, 245, 0.05);
+}
+
+.btn-transcribe:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-transcribe .spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Form Hint Variants */
+.form-hint-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #d20f39;
+}
+
+.form-hint-success {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #40a02b;
+}

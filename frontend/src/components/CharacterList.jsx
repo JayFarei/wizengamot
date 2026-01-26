@@ -179,6 +179,7 @@ export default function CharacterList({ onClose }) {
   const [showEditor, setShowEditor] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [ttsHealthy, setTtsHealthy] = useState(null);
+  const [creatingDefaults, setCreatingDefaults] = useState(false);
 
   useEffect(() => {
     loadCharacters();
@@ -210,6 +211,21 @@ export default function CharacterList({ onClose }) {
   const handleCreate = () => {
     setEditingCharacter(null);
     setShowEditor(true);
+  };
+
+  const handleCreateDefaults = async () => {
+    setCreatingDefaults(true);
+    setError(null);
+    try {
+      const result = await api.initDefaultCharacters();
+      if (result.created?.length > 0) {
+        setCharacters(result.created);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to create default characters');
+    } finally {
+      setCreatingDefaults(false);
+    }
   };
 
   const handleEdit = (character) => {
@@ -308,10 +324,30 @@ export default function CharacterList({ onClose }) {
             Create your first podcast character with a unique voice and personality.
             You can clone a voice, design one from a description, or use a prebuilt voice.
           </p>
-          <button className="btn-primary" onClick={handleCreate}>
-            <Plus size={16} />
-            Create Your First Character
-          </button>
+          <div className="empty-state-actions">
+            <button
+              className="btn-primary btn-large"
+              onClick={handleCreateDefaults}
+              disabled={creatingDefaults}
+            >
+              {creatingDefaults ? (
+                <>
+                  <Loader2 size={16} className="spinning" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Users size={16} />
+                  Create Default Characters
+                </>
+              )}
+            </button>
+            <span className="empty-state-or">or</span>
+            <button className="btn-secondary" onClick={handleCreate}>
+              <Plus size={16} />
+              Create Custom Character
+            </button>
+          </div>
         </div>
       ) : (
         <div className="character-grid">

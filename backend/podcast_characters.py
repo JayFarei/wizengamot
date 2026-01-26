@@ -347,28 +347,36 @@ async def preview_character_voice(
             request_data = {
                 "text": preview_text,
                 "voice_mode": voice_mode,
-                "emotion": character.get("personality", {}).get("emotion_style"),
             }
+
+            # Only add emotion for non-clone modes (clone mode with emotion can hang the model)
+            if voice_mode != "clone":
+                emotion = character.get("personality", {}).get("emotion_style")
+                if emotion:
+                    request_data["emotion"] = emotion
 
             if voice_mode == "prebuilt":
                 request_data["voice_id"] = voice.get("prebuilt_voice", "aiden")
 
             elif voice_mode == "clone":
-                # Pass reference audio path directly (bypasses TTS voice registry)
-                char_dir = _get_character_dir(character_id)
-                ref_audio = voice.get("reference_audio")
-                if ref_audio:
-                    # Use absolute path so TTS server can find it regardless of working directory
+                # Prefer using voice registry if voice is already registered
+                # This is more reliable than passing reference_audio_path directly
+                # since the TTS service has already processed and stored the audio
+                voice_id = voice.get("qwen_voice_id")
+                if voice_id:
+                    # Use the registered voice (TTS service has already converted the audio)
+                    request_data["voice_id"] = voice_id
+                    logger.info(f"Using registered clone voice: {voice_id}")
+                else:
+                    # No registered voice, pass reference audio path directly
+                    char_dir = _get_character_dir(character_id)
+                    ref_audio = voice.get("reference_audio")
+                    if not ref_audio:
+                        return None
                     ref_audio_path = str((char_dir / ref_audio).resolve())
-                    request_data["voice_id"] = voice.get("qwen_voice_id", "clone")
+                    request_data["voice_id"] = "clone"
                     request_data["reference_audio_path"] = ref_audio_path
                     request_data["reference_transcript"] = voice.get("reference_transcript", "")
-                else:
-                    # Fallback to voice registry if no local audio
-                    voice_id = voice.get("qwen_voice_id")
-                    if not voice_id:
-                        return None
-                    request_data["voice_id"] = voice_id
 
             elif voice_mode == "design":
                 # Pass voice description directly if available
@@ -412,71 +420,31 @@ async def re_register_character_voice(character_id: str) -> Optional[Dict[str, A
     """
     Re-register a character's voice with the TTS service.
 
-    This is useful when the TTS service has been restarted and lost
-    the voice registration, or when the voice needs to be refreshed.
+    With local CSM voice cloning, this is now a no-op since voices are
+    processed at synthesis time using the stored reference audio.
+    The reference audio is already stored locally, so no re-registration
+    is needed.
 
     Args:
         character_id: The character's unique identifier
 
     Returns:
-        Updated character data or None if not found or not a clone
+        Character data or None if not found
     """
     character = _load_character(character_id)
     if not character:
-        logger.warning(f"Character {character_id} not found for re-registration")
+        logger.warning(f"Character {character_id} not found")
         return None
 
     voice_mode = character.get("voice_mode")
     if voice_mode != "clone":
-        logger.warning(f"Character {character_id} is not a clone (mode: {voice_mode})")
-        return None
+        logger.info(f"Character {character_id} is not a clone (mode: {voice_mode}), no re-registration needed")
+        return character
 
-    voice = character.get("voice", {})
-    char_dir = _get_character_dir(character_id)
-    ref_audio = voice.get("reference_audio", "voice_sample.wav")
-    ref_audio_path = (char_dir / ref_audio).resolve()
-
-    if not ref_audio_path.exists():
-        logger.error(f"Reference audio not found: {ref_audio_path}")
-        return None
-
-    transcript = voice.get("reference_transcript", "")
-
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            with open(ref_audio_path, "rb") as f:
-                audio_bytes = f.read()
-
-            files = {"audio": ("voice_sample.wav", audio_bytes, "audio/wav")}
-            data = {
-                "transcript": transcript,
-                "name": character["name"],
-                "description": f"Cloned voice for {character['name']}",
-            }
-
-            logger.info(f"Re-registering voice for {character['name']} with TTS service")
-            response = await client.post(
-                f"{QWEN_TTS_URL}/voices/clone",
-                files=files,
-                data=data,
-            )
-            response.raise_for_status()
-            result = response.json()
-
-            # Update character with new voice_id
-            new_voice_id = result.get("voice_id")
-            logger.info(f"Voice re-registered for {character['name']}: {new_voice_id}")
-
-            character["voice"]["qwen_voice_id"] = new_voice_id
-            character["voice"].pop("tts_error", None)
-            character["updated_at"] = datetime.utcnow().isoformat()
-            _save_character(character)
-
-            return character
-
-    except httpx.HTTPError as e:
-        logger.error(f"Failed to re-register voice for {character['name']}: {e}")
-        return None
+    # With local CSM, voice cloning uses stored reference audio at synthesis time
+    # No re-registration with external service needed
+    logger.info(f"Voice for {character['name']} uses local CSM - no re-registration needed")
+    return character
 
 
 async def get_prebuilt_voices() -> List[Dict[str, Any]]:

@@ -236,7 +236,6 @@ User -> Stage 1 (parallel responses) -> Stage 2 (anonymize and rank) -> aggregat
 ### API Keys & Secrets
 - **OpenRouter**: Required; set in `.env` as `OPENROUTER_API_KEY` or via UI.
 - **Firecrawl**: Optional for synthesizer; set as `FIRECRAWL_API_KEY`.
-- **ElevenLabs**: Optional for podcast TTS; set as `ELEVEN_API_KEY`.
 - **LiveKit**: Optional for real-time features; set as `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
 - **XAI**: Optional alternative provider; set as `XAI_API_KEY`.
 - **Priority**: Settings file > environment variables > defaults.

@@ -1,9 +1,6 @@
-# Pin numba/llvmlite first for Python 3.12 compatibility
-numba>=0.59.0
-llvmlite>=0.42.0
-librosa>=0.10.0
-# Main TTS package
-qwen-tts
+# MLX-based TTS for Apple Silicon optimization
+# 0.3.0+ required for Qwen3-TTS model support with speaker encoder fixes
+mlx-audio>=0.3.0
 # Web framework
 fastapi>=0.115.0
 uvicorn>=0.34.0
@@ -11,8 +8,10 @@ python-multipart
 # Audio processing
 soundfile
 pydub
+librosa>=0.10.0  # Better format support (MP3, etc.)
 faster-whisper>=1.0.0
 numpy>=1.24.0
+scipy>=1.10.0
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

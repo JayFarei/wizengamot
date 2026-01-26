@@ -108,10 +108,17 @@ export default function PodcastInterface({
         const settings = await api.getPodcastSettings();
         setPodcastSettings(settings);
 
-        // Check TTS health
+        // Check TTS health and warm models
         try {
           const health = await api.checkTtsHealth();
           setTtsHealthy(health.healthy);
+
+          // Warm TTS models for faster first generation
+          if (health.healthy) {
+            api.warmPodcastModels().catch(err => {
+              console.warn('Failed to warm TTS models:', err);
+            });
+          }
         } catch {
           setTtsHealthy(false);
         }
@@ -249,9 +256,6 @@ export default function PodcastInterface({
     }
 
     setError(null);
-    setView('generating');
-    setGenerationProgress(0);
-    setGenerationStatus('Creating session...');
 
     try {
       // Build character config based on mode
@@ -267,74 +271,19 @@ export default function PodcastInterface({
         episodeMode,
         characterConfig
       );
-      setSession(sessionResult);
 
-      // Start generation with SSE progress tracking
-      const streamUrl = api.getPodcastGenerationStreamUrl(sessionResult.session_id);
-      const eventSource = new EventSource(streamUrl);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.progress !== undefined) {
-            setGenerationProgress(data.progress);
-          }
-
-          // Update status message from server
-          if (data.message) {
-            setGenerationStatus(data.message);
-          }
-
-          // Update step tracking
-          if (data.step) {
-            setGenerationStep(data.step);
-          }
-          if (data.audio_current !== undefined) {
-            setAudioCurrentSegment(data.audio_current);
-          }
-          if (data.audio_total !== undefined) {
-            setAudioTotalSegments(data.audio_total);
-          }
-
-          if (data.status === 'ready') {
-            eventSource.close();
-            setGenerationStatus('Complete!');
-            // Notify parent of successful creation
-            if (onPodcastCreated) {
-              onPodcastCreated(sessionResult.session_id);
-            } else {
-              // Fallback: show player view if no callback
-              api.getPodcastSession(sessionResult.session_id).then(fullSession => {
-                setSession(fullSession);
-                setPlayerSession(fullSession); // Set in context for MiniPlayer
-                setView('player');
-              });
-            }
-          } else if (data.status === 'error') {
-            eventSource.close();
-            setError(data.error || 'Generation failed');
-            setView('setup');
-          }
-        } catch (err) {
-          console.error('Failed to parse SSE message:', err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error('SSE error:', err);
-        eventSource.close();
-        // Poll session status as fallback
-        pollSessionStatus(sessionResult.session_id);
-      };
-
-      // Trigger generation
+      // Start generation in background
       await api.startPodcastGeneration(sessionResult.session_id);
+
+      // Close immediately - sidebar polling handles progress display
+      if (onClose) {
+        onClose();
+      }
 
     } catch (err) {
       console.error('Failed to start podcast:', err);
       setError(err.message || 'Failed to start podcast session');
-      setView('setup');
+      // Stay on setup view to show error
     }
   };
 
@@ -408,7 +357,7 @@ export default function PodcastInterface({
     );
   }
 
-  // Setup required - check TTS health instead of ElevenLabs
+  // Setup required - check TTS health
   if (!ttsHealthy) {
     return (
       <div className="podcast-interface">

@@ -108,6 +108,23 @@
   line-height: 1.5;
 }
 
+/* Voice cloning info */
+.podcast-section .voice-cloning-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--success-bg, rgba(16, 185, 129, 0.1));
+  border-radius: 8px;
+  margin-top: 12px;
+  font-size: 0.875rem;
+  color: var(--success, #10b981);
+}
+
+.podcast-section .voice-cloning-info svg {
+  flex-shrink: 0;
+}
+
 /* Spinning animation */
 @keyframes spin {
   from {
@@ -530,7 +547,7 @@
   margin-top: 4px;
 }
 
-/* ElevenLabs API Key input */
+/* API Key input */
 .podcast-section .api-key-block input[type="password"] {
   width: 100%;
   padding: 10px 12px;
@@ -752,4 +769,90 @@
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border-secondary, #e5e5e5);
+}
+
+/* =============================================================================
+   Colab ngrok URL Section
+   ============================================================================= */
+
+.podcast-section .api-key-status {
+  margin-bottom: 16px;
+}
+
+.podcast-section .connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+}
+
+.podcast-section .connection-status.success {
+  background: var(--success-bg, rgba(16, 185, 129, 0.1));
+  color: var(--success, #10b981);
+}
+
+.podcast-section .connection-status.error {
+  background: var(--error-bg, rgba(220, 38, 38, 0.1));
+  color: var(--error, #dc2626);
+}
+
+.podcast-section .api-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.podcast-section .api-status.configured {
+  background: var(--success-bg, rgba(16, 185, 129, 0.1));
+  color: var(--success, #10b981);
+}
+
+.podcast-section .api-status.not-configured {
+  background: var(--warning-bg, rgba(245, 158, 11, 0.1));
+  color: var(--warning, #f59e0b);
+}
+
+.podcast-section .api-key-input-block {
+  margin-bottom: 12px;
+}
+
+.podcast-section .api-key-input-block label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+}
+
+.podcast-section .api-key-input-block input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  margin-bottom: 12px;
+}
+
+.podcast-section .api-key-input-block input:focus {
+  outline: none;
+  border-color: var(--podcast-primary, #8b5cf6);
+  box-shadow: 0 0 0 3px var(--podcast-badge-bg, rgba(139, 92, 246, 0.15));
+}
+
+.podcast-section .btn-danger {
+  background: transparent;
+  color: var(--error, #dc2626);
+  border-color: var(--error, #dc2626);
+}
+
+.podcast-section .btn-danger:hover:not(:disabled) {
+  background: var(--error-bg, rgba(220, 38, 38, 0.1));
 }

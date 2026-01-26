@@ -6,7 +6,7 @@
   flex: 1;
   min-width: 0;
   background: var(--bg-tertiary);
-  overflow: hidden;
+  overflow-y: auto;
   padding-top: 48px;
 }
 
