@@ -75,6 +75,28 @@ function getVisualiserSourceLabel(sourceType) {
   return labels[sourceType] || sourceType;
 }
 
+// Time period grouping for list mode
+function getTimePeriod(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  if (date >= today) return 'Today';
+  if (date >= weekAgo) return 'This Week';
+  return 'Earlier';
+}
+
+function groupByTimePeriod(conversations) {
+  const groups = { 'Today': [], 'This Week': [], 'Earlier': [] };
+  conversations.forEach(conv => {
+    const period = getTimePeriod(conv.created_at);
+    groups[period].push(conv);
+  });
+  return groups;
+}
+
 function TypewriterTitle({ text, isAnimating, onAnimationComplete }) {
   const [displayText, setDisplayText] = useState(text);
   const animatingRef = useRef(false);
@@ -680,111 +702,123 @@ export default function Sidebar({
         {conversations.length === 0 ? (
           <div className="no-conversations">No conversations yet</div>
         ) : sidebarStyle === SIDEBAR_STYLES.LIST ? (
-          /* LIST MODE - Flat list with category badges */
+          /* LIST MODE - Grouped by time period with category badges */
           <div className="sidebar-section scrollable list-mode">
             <div className="section-list">
-              {allConversations.map((conv) => {
-                const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
-                const shouldAnimate = conv.id === animatingTitleId;
-                const category = getConversationCategory(conv);
+              {(() => {
+                const groups = groupByTimePeriod(allConversations);
+                const periods = ['Today', 'This Week', 'Earlier'];
+                return periods.map(period => {
+                  if (groups[period].length === 0) return null;
+                  return (
+                    <div key={period} className="time-group">
+                      <div className="time-group-header">{period}</div>
+                      {groups[period].map((conv) => {
+                        const isCurrentAndLoading = conv.id === currentConversationId && isLoading;
+                        const shouldAnimate = conv.id === animatingTitleId;
+                        const category = getConversationCategory(conv);
 
-                return (
-                  <div
-                    key={conv.id}
-                    className={`conversation-item ${
-                      conv.id === currentConversationId ? 'active' : ''
-                    } ${isCurrentAndLoading ? 'loading' : ''} ${pendingDeleteId === conv.id ? 'pending-delete' : ''}`}
-                    onClick={() => pendingDeleteId !== conv.id && onSelectConversation(conv.id)}
-                  >
-                    {pendingDeleteId === conv.id ? (
-                      <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
-                        <span className="delete-confirm-text">Delete?</span>
-                        <div className="delete-confirm-actions">
-                          <button
-                            className="delete-confirm-btn yes"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteConversation(conv.id);
-                              setPendingDeleteId(null);
-                            }}
+                        return (
+                          <div
+                            key={conv.id}
+                            className={`conversation-item ${
+                              conv.id === currentConversationId ? 'active' : ''
+                            } ${isCurrentAndLoading ? 'loading' : ''} ${pendingDeleteId === conv.id ? 'pending-delete' : ''}`}
+                            onClick={() => pendingDeleteId !== conv.id && onSelectConversation(conv.id)}
                           >
-                            Yes
-                          </button>
-                          <button
-                            className="delete-confirm-btn no"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingDeleteId(null);
-                            }}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="conversation-content">
-                        <div className="conversation-title-row">
-                          {isCurrentAndLoading && (
-                            <span className="loading-indicator">
-                              <span className="loading-dot"></span>
-                              <span className="loading-dot"></span>
-                              <span className="loading-dot"></span>
-                            </span>
-                          )}
-                          {conv.status?.is_unread && !isCurrentAndLoading && (
-                            <span className="unread-dot" />
-                          )}
-                          {conv.mode === 'discovery' && !isCurrentAndLoading && (
-                            <span className="auto-discovery-icon" title="Auto-discovered">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="11" width="18" height="10" rx="2" />
-                                <circle cx="12" cy="5" r="3" />
-                                <path d="M12 8v3" />
-                                <circle cx="8" cy="16" r="1" fill="currentColor" />
-                                <circle cx="16" cy="16" r="1" fill="currentColor" />
-                              </svg>
-                            </span>
-                          )}
-                          <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
-                            <TypewriterTitle
-                              text={conv.title || 'New Conversation'}
-                              isAnimating={shouldAnimate}
-                              onAnimationComplete={onTitleAnimationComplete}
-                            />
-                          </span>
-                          <button
-                            className="conversation-delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingDeleteId(conv.id);
-                            }}
-                            title="Delete conversation"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <div className="conversation-meta">
-                          <CategoryBadge category={category} />
-                          <span className="meta-separator">·</span>
-                          <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
-                          {conv.total_cost > 0 && (
-                            <>
-                              <span className="meta-separator">·</span>
-                              <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
-                            </>
-                          )}
-                          {conv.source_type && (
-                            <>
-                              <span className="meta-separator">·</span>
-                              <span className="source-type-label">{getSourceTypeLabel(conv.source_type)}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                            {pendingDeleteId === conv.id ? (
+                              <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
+                                <span className="delete-confirm-text">Delete?</span>
+                                <div className="delete-confirm-actions">
+                                  <button
+                                    className="delete-confirm-btn yes"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteConversation(conv.id);
+                                      setPendingDeleteId(null);
+                                    }}
+                                  >
+                                    Yes
+                                  </button>
+                                  <button
+                                    className="delete-confirm-btn no"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPendingDeleteId(null);
+                                    }}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="conversation-content">
+                                <div className="conversation-title-row">
+                                  {isCurrentAndLoading && (
+                                    <span className="loading-indicator">
+                                      <span className="loading-dot"></span>
+                                      <span className="loading-dot"></span>
+                                      <span className="loading-dot"></span>
+                                    </span>
+                                  )}
+                                  {conv.status?.is_unread && !isCurrentAndLoading && (
+                                    <span className="unread-dot" />
+                                  )}
+                                  {conv.mode === 'discovery' && !isCurrentAndLoading && (
+                                    <span className="auto-discovery-icon" title="Auto-discovered">
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="11" width="18" height="10" rx="2" />
+                                        <circle cx="12" cy="5" r="3" />
+                                        <path d="M12 8v3" />
+                                        <circle cx="8" cy="16" r="1" fill="currentColor" />
+                                        <circle cx="16" cy="16" r="1" fill="currentColor" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                  <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
+                                    <TypewriterTitle
+                                      text={conv.title || 'New Conversation'}
+                                      isAnimating={shouldAnimate}
+                                      onAnimationComplete={onTitleAnimationComplete}
+                                    />
+                                  </span>
+                                  <button
+                                    className="conversation-delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPendingDeleteId(conv.id);
+                                    }}
+                                    title="Delete conversation"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                                <div className="conversation-meta">
+                                  <CategoryBadge category={category} />
+                                  <span className="meta-separator">·</span>
+                                  <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                                  {conv.total_cost > 0 && (
+                                    <>
+                                      <span className="meta-separator">·</span>
+                                      <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                    </>
+                                  )}
+                                  {conv.source_type && (
+                                    <>
+                                      <span className="meta-separator">·</span>
+                                      <span className="source-type-label">{getSourceTypeLabel(conv.source_type)}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         ) : (
