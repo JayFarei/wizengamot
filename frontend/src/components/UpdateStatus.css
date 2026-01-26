@@ -17,6 +17,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
+  line-height: 1;
 }
 
 .version-label {
@@ -48,6 +49,7 @@
   justify-content: center;
   border-radius: 4px;
   transition: color 0.2s, background 0.2s;
+  line-height: 1;
 }
 
 .refresh-btn:hover:not(:disabled) {
@@ -58,6 +60,11 @@
 .refresh-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.refresh-btn svg {
+  display: block;
+  margin: 0 !important;
 }
 
 .refresh-btn svg.spinning {
@@ -117,6 +124,12 @@
   gap: 4px;
   color: #059669;
   font-size: 12px;
+}
+
+.up-to-date svg {
+  display: block;
+  flex-shrink: 0;
+  margin: 0 !important;
 }
 
 [data-theme="dark"] .up-to-date {

@@ -8,7 +8,7 @@ import './ModeSelector.css';
  */
 export default function ModeSelector({ onSelect, onCancel }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const modes = ['council', 'synthesizer', 'monitor', 'visualiser', 'podcast'];
+  const modes = ['council', 'synthesizer', 'visualiser', 'podcast'];
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -106,37 +106,9 @@ export default function ModeSelector({ onSelect, onCancel }) {
           </button>
 
           <button
-            className={`mode-card mode-card-monitor ${selectedIndex === 2 ? 'selected' : ''}`}
-            onClick={() => onSelect('monitor')}
-            onMouseEnter={() => setSelectedIndex(2)}
-          >
-            <div className="mode-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <circle cx="12" cy="12" r="6" />
-                <circle cx="12" cy="12" r="2" />
-                <line x1="12" y1="2" x2="12" y2="4" />
-                <line x1="12" y1="20" x2="12" y2="22" />
-                <line x1="2" y1="12" x2="4" y2="12" />
-                <line x1="20" y1="12" x2="22" y2="12" />
-              </svg>
-            </div>
-            <h3 className="mode-card-title">Monitor</h3>
-            <p className="mode-card-description">
-              Track how competitor narratives change over time: ICP, promises, pricing, and proof.
-              Get alerts when websites update.
-            </p>
-            <div className="mode-card-features">
-              <span className="feature-tag">Competitors</span>
-              <span className="feature-tag">Timeline</span>
-              <span className="feature-tag">Change Detection</span>
-            </div>
-          </button>
-
-          <button
-            className={`mode-card mode-card-visualiser ${selectedIndex === 3 ? 'selected' : ''}`}
+            className={`mode-card mode-card-visualiser ${selectedIndex === 2 ? 'selected' : ''}`}
             onClick={() => onSelect('visualiser')}
-            onMouseEnter={() => setSelectedIndex(3)}
+            onMouseEnter={() => setSelectedIndex(2)}
           >
             <div className="mode-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -160,9 +132,9 @@ export default function ModeSelector({ onSelect, onCancel }) {
           </button>
 
           <button
-            className={`mode-card mode-card-podcast ${selectedIndex === 4 ? 'selected' : ''}`}
+            className={`mode-card mode-card-podcast ${selectedIndex === 3 ? 'selected' : ''}`}
             onClick={() => onSelect('podcast')}
-            onMouseEnter={() => setSelectedIndex(4)}
+            onMouseEnter={() => setSelectedIndex(3)}
           >
             <div className="mode-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

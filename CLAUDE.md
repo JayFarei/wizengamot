@@ -34,10 +34,9 @@ docker compose up -d             # Run container on port 8080
 
 Wizengamot is a multi-LLM deliberation system where multiple models collaboratively answer questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
 
-**Five Modes:**
+**Four Modes:**
 - **Council**: Multi-model deliberation with peer ranking (Stage 1 → Stage 2 → Stage 3)
 - **Synthesizer**: Transform URLs (YouTube, podcasts, articles, PDFs) into Zettelkasten notes
-- **Monitor**: Track entities/competitors across multiple sources with scheduled analysis
 - **Visualiser**: Generate diagrams and flowcharts from content using AI image generation
 - **Podcast**: Generate live audio explanations of Synthesizer notes via LiveKit + xAI real-time voice
 
@@ -109,21 +108,6 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
 - Lazy indexing: builds on first search, caches in memory
 - Scoring: 70% semantic similarity + 30% recency (30-day half-life decay)
 - Extracts searchable content: titles, user messages, stage1/stage3 responses, synthesizer notes
-
-**Monitor System (`monitor_*.py`, `monitors.py`)**
-- `monitors.py`: CRUD operations for monitor configurations, stored as JSON in `data/monitors/`
-- `monitor_crawler.py`: Web crawling using Firecrawl API for content extraction
-- `monitor_analysis.py`: LLM-based analysis of crawled content against question sets
-- `monitor_scheduler.py`: APScheduler-based cron scheduling for automated monitoring
-- `monitor_updates.py`: Track and store updates/changes detected by monitors
-- `monitor_digest.py`: Generate periodic digest summaries of monitor findings
-- `monitor_chat.py`: Conversational interface for querying monitor data
-
-**`question_sets.py`**
-- Manages reusable question sets for monitor analysis
-- Stored as markdown files in `question_sets/` directory
-- Format: `# Title`, description, `## Questions` with `- key: question` items
-- Optional `## Output Schema` section for structured responses
 
 **`visualiser.py`**
 - Generates diagrams from content using AI image generation via OpenRouter
@@ -207,7 +191,7 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
   - First option always "New Conversation" (opens ModeSelector)
   - Arrow keys to navigate, Enter to select, Escape to close
   - 200ms debounced search with real-time results
-- **`ModeSelector.jsx`**: Choose between Council, Synthesizer, Monitor, Visualiser, and Podcast modes
+- **`ModeSelector.jsx`**: Choose between Council, Synthesizer, Visualiser, and Podcast modes
   - Left/right arrows to switch, Enter to confirm
   - Visual selection highlight
 
@@ -215,19 +199,8 @@ Wizengamot is a multi-LLM deliberation system where multiple models collaborativ
 - **`SynthesizerInterface.jsx`**: URL-to-Zettelkasten notes interface
 - **`NoteViewer.jsx`**: Display generated notes with focus mode and sentence highlighting
 
-**Monitor Components**
-- **`MonitorInterface.jsx`**: Main monitor management interface
-- **`MonitorCard.jsx`**: Individual monitor display with status
-- **`MonitorTimeline.jsx`**: Timeline view of monitor updates
-- **`MonitorUpdateDetail.jsx`**: Detailed view of a single update
-- **`MonitorCompare.jsx`**: Side-by-side comparison of changes
-- **`MonitorDigest.jsx`**: Digest summary view
-- **`MonitorChat.jsx`**: Conversational interface for querying monitor data
-- **`CompetitorRow.jsx`**, **`AddCompetitorModal.jsx`**, **`FeatureList.jsx`**: Competitor tracking UI
-
-**Visualiser & Question Set Components**
+**Visualiser Components**
 - **`VisualiserInterface.jsx`**: Diagram generation interface
-- **`QuestionSetManager.jsx`**, **`QuestionSetEditor.jsx`**, **`QuestionSetSelector.jsx`**: Question set CRUD
 
 **Podcast Components**
 - **`PodcastInterface.jsx`**: Main podcast mode UI with setup and player views
@@ -343,10 +316,10 @@ The entire flow is async/parallel where possible to minimize latency.
 
 ### Environment Variables
 - `OPENROUTER_API_KEY`: Can also be set via UI at runtime
-- `FIRECRAWL_API_KEY`: Required for monitor web crawling functionality
+- `FIRECRAWL_API_KEY`: Required for web scraping in Synthesizer mode
 - `XAI_API_KEY`: Required for podcast real-time voice generation
 - `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`: Required for podcast audio streaming
-- `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`, `QUESTION_SETS_DIR`: Paths for Docker volume mounts
+- `DATA_DIR`, `PROMPTS_DIR`, `CONFIG_DIR`: Paths for Docker volume mounts
 
 ## Comment & Annotation System
 

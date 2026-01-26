@@ -128,7 +128,6 @@ const CATEGORIES = {
   NOTES: 'notes',
   COUNCIL: 'council',
   VISUALISER: 'visualiser',
-  MONITOR: 'monitor',
 };
 
 // Style selector icons
@@ -165,10 +164,9 @@ function CategoryBadge({ category }) {
     notes: { bg: 'var(--badge-notes-bg, #e0f2fe)', text: 'var(--badge-notes-text, #0369a1)' },
     council: { bg: 'var(--badge-council-bg, #fef3c7)', text: 'var(--badge-council-text, #92400e)' },
     visualiser: { bg: 'var(--badge-visualiser-bg, #f3e8ff)', text: 'var(--badge-visualiser-text, #7e22ce)' },
-    monitor: { bg: 'var(--badge-monitor-bg, #dcfce7)', text: 'var(--badge-monitor-text, #166534)' },
   };
   const style = colors[category] || colors.notes;
-  const labels = { notes: 'Notes', council: 'Council', visualiser: 'Visualiser', monitor: 'Monitor' };
+  const labels = { notes: 'Notes', council: 'Council', visualiser: 'Visualiser' };
 
   return (
     <span className="category-badge" style={{ background: style.bg, color: style.text }}>
@@ -193,12 +191,6 @@ export default function Sidebar({
   animatingTitleId,
   onTitleAnimationComplete,
   promptLabels = {},
-  monitors = [],
-  currentMonitorId,
-  onSelectMonitor,
-  onPauseMonitor,
-  onResumeMonitor,
-  onDeleteMonitor,
   visualiserSettings,
   onOpenImageGallery,
   onOpenCouncilGallery,
@@ -223,7 +215,6 @@ export default function Sidebar({
   const [focusedCategory, setFocusedCategory] = useState(CATEGORIES.NOTES);
 
   // Filter and sort state
-  const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'cost'
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
   const [selectedTypes, setSelectedTypes] = useState([]); // source_type filter
   const [modeFilter, setModeFilter] = useState(null); // 'agent' | 'user' | null
@@ -370,23 +361,15 @@ export default function Sidebar({
       filtered = filtered.filter(c => c.mode !== 'discovery');
     }
 
-    // Sort
+    // Sort by created_at (recent)
     const isAsc = sortDirection === 'asc';
-    if (sortBy === 'cost') {
-      filtered.sort((a, b) => {
-        const diff = (b.total_cost || 0) - (a.total_cost || 0);
-        return isAsc ? -diff : diff;
-      });
-    } else {
-      // Default: sort by created_at
-      filtered.sort((a, b) => {
-        const diff = new Date(b.created_at) - new Date(a.created_at);
-        return isAsc ? -diff : diff;
-      });
-    }
+    filtered.sort((a, b) => {
+      const diff = new Date(b.created_at) - new Date(a.created_at);
+      return isAsc ? -diff : diff;
+    });
 
     return filtered;
-  }, [selectedTypes, modeFilter, sortBy, sortDirection]);
+  }, [selectedTypes, modeFilter, sortDirection]);
 
   // Get conversations by category (memoized)
   const notesConversations = filterAndSortConversations(
@@ -526,6 +509,16 @@ export default function Sidebar({
           <span className="shortcut">⌘U</span>
         </button>
 
+        <button className="sidebar-action-btn" onClick={onOpenImageGallery} title="Image Gallery (⌘G)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+          <span className="action-text">Gallery</span>
+          <span className="shortcut">⌘G</span>
+        </button>
+
         <button className="sidebar-action-btn" onClick={onOpenPodcastGallery} title="Podcast (⌘O)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
@@ -576,30 +569,10 @@ export default function Sidebar({
       {!collapsed && (sidebarStyle === SIDEBAR_STYLES.FOCUS || sidebarStyle === SIDEBAR_STYLES.LIST) && (
         <div className="sidebar-filter-bar">
           <button
-            className={`filter-btn ${sortBy === 'recent' ? 'active' : ''}`}
-            onClick={() => {
-              if (sortBy === 'recent') {
-                setSortDirection(d => d === 'desc' ? 'asc' : 'desc');
-              } else {
-                setSortBy('recent');
-                setSortDirection('desc');
-              }
-            }}
+            className="filter-btn active"
+            onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}
           >
-            Recent {sortBy === 'recent' && (sortDirection === 'desc' ? '↓' : '↑')}
-          </button>
-          <button
-            className={`filter-btn ${sortBy === 'cost' ? 'active' : ''}`}
-            onClick={() => {
-              if (sortBy === 'cost') {
-                setSortDirection(d => d === 'desc' ? 'asc' : 'desc');
-              } else {
-                setSortBy('cost');
-                setSortDirection('desc');
-              }
-            }}
-          >
-            Cost {sortBy === 'cost' && (sortDirection === 'desc' ? '↓' : '↑')}
+            Recent {sortDirection === 'desc' ? '↓' : '↑'}
           </button>
           <button
             className={`filter-btn ${typeDropdownOpen || selectedTypes.length > 0 ? 'active' : ''}`}
@@ -684,9 +657,9 @@ export default function Sidebar({
       )}
 
       {/* Conversation sections - supports Category, Focus, and List modes */}
-      {/* New order: Notes → Council → Visualiser → Monitor */}
+      {/* New order: Notes → Council → Visualiser */}
       <div className={`conversation-sections ${sidebarStyle}`}>
-        {conversations.length === 0 && monitors.length === 0 ? (
+        {conversations.length === 0 ? (
           <div className="no-conversations">No conversations yet</div>
         ) : sidebarStyle === SIDEBAR_STYLES.LIST ? (
           /* LIST MODE - Flat list with category badges */
@@ -1299,116 +1272,6 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* Separator */}
-            {sidebarStyle === SIDEBAR_STYLES.CATEGORY && visualiserConversations.length > 0 && monitors.length > 0 && (
-              <div className="sidebar-separator"></div>
-            )}
-
-            {/* 4. Monitor section - compact in Category mode (1 slot) */}
-            {(sidebarStyle === SIDEBAR_STYLES.CATEGORY || focusedCategory === CATEGORIES.MONITOR) && monitors.length > 0 && (
-              <div className={`sidebar-section ${sidebarStyle === SIDEBAR_STYLES.CATEGORY ? 'compact' : ''} ${sidebarStyle === SIDEBAR_STYLES.FOCUS && focusedCategory === CATEGORIES.MONITOR ? 'focused scrollable' : ''}`}>
-                <div
-                  className="section-header clickable"
-                  onClick={() => {
-                    if (sidebarStyle === SIDEBAR_STYLES.CATEGORY) {
-                      setSidebarStyle(SIDEBAR_STYLES.FOCUS);
-                      setFocusedCategory(CATEGORIES.MONITOR);
-                    } else if (sidebarStyle === SIDEBAR_STYLES.FOCUS) {
-                      setFocusedCategory(CATEGORIES.MONITOR);
-                    }
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                  </svg>
-                  Monitor
-                  <span className="section-count">{monitors.length}</span>
-                </div>
-                {(sidebarStyle === SIDEBAR_STYLES.CATEGORY || focusedCategory === CATEGORIES.MONITOR) && (
-                  <div className="section-list">
-                    {monitors.map((monitor) => (
-                      <div
-                        key={monitor.id}
-                        className={`monitor-sidebar-item ${monitor.id === currentMonitorId ? 'active' : ''}`}
-                        onClick={() => onSelectMonitor?.(monitor.id)}
-                      >
-                        <div className={`monitor-status-dot ${monitor.status || 'running'}`} title={monitor.status === 'paused' ? 'Paused' : 'Running'} />
-                        <div className="monitor-info">
-                          <span className="monitor-name">{monitor.name}</span>
-                          <span className="monitor-last-run">
-                            {monitor.last_crawl_at
-                              ? formatRelativeTime(monitor.last_crawl_at)
-                              : 'Never crawled'}
-                          </span>
-                        </div>
-                        {monitor.unread_updates > 0 && (
-                          <span className="updates-badge">{monitor.unread_updates}</span>
-                        )}
-                        <div className="monitor-actions">
-                          {monitor.status === 'paused' ? (
-                            <button
-                              className="monitor-action-btn play"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onResumeMonitor?.(monitor.id);
-                              }}
-                              title="Resume"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                <polygon points="5 3 19 12 5 21 5 3"/>
-                              </svg>
-                            </button>
-                          ) : (
-                            <button
-                              className="monitor-action-btn pause"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onPauseMonitor?.(monitor.id);
-                              }}
-                              title="Pause"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                <rect x="6" y="4" width="4" height="16"/>
-                                <rect x="14" y="4" width="4" height="16"/>
-                              </svg>
-                            </button>
-                          )}
-                          <button
-                            className="monitor-action-btn delete"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm('Delete this monitor and all its data?')) {
-                                onDeleteMonitor?.(monitor.id);
-                              }
-                            }}
-                            title="Delete"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6"/>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Monitor collapsed header for Focus mode */}
-            {sidebarStyle === SIDEBAR_STYLES.FOCUS && focusedCategory !== CATEGORIES.MONITOR && monitors.length > 0 && (
-              <div
-                className="section-header clickable collapsed-header"
-                onClick={() => setFocusedCategory(CATEGORIES.MONITOR)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                </svg>
-                Monitor
-                <span className="section-count">{monitors.length}</span>
-              </div>
-            )}
           </>
         )}
       </div>

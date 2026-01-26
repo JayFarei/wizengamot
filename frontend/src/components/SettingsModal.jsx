@@ -6,7 +6,6 @@ import UsageSection from './settings/sections/UsageSection';
 import CouncilSection from './settings/sections/CouncilSection';
 import SynthesizerSection from './settings/sections/SynthesizerSection';
 import KnowledgeGraphSection from './settings/sections/KnowledgeGraphSection';
-import MonitorSection from './settings/sections/MonitorSection';
 import VisualiserSection from './settings/sections/VisualiserSection';
 import PodcastSection from './settings/sections/PodcastSection';
 import './SettingsModal.css';
@@ -17,14 +16,12 @@ const TAB_TO_SECTION = {
   models: 'council',
   prompts: 'council',
   synthesizer: 'synthesizer',
-  questionsets: 'monitor',
   visualiser: 'visualiser',
   podcast: 'podcast',
   // New section names map to themselves
   general: 'general',
   usage: 'usage',
   council: 'council',
-  monitor: 'monitor',
   'knowledge-graph': 'knowledge-graph',
 };
 
@@ -147,8 +144,6 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
             onReload={loadAllSettings}
           />
         );
-      case 'monitor':
-        return <MonitorSection />;
       case 'visualiser':
         return (
           <VisualiserSection

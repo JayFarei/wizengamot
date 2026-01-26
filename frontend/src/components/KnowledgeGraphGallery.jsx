@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search, Plus, ClipboardList, Zap, Moon, Bot, GitMerge, Link2, AlertTriangle, Wrench, Layers, FileText, BarChart3, Activity, Star } from 'lucide-react';
+import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search, Plus, ClipboardList, Zap, Moon, Bot, GitMerge, Link2, AlertTriangle, Wrench, Layers, FileText, BarChart3, Activity, Star, Image } from 'lucide-react';
 import KnowledgeGraphViewer from './KnowledgeGraphViewer';
 import KnowledgeGraphChat from './KnowledgeGraphChat';
 import KnowledgeGraphSearch from './KnowledgeGraphSearch';
@@ -16,6 +16,7 @@ import './KnowledgeGraph.css';
 export default function KnowledgeGraphGallery({
   onClose,
   onSelectConversation,
+  onOpenImageGallery,
   initialEntityId = null,
   initialOpenReview = false,
   initialSearchQuery = null,
@@ -738,6 +739,17 @@ export default function KnowledgeGraphGallery({
           >
             <MessageSquare size={16} />
           </button>
+
+          {/* Gallery Quick Action */}
+          {onOpenImageGallery && (
+            <button
+              className="kg-icon-btn"
+              onClick={onOpenImageGallery}
+              title="Open Image Gallery (⌘G)"
+            >
+              <Image size={16} />
+            </button>
+          )}
 
           {/* Close Button */}
           <button className="kg-close-btn" onClick={onClose}>

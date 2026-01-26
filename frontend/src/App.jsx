@@ -11,7 +11,6 @@ import CommitSidebar from './components/CommitSidebar';
 import ThreadContextSidebar from './components/ThreadContextSidebar';
 import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
-import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
 import PodcastInterface from './components/PodcastInterface';
 import PodcastReplayView from './components/PodcastReplayView';
@@ -44,11 +43,6 @@ function App() {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [availableConfig, setAvailableConfig] = useState(null);
   const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
-
-  // Monitor state
-  const [monitors, setMonitors] = useState([]);
-  const [currentMonitorId, setCurrentMonitorId] = useState(null);
-  const [currentMonitor, setCurrentMonitor] = useState(null);
 
   // Review sessions state
   const [reviewSessions, setReviewSessions] = useState([]);
@@ -194,10 +188,9 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations, monitors, config, prompt labels, API key status, credits, and visualiser settings on mount
+  // Load conversations, config, prompt labels, API key status, credits, and visualiser settings on mount
   useEffect(() => {
     loadConversations();
-    loadMonitors();
     loadConfig();
     loadPromptLabels();
     loadApiKeyStatus();
@@ -259,8 +252,6 @@ function App() {
           setShowSearchModal(false);
           setCurrentConversationId(null);
           setCurrentConversation(null);
-          setCurrentMonitorId(null);
-          setCurrentMonitor(null);
           setShowImageGallery(false);
           setShowCouncilGallery(false);
           setShowNotesGallery(false);
@@ -274,14 +265,25 @@ function App() {
           setShowSearchModal(false);
           setCurrentConversationId(null);
           setCurrentPodcastId(null);
-          setCurrentMonitorId(null);
-          setCurrentMonitor(null);
           setShowImageGallery(false);
           setShowCouncilGallery(false);
           setShowNotesGallery(false);
           setShowKnowledgeGraph(false);
           setShowPodcastSetup(false);
           loadPodcasts();
+        } else if (e.key === 'g') {
+          e.preventDefault();
+          // Navigate to Image Gallery
+          setShowImageGallery(true);
+          setShowSearchModal(false);
+          setCurrentConversationId(null);
+          setCurrentConversation(null);
+          setCurrentPodcastId(null);
+          setShowCouncilGallery(false);
+          setShowNotesGallery(false);
+          setShowKnowledgeGraph(false);
+          setShowPodcastGallery(false);
+          setShowPodcastSetup(false);
         }
       }
     };
@@ -361,24 +363,6 @@ function App() {
     }
   };
 
-  const loadMonitors = async () => {
-    try {
-      const mons = await api.listMonitors();
-      setMonitors(mons);
-    } catch (error) {
-      console.error('Failed to load monitors:', error);
-    }
-  };
-
-  const loadMonitor = async (id) => {
-    try {
-      const mon = await api.getMonitor(id);
-      setCurrentMonitor(mon);
-    } catch (error) {
-      console.error('Failed to load monitor:', error);
-    }
-  };
-
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
@@ -448,8 +432,6 @@ function App() {
     await cleanupEmptyConversation(currentConversationId);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -468,8 +450,6 @@ function App() {
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setCurrentPodcastId(null);
   };
 
@@ -482,8 +462,6 @@ function App() {
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setCurrentPodcastId(null);
   };
 
@@ -496,8 +474,6 @@ function App() {
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setCurrentPodcastId(null);
   };
 
@@ -516,8 +492,6 @@ function App() {
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
-      setCurrentMonitorId(null);
-      setCurrentMonitor(null);
     } catch (error) {
       console.error('Failed to create synthesizer conversation:', error);
     }
@@ -547,25 +521,8 @@ function App() {
           ...conversations,
         ]);
         setCurrentConversationId(newConv.id);
-        setCurrentMonitorId(null);
-        setCurrentMonitor(null);
       } catch (error) {
         console.error('Failed to create synthesizer conversation:', error);
-      }
-    } else if (mode === 'monitor') {
-      // Create monitor directly
-      try {
-        const newMonitor = await api.createMonitor('New Monitor');
-        setMonitors([
-          { id: newMonitor.id, name: newMonitor.name, created_at: newMonitor.created_at, competitor_count: 0 },
-          ...monitors,
-        ]);
-        setCurrentMonitorId(newMonitor.id);
-        setCurrentMonitor(newMonitor);
-        setCurrentConversationId(null);
-        setCurrentConversation(null);
-      } catch (error) {
-        console.error('Failed to create monitor:', error);
       }
     } else if (mode === 'visualiser') {
       // Create visualiser conversation directly
@@ -576,8 +533,6 @@ function App() {
           ...conversations,
         ]);
         setCurrentConversationId(newConv.id);
-        setCurrentMonitorId(null);
-        setCurrentMonitor(null);
       } catch (error) {
         console.error('Failed to create visualiser conversation:', error);
       }
@@ -586,8 +541,6 @@ function App() {
       setShowPodcastGallery(true);
       setCurrentConversationId(null);
       setCurrentPodcastId(null);
-      setCurrentMonitorId(null);
-      setCurrentMonitor(null);
       loadPodcasts();
     }
   };
@@ -601,8 +554,6 @@ function App() {
     setShowPodcastGallery(false);
     setCurrentConversationId(null);
     setCurrentPodcastId(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
   };
 
   // Navigate to Knowledge Graph with pre-selected entity
@@ -611,8 +562,6 @@ function App() {
     setShowKnowledgeGraph(true);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -628,8 +577,6 @@ function App() {
     setShowKnowledgeGraph(true);
     setCurrentConversationId(null);
     setCurrentConversation(null);
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -649,8 +596,6 @@ function App() {
       ]);
       setCurrentConversationId(newConv.id);
       setVisualiserSourceConvId(sourceConversationId);
-      setCurrentMonitorId(null);
-      setCurrentMonitor(null);
     } catch (error) {
       console.error('Failed to create visualiser conversation:', error);
     }
@@ -687,9 +632,7 @@ function App() {
       await cleanupEmptyConversation(currentConversationId);
     }
 
-    // Clear monitor selection and galleries when selecting a conversation
-    setCurrentMonitorId(null);
-    setCurrentMonitor(null);
+    // Clear galleries when selecting a conversation
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -725,78 +668,6 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
-    }
-  };
-
-  // Monitor handlers
-  const handleSelectMonitor = async (id) => {
-    // Clear conversation and gallery selections when selecting a monitor
-    setCurrentConversationId(null);
-    setCurrentConversation(null);
-    setShowImageGallery(false);
-    setShowCouncilGallery(false);
-    setShowNotesGallery(false);
-    setShowPodcastGallery(false);
-    setShowKnowledgeGraph(false);
-    setShowPodcastSetup(false);
-    setCurrentPodcastId(null);
-    setCurrentMonitorId(id);
-    try {
-      const monitor = await api.getMonitor(id);
-      setCurrentMonitor(monitor);
-    } catch (error) {
-      console.error('Failed to load monitor:', error);
-    }
-  };
-
-  const handlePauseMonitor = async (id) => {
-    try {
-      await api.pauseMonitor(id);
-      loadMonitors();
-      if (currentMonitorId === id) {
-        const monitor = await api.getMonitor(id);
-        setCurrentMonitor(monitor);
-      }
-    } catch (error) {
-      console.error('Failed to pause monitor:', error);
-    }
-  };
-
-  const handleResumeMonitor = async (id) => {
-    try {
-      await api.resumeMonitor(id);
-      loadMonitors();
-      if (currentMonitorId === id) {
-        const monitor = await api.getMonitor(id);
-        setCurrentMonitor(monitor);
-      }
-    } catch (error) {
-      console.error('Failed to resume monitor:', error);
-    }
-  };
-
-  const handleDeleteMonitor = async (id) => {
-    try {
-      await api.deleteMonitor(id);
-      setMonitors(monitors.filter(m => m.id !== id));
-      if (currentMonitorId === id) {
-        setCurrentMonitorId(null);
-        setCurrentMonitor(null);
-      }
-    } catch (error) {
-      console.error('Failed to delete monitor:', error);
-    }
-  };
-
-  const handleMarkMonitorRead = async (id) => {
-    try {
-      await api.markMonitorRead(id);
-      // Update the monitors list to reflect the change
-      setMonitors(monitors.map(m =>
-        m.id === id ? { ...m, unread_updates: 0 } : m
-      ));
-    } catch (error) {
-      console.error('Failed to mark monitor as read:', error);
     }
   };
 
@@ -1954,7 +1825,6 @@ function App() {
     if (session?.session_id) {
       setCurrentPodcastId(session.session_id);
       setCurrentConversationId(null);
-      setCurrentMonitorId(null);
       setShowPodcastGallery(false);
       setShowImageGallery(false);
       setShowCouncilGallery(false);
@@ -1983,12 +1853,6 @@ function App() {
         animatingTitleId={animatingTitleId}
         onTitleAnimationComplete={() => setAnimatingTitleId(null)}
         promptLabels={promptLabels}
-        monitors={monitors}
-        currentMonitorId={currentMonitorId}
-        onSelectMonitor={handleSelectMonitor}
-        onPauseMonitor={handlePauseMonitor}
-        onResumeMonitor={handleResumeMonitor}
-        onDeleteMonitor={handleDeleteMonitor}
         visualiserSettings={visualiserSettings}
         onOpenImageGallery={handleOpenImageGallery}
         onOpenCouncilGallery={handleOpenCouncilGallery}
@@ -2058,7 +1922,6 @@ function App() {
           onSelectPodcast={(id) => {
             setCurrentPodcastId(id);
             setCurrentConversationId(null);
-            setCurrentMonitorId(null);
             setShowPodcastGallery(false);
             setShowImageGallery(false);
             setShowCouncilGallery(false);
@@ -2092,6 +1955,10 @@ function App() {
             setFocusedEntityId(null);
             setInitialSearchQuery(null);
             setInitialOpenReview(false);
+          }}
+          onOpenImageGallery={() => {
+            setShowKnowledgeGraph(false);
+            setShowImageGallery(true);
           }}
           initialEntityId={focusedEntityId}
           initialSearchQuery={initialSearchQuery}
@@ -2138,15 +2005,6 @@ function App() {
             setCurrentPodcastId(null);
             handleSelectConversation(id);
           }}
-        />
-      ) : currentMonitor ? (
-        <MonitorInterface
-          monitor={currentMonitor}
-          onMonitorUpdate={(updatedMonitor) => {
-            setCurrentMonitor(updatedMonitor);
-            loadMonitors();
-          }}
-          onMarkRead={handleMarkMonitorRead}
         />
       ) : currentConversation?.mode === 'discovery' ? (
         <SynthesizerInterface
