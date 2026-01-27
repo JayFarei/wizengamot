@@ -417,9 +417,6 @@ export default function Sidebar({
       // Skip if typing in input/textarea
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-      // Skip if sidebar is collapsed
-      if (collapsed) return;
-
       // Only handle Shift+J or Shift+K (without Cmd/Ctrl modifiers)
       if (!e.shiftKey || e.metaKey || e.ctrlKey) return;
 
@@ -464,7 +461,6 @@ export default function Sidebar({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    collapsed,
     sidebarStyle,
     focusedCategory,
     allConversations,
