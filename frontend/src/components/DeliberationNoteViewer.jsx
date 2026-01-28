@@ -31,6 +31,8 @@ export default function DeliberationNoteViewer({
   // Review sessions
   reviewSessionCount = 0,
   onToggleReviewSidebar,
+  // Pane ID for centralized keyboard handling
+  paneId,
 }) {
   const [showDeliberation, setShowDeliberation] = useState(false);
   const [deliberationTab, setDeliberationTab] = useState('stage1');
@@ -73,6 +75,7 @@ export default function DeliberationNoteViewer({
           onSourceMetadataUpdate={onSourceMetadataUpdate}
           reviewSessionCount={reviewSessionCount}
           onToggleReviewSidebar={onToggleReviewSidebar}
+          paneId={paneId}
         />
       </div>
 

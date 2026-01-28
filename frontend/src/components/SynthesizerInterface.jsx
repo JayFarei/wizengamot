@@ -409,6 +409,7 @@ export default function SynthesizerInterface({
                 reviewSessionCount={reviewSessionCount}
                 onToggleReviewSidebar={onToggleReviewSidebar}
                 onNavigateToGraphSearch={onNavigateToGraphSearch}
+                paneId={paneId}
               />
             ) : latestNotes.isDeliberation ? (
               <DeliberationNoteViewer
@@ -432,6 +433,7 @@ export default function SynthesizerInterface({
                 onSourceMetadataUpdate={handleSourceMetadataUpdate}
                 reviewSessionCount={reviewSessionCount}
                 onToggleReviewSidebar={onToggleReviewSidebar}
+                paneId={paneId}
               />
             ) : (
               <NoteViewer

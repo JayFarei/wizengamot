@@ -33,6 +33,8 @@ export default function KnowledgeGraphNoteViewer({
   onToggleReviewSidebar,
   // Knowledge graph navigation
   onNavigateToGraphSearch,
+  // Pane ID for centralized keyboard handling
+  paneId,
 }) {
   const [showPanel, setShowPanel] = useState(false);
   const [activeTab, setActiveTab] = useState('topics');
@@ -73,6 +75,7 @@ export default function KnowledgeGraphNoteViewer({
           onSourceMetadataUpdate={onSourceMetadataUpdate}
           reviewSessionCount={reviewSessionCount}
           onToggleReviewSidebar={onToggleReviewSidebar}
+          paneId={paneId}
         />
       </div>
 
