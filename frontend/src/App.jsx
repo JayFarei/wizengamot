@@ -646,10 +646,6 @@ function App() {
             setInitialSearchQuery(null);
             setInitialOpenReview(false);
           }}
-          onOpenImageGallery={() => {
-            setShowKnowledgeGraph(false);
-            setShowImageGallery(true);
-          }}
           initialEntityId={focusedEntityId}
           initialSearchQuery={initialSearchQuery}
           initialOpenReview={initialOpenReview}
