@@ -1,0 +1,68 @@
+.pane-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.pane-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  transition: margin-right 0.2s ease;
+}
+
+.pane-main-content.with-sidebar {
+  /* CommitSidebar width is 360px */
+  margin-right: 0;
+}
+
+.pane-content-empty {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+}
+
+.pane-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--text-muted);
+}
+
+.pane-placeholder-id {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.pane-placeholder-conv {
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.pane-placeholder-empty {
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* FAB button positioning within pane */
+.pane-content-wrapper .commit-button-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+}

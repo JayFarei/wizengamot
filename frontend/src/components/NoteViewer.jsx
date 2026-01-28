@@ -12,6 +12,7 @@ import NotePanesView from './NotePanesView';
 import ProgressRail from './ProgressRail';
 import { api } from '../api';
 import { SelectionHandler } from '../utils/SelectionHandler';
+import { useNoteKeyboard } from '../contexts/NoteKeyboardContext';
 import './NoteViewer.css';
 
 /**
@@ -60,6 +61,8 @@ export default function NoteViewer({
   onNavigateToGraphEntity,
   // Note quality callbacks
   onNoteQualityUpdate,
+  // Pane ID for centralized keyboard handling
+  paneId,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
   const [showPanesView, setShowPanesView] = useState(false);
@@ -78,6 +81,9 @@ export default function NoteViewer({
   const containerRef = useRef(null);
   const sourceInfoRef = useRef(null);
   const wheelTimeoutRef = useRef(null);
+
+  // Centralized keyboard handling
+  const { registerHandlers, unregisterHandlers } = useNoteKeyboard();
 
   // Keyboard sentence navigation state (focus mode only)
   const [sentences, setSentences] = useState([]);
@@ -378,152 +384,148 @@ export default function NoteViewer({
     setShowTweetModal(false);
   }, []);
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e) => {
-    // Skip if user is typing in an input or comment modal is open
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (showKeyboardCommentModal) return;
-    if (showSourceMetadataModal) return;
-    if (!notes?.length) return;
+  // Register keyboard handlers with centralized context
+  // Only register when we have a paneId and notes are loaded
+  useEffect(() => {
+    // Use fallback paneId if not provided (single-pane mode compatibility)
+    const effectivePaneId = paneId || 'pane-1';
 
-    // C key copies the current note (in swipe view or focus mode)
-    if ((e.key === 'c' || e.key === 'C') && (viewMode === 'swipe' || focusMode)) {
-      e.preventDefault();
-      copyNoteToClipboard();
-      return;
-    }
+    if (showPanesView) return; // NotePanesView has its own handlers
 
-    // S key toggles star on current note (in swipe view or focus mode, but not in focus mode sentence nav)
-    if ((e.key === 's' || e.key === 'S') && viewMode === 'swipe' && !focusMode) {
-      e.preventDefault();
-      toggleNoteStar();
-      return;
-    }
+    const handlers = {
+      // J/K note navigation (works in swipe view and focus mode)
+      navigateDown: () => {
+        if ((viewMode === 'swipe' || focusMode) && notes?.length) {
+          setCurrentIndex((prev) => Math.min(prev + 1, notes.length - 1));
+        }
+      },
+      navigateUp: () => {
+        if ((viewMode === 'swipe' || focusMode) && notes?.length) {
+          setCurrentIndex((prev) => Math.max(prev - 1, 0));
+        }
+      },
 
-    // X key opens tweet modal (in swipe view or focus mode)
-    if ((e.key === 'x' || e.key === 'X') && (viewMode === 'swipe' || focusMode)) {
-      e.preventDefault();
-      openTweetModal();
-      return;
-    }
+      // C key - copy current note
+      copy: () => {
+        if ((viewMode === 'swipe' || focusMode) && !showKeyboardCommentModal && !showSourceMetadataModal) {
+          copyNoteToClipboard();
+        }
+      },
 
-    // B key toggles browse related view (in swipe view or focus mode)
-    if ((e.key === 'b' || e.key === 'B') && (viewMode === 'swipe' || focusMode)) {
-      e.preventDefault();
-      setShowPanesView(prev => !prev);
-      return;
-    }
+      // S key - toggle star (only in swipe view, not focus mode)
+      star: () => {
+        if (viewMode === 'swipe' && !focusMode && !showKeyboardCommentModal && !showSourceMetadataModal) {
+          toggleNoteStar();
+        }
+      },
 
-    // F key toggles focus mode (only in swipe view)
-    if ((e.key === 'f' || e.key === 'F') && viewMode === 'swipe') {
-      e.preventDefault();
-      setFocusMode((prev) => {
-        if (!prev) {
-          // Entering focus mode, reset sentence selection
+      // X key - open tweet modal
+      tweet: () => {
+        if ((viewMode === 'swipe' || focusMode) && !showKeyboardCommentModal && !showSourceMetadataModal) {
+          openTweetModal();
+        }
+      },
+
+      // B key - toggle browse related view
+      browseRelated: () => {
+        if ((viewMode === 'swipe' || focusMode) && !showKeyboardCommentModal && !showSourceMetadataModal) {
+          setShowPanesView(true);
+        }
+      },
+
+      // F key - enter focus mode (only in swipe view)
+      focusMode: () => {
+        if (viewMode === 'swipe' && !showKeyboardCommentModal && !showSourceMetadataModal) {
+          setFocusMode((prev) => {
+            if (!prev) {
+              setSentenceCursor(0);
+              setSelectionStart(null);
+              setSelectionEnd(null);
+            }
+            return !prev;
+          });
+        }
+      },
+
+      // Escape - exit focus mode
+      exitFocusMode: () => {
+        if (focusMode) {
+          setFocusMode(false);
           setSentenceCursor(0);
           setSelectionStart(null);
           setSelectionEnd(null);
+          setFocusModeComment(null);
+          setFocusModeCommentPosition(null);
         }
-        return !prev;
-      });
-      return;
-    }
+      },
 
-    // Escape exits focus mode and clears sentence selection
-    if (e.key === 'Escape' && focusMode) {
-      e.preventDefault();
-      setFocusMode(false);
-      setSentenceCursor(0);
-      setSelectionStart(null);
-      setSelectionEnd(null);
-      setFocusModeComment(null);
-      setFocusModeCommentPosition(null);
-      return;
-    }
-
-    // FOCUS MODE ONLY: Arrow keys for sentence navigation, H for highlight
-    if (focusMode && sentences.length > 0) {
-      // Arrow Down: move sentence cursor down OR extend selection
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          // Extend selection downward
-          setSelectionEnd((prev) => {
-            const current = prev ?? sentenceCursor;
-            return Math.min(current + 1, sentences.length - 1);
-          });
-          if (selectionStart === null) {
-            setSelectionStart(sentenceCursor);
+      // Arrow Down - sentence navigation in focus mode
+      sentenceDown: (e) => {
+        if (focusMode && sentences.length > 0 && !showKeyboardCommentModal) {
+          if (e.shiftKey) {
+            setSelectionEnd((prev) => {
+              const current = prev ?? sentenceCursor;
+              return Math.min(current + 1, sentences.length - 1);
+            });
+            if (selectionStart === null) {
+              setSelectionStart(sentenceCursor);
+            }
+          } else {
+            setSentenceCursor((prev) => Math.min(prev + 1, sentences.length - 1));
+            setSelectionStart(null);
+            setSelectionEnd(null);
           }
-        } else {
-          // Single sentence navigation
-          setSentenceCursor((prev) => Math.min(prev + 1, sentences.length - 1));
-          setSelectionStart(null);
-          setSelectionEnd(null);
         }
-        return;
-      }
+      },
 
-      // Arrow Up: move sentence cursor up OR extend selection
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          // Extend selection upward
-          setSelectionEnd((prev) => {
-            const current = prev ?? sentenceCursor;
-            return Math.max(current - 1, 0);
-          });
-          if (selectionStart === null) {
-            setSelectionStart(sentenceCursor);
+      // Arrow Up - sentence navigation in focus mode
+      sentenceUp: (e) => {
+        if (focusMode && sentences.length > 0 && !showKeyboardCommentModal) {
+          if (e.shiftKey) {
+            setSelectionEnd((prev) => {
+              const current = prev ?? sentenceCursor;
+              return Math.max(current - 1, 0);
+            });
+            if (selectionStart === null) {
+              setSelectionStart(sentenceCursor);
+            }
+          } else {
+            setSentenceCursor((prev) => Math.max(prev - 1, 0));
+            setSelectionStart(null);
+            setSelectionEnd(null);
           }
-        } else {
-          // Single sentence navigation
-          setSentenceCursor((prev) => Math.max(prev - 1, 0));
-          setSelectionStart(null);
-          setSelectionEnd(null);
         }
-        return;
-      }
+      },
 
-      // H key: open CommentModal with selected sentence(s)
-      if (e.key === 'h' || e.key === 'H') {
-        e.preventDefault();
-        const selectedText = getSelectedSentencesText();
-        if (selectedText) {
-          const currentNote = notes[Math.min(currentIndex, notes.length - 1)];
-          setKeyboardSelection({
-            text: selectedText,
-            sourceType: 'synthesizer',
-            noteId: currentNote.id,
-            noteTitle: currentNote.title,
-            sourceUrl: sourceUrl,
-            noteModel: currentNote.source_model,
-            sourceContent: currentNote.body,
-          });
-          setShowKeyboardCommentModal(true);
+      // H key - highlight selected sentence(s) in focus mode
+      highlight: () => {
+        if (focusMode && sentences.length > 0 && !showKeyboardCommentModal) {
+          const selectedText = getSelectedSentencesText();
+          if (selectedText && notes?.length) {
+            const currentNote = notes[Math.min(currentIndex, notes.length - 1)];
+            setKeyboardSelection({
+              text: selectedText,
+              sourceType: 'synthesizer',
+              noteId: currentNote.id,
+              noteTitle: currentNote.title,
+              sourceUrl: sourceUrl,
+              noteModel: currentNote.source_model,
+              sourceContent: currentNote.body,
+            });
+            setShowKeyboardCommentModal(true);
+          }
         }
-        return;
-      }
-    }
+      },
+    };
 
-    // J/K navigation works in swipe view and focus mode (for note navigation)
-    if (viewMode !== 'swipe' && !focusMode) return;
-
-    if (e.key === 'j' || e.key === 'J') {
-      e.preventDefault();
-      setCurrentIndex((prev) => Math.min(prev + 1, notes.length - 1));
-    } else if (e.key === 'k' || e.key === 'K') {
-      e.preventDefault();
-      setCurrentIndex((prev) => Math.max(prev - 1, 0));
-    }
-  }, [viewMode, focusMode, notes, currentIndex, sentences, sentenceCursor, selectionStart,
-      sourceUrl, showKeyboardCommentModal, showSourceMetadataModal, copyNoteToClipboard,
-      openTweetModal, toggleNoteStar, getSelectedSentencesText]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    registerHandlers(effectivePaneId, handlers);
+    return () => unregisterHandlers(effectivePaneId);
+  }, [
+    paneId, registerHandlers, unregisterHandlers,
+    viewMode, focusMode, notes, currentIndex, sentences, sentenceCursor, selectionStart,
+    sourceUrl, showKeyboardCommentModal, showSourceMetadataModal, showPanesView,
+    copyNoteToClipboard, openTweetModal, toggleNoteStar, getSelectedSentencesText,
+  ]);
 
   // Command palette action listener
   useEffect(() => {
@@ -542,6 +544,19 @@ export default function NoteViewer({
         case 'editSourceInfo':
           handleOpenSourceMetadata();
           break;
+        case 'generatePodcast':
+          if (onNavigateToPodcast) {
+            onNavigateToPodcast();
+          }
+          break;
+        case 'createDiagram':
+          if (onNavigateToVisualiser) {
+            onNavigateToVisualiser();
+          }
+          break;
+        case 'copySource':
+          handleCopySource();
+          break;
         case 'viewLinkedDiagrams':
           // If there are linked visualisations, navigate to first one
           if (linkedVisualisations.length > 0 && onSelectConversation) {
@@ -555,18 +570,23 @@ export default function NoteViewer({
 
     window.addEventListener('commandPalette:action', handleCommandPaletteAction);
     return () => window.removeEventListener('commandPalette:action', handleCommandPaletteAction);
-  }, [copyNoteToClipboard, copyAllNotesToClipboard, handleOpenSourceMetadata, linkedVisualisations, onSelectConversation]);
+  }, [copyNoteToClipboard, copyAllNotesToClipboard, handleOpenSourceMetadata, linkedVisualisations, onSelectConversation, onNavigateToPodcast, onNavigateToVisualiser, handleCopySource]);
 
   // Wheel navigation for swipe view and focus mode
+  // Uses container-scoped listener to prevent scrolling other panes
   useEffect(() => {
     if (viewMode !== 'swipe') return;
     if (!notes?.length) return;
 
     const handleWheel = (e) => {
-      // In focus mode, allow scroll anywhere (fullscreen)
-      // In swipe view, only handle when mouse is on the card
+      // Check if event is within THIS component's container
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target)) return;
+
+      // In focus mode, the overlay handles its own scroll
+      // In swipe view, only handle when mouse is on the swipe-view area
       if (!focusMode) {
-        const swipeView = document.querySelector('.swipe-view');
+        const swipeView = containerRef.current.querySelector('.swipe-view');
         if (!swipeView || !swipeView.contains(e.target)) return;
       }
 
@@ -588,11 +608,14 @@ export default function NoteViewer({
       }, 300);
     };
 
-    // Add to window to capture all wheel events
-    window.addEventListener('wheel', handleWheel, { passive: false });
+    // Attach to container, not window, to scope the event handling
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
-      window.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('wheel', handleWheel);
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
         wheelTimeoutRef.current = null;
@@ -768,6 +791,7 @@ export default function NoteViewer({
         onClose={() => setShowPanesView(false)}
         onViewConversation={onSelectConversation}
         onNavigateToGraph={onNavigateToGraphEntity}
+        paneId={paneId}
       />
     );
   }

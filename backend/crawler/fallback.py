@@ -228,6 +228,23 @@ class CrawlerWithFallback:
             try:
                 result = await self.adapter.scrape_pdf(url, timeout)
                 if result.get("success"):
+                    # Check that we got actual content, not just success flag
+                    markdown = result.get("data", {}).get("markdown", "")
+                    if markdown and len(markdown.strip()) > 100:
+                        return result
+                    # Empty content - fall through to Firecrawl
+                    logger.info(
+                        f"Crawl4AI returned empty PDF content, trying Firecrawl for {url}"
+                    )
+                    if self._has_firecrawl():
+                        return await _firecrawl_scrape(
+                            url,
+                            self.firecrawl_api_key,
+                            ["markdown"],
+                            float(timeout),
+                            endpoint=FIRECRAWL_API_URL_V2,
+                            extra_params={"parsers": ["pdf"]},
+                        )
                     return result
                 if self._has_firecrawl():
                     logger.info(f"Crawl4AI PDF failed, falling back to Firecrawl for {url}")

@@ -1,0 +1,26 @@
+.buffer-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Sidebar buffer */
+.buffer-sidebar {
+  flex-shrink: 0;
+  width: 280px;
+  border-right: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  transition: width 0.2s ease, opacity 0.2s ease;
+}
+
+.buffer-sidebar.buffer-collapsed {
+  width: 56px;
+}
+
+/* Main buffer */
+.buffer-main {
+  flex: 1;
+  min-width: 0;
+}

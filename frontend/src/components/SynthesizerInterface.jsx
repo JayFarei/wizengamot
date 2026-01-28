@@ -40,6 +40,8 @@ export default function SynthesizerInterface({
   // Knowledge graph navigation
   onNavigateToGraphEntity,
   onNavigateToGraphSearch,
+  // Pane ID for centralized keyboard handling
+  paneId,
 }) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
@@ -236,55 +238,27 @@ export default function SynthesizerInterface({
 
     setIsProcessing(true);
     setError(null);
+    setProcessingStage('Starting...');
 
     try {
-      if (inputMode === 'url') {
-        setProcessingStage('Detecting content type...');
-
-        // Detect URL type for stage messaging
-        const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-        const isPodcast = url.includes('pca.st') || url.includes('podcasts.apple.com') ||
-                          url.includes('open.spotify.com/episode') || url.includes('overcast.fm');
-        const isPDF = url.toLowerCase().endsWith('.pdf') ||
-                      url.includes('arxiv.org/abs/') ||
-                      url.includes('arxiv.org/pdf/');
-
-        if (isYouTube) {
-          setProcessingStage('Downloading and transcribing video...');
-        } else if (isPodcast) {
-          setProcessingStage('Extracting and transcribing podcast...');
-        } else if (isPDF) {
-          setProcessingStage('Parsing PDF document...');
-        } else {
-          setProcessingStage('Fetching article content...');
-        }
-
-        // Small delay to show the stage
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } else {
-        setProcessingStage('Processing pasted text...');
-      }
-
-      // Update stage message based on generation mode
-      if (generationMode === 'deliberation') {
-        setProcessingStage('Stage 1: Models generating notes...');
-      } else if (generationMode === 'knowledge_graph') {
-        setProcessingStage('Analyzing content and querying knowledge graph...');
-      } else {
-        setProcessingStage('Generating Zettelkasten notes...');
-      }
-
-      const result = await api.synthesize(
+      // Use streaming API for real-time progress updates
+      const result = await api.synthesizeStream(
         conversation.id,
-        inputMode === 'url' ? url.trim() : null,
-        comment.trim() || null,
-        null, // Use default model
-        false, // Single model mode (use_council)
-        inputMode === 'text' ? textContent.trim() : null,
-        generationMode === 'deliberation', // use_deliberation
-        generationMode === 'deliberation' ? selectedModels : null, // council_models
-        generationMode === 'deliberation' ? chairmanModel : null, // chairman_model
-        generationMode === 'knowledge_graph' // use_knowledge_graph
+        {
+          url: inputMode === 'url' ? url.trim() : null,
+          text: inputMode === 'text' ? textContent.trim() : null,
+          comment: comment.trim() || null,
+          model: null, // Use default model
+          useCouncil: false, // Single model mode
+          useDeliberation: generationMode === 'deliberation',
+          councilModels: generationMode === 'deliberation' ? selectedModels : null,
+          chairmanModel: generationMode === 'deliberation' ? chairmanModel : null,
+          useKnowledgeGraph: generationMode === 'knowledge_graph',
+        },
+        // Progress callback - updates UI in real-time
+        ({ stage, message }) => {
+          setProcessingStage(message);
+        }
       );
 
       // Update conversation with new message
@@ -484,6 +458,7 @@ export default function SynthesizerInterface({
                 onToggleReviewSidebar={onToggleReviewSidebar}
                 onNavigateToGraphEntity={onNavigateToGraphEntity}
                 onNoteQualityUpdate={handleNoteQualityUpdate}
+                paneId={paneId}
               />
             )
           )}

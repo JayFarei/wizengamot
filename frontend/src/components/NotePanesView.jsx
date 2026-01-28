@@ -3,6 +3,7 @@ import { X, ChevronRight, ExternalLink, Link2, Tag, FileText, ArrowLeft, ArrowRi
 import sbd from 'sbd';
 import { api } from '../api';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
+import { useNoteKeyboard } from '../contexts/NoteKeyboardContext';
 import './NotePanesView.css';
 
 // Entity type badge colors (matching KnowledgeGraph.css)
@@ -52,6 +53,8 @@ export default function NotePanesView({
   onClose,
   onViewConversation,
   onNavigateToGraph,
+  // Pane ID for centralized keyboard handling
+  paneId,
 }) {
   const [paneStack, setPaneStack] = useState([]);
   const [relatedNotes, setRelatedNotes] = useState(null);
@@ -63,6 +66,9 @@ export default function NotePanesView({
   const [extractionError, setExtractionError] = useState(null);
   const [extractionSuccess, setExtractionSuccess] = useState(false);
   const containerRef = useRef(null);
+
+  // Centralized keyboard handling
+  const { registerHandlers, unregisterHandlers } = useNoteKeyboard();
 
   // Parse note body into sentences for formatting
   const parseSentences = useCallback((body) => {
@@ -228,7 +234,7 @@ export default function NotePanesView({
   }, []);
 
   // Close a pane
-  const closePane = useCallback((index) => {
+  const closePaneAtIndex = useCallback((index) => {
     setPaneStack(prev => {
       const newStack = prev.filter((_, i) => i !== index);
       // If we closed the focused pane, focus the last one
@@ -281,64 +287,62 @@ export default function NotePanesView({
     setSelectedRelatedIndex(0);
   }, [relatedNotes]);
 
-  // Keyboard navigation handler
-  const handleKeyDown = useCallback((e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  // Register keyboard handlers with centralized context
+  useEffect(() => {
+    if (!paneId) return;
 
-    const relatedCount = uniqueRelatedNotes.length;
-    const focusedIdx = paneStack.findIndex(p => p.isFocused);
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
+    const handlers = {
+      // Arrow Down - select next related note
+      sentenceDown: () => {
+        const relatedCount = uniqueRelatedNotes.length;
         setSelectedRelatedIndex(prev => Math.min(prev + 1, relatedCount - 1));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
+      },
+
+      // Arrow Up - select previous related note
+      sentenceUp: () => {
         setSelectedRelatedIndex(prev => Math.max(prev - 1, 0));
-        break;
-      case 'Enter':
-        e.preventDefault();
+      },
+
+      // Enter - open selected related note
+      openRelated: () => {
         if (uniqueRelatedNotes[selectedRelatedIndex]) {
           openRelatedNote(uniqueRelatedNotes[selectedRelatedIndex]);
         }
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        // Focus previous pane in stack
+      },
+
+      // Arrow Left - focus previous pane in stack
+      panePrev: () => {
+        const focusedIdx = paneStack.findIndex(p => p.isFocused);
         if (focusedIdx > 0) {
           focusPane(focusedIdx - 1);
         }
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        // Focus next pane in stack (if we've moved back)
+      },
+
+      // Arrow Right - focus next pane in stack
+      paneNext: () => {
+        const focusedIdx = paneStack.findIndex(p => p.isFocused);
         if (focusedIdx < paneStack.length - 1) {
           focusPane(focusedIdx + 1);
         }
-        break;
-      case 'Backspace':
-        e.preventDefault();
-        // Close current pane (if more than one)
-        if (paneStack.length > 1) {
-          closePane(focusedIdx);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        // Close entire panes view
-        onClose();
-        break;
-      default:
-        break;
-    }
-  }, [uniqueRelatedNotes, selectedRelatedIndex, paneStack, openRelatedNote, focusPane, closePane, onClose]);
+      },
 
-  // Add keyboard event listener
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+      // Backspace - close current pane
+      closePane: () => {
+        const focusedIdx = paneStack.findIndex(p => p.isFocused);
+        if (paneStack.length > 1) {
+          closePaneAtIndex(focusedIdx);
+        }
+      },
+
+      // Escape - close entire panes view
+      exitFocusMode: () => {
+        onClose();
+      },
+    };
+
+    registerHandlers(paneId, handlers);
+    return () => unregisterHandlers(paneId);
+  }, [paneId, registerHandlers, unregisterHandlers, uniqueRelatedNotes, selectedRelatedIndex, paneStack, openRelatedNote, focusPane, closePaneAtIndex, onClose]);
 
   // Scroll selected card into view
   useEffect(() => {
@@ -424,7 +428,7 @@ export default function NotePanesView({
                         className="note-pane-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          closePane(index);
+                          closePaneAtIndex(index);
                         }}
                         title="Close pane"
                       >

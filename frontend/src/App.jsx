@@ -1,17 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
-import ChatInterface from './components/ChatInterface';
-import CouncilDiscussionView from './components/CouncilDiscussionView';
 import ConfigModal from './components/ConfigModal';
 import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
-import CommentModal from './components/CommentModal';
-import CommentButton from './components/CommentButton';
-import CommitSidebar from './components/CommitSidebar';
-import ThreadContextSidebar from './components/ThreadContextSidebar';
 import ModeSelector from './components/ModeSelector';
-import SynthesizerInterface from './components/SynthesizerInterface';
-import VisualiserInterface from './components/VisualiserInterface';
 import PodcastInterface from './components/PodcastInterface';
 import PodcastReplayView from './components/PodcastReplayView';
 import MiniPlayer from './components/MiniPlayer';
@@ -21,68 +13,49 @@ import ConversationGallery from './components/ConversationGallery';
 import PodcastGallery from './components/PodcastGallery';
 import KnowledgeGraphGallery from './components/KnowledgeGraphGallery';
 import SearchModal from './components/SearchModal';
-import CommandPalette from './components/CommandPalette';
+// CommandPalette moved to per-pane (PaneContent)
 import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
-import { SelectionHandler } from './utils/SelectionHandler';
-import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
 import { useTheme } from './contexts/ThemeContext';
+import { LayoutProvider } from './contexts/LayoutContext';
+import { NoteKeyboardProvider } from './contexts/NoteKeyboardContext';
+import { LayoutKeyboardHandler, MainContentArea } from './components/layout';
 import './App.css';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
+
+  // Global state - conversations list
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
-  const [currentConversation, setCurrentConversation] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Modal states
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState('api');
   const [settingsDefaultPrompt, setSettingsDefaultPrompt] = useState(null);
   const [showPromptManager, setShowPromptManager] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
-  const [availableConfig, setAvailableConfig] = useState(null);
   const [pendingCouncilConfig, setPendingCouncilConfig] = useState(null);
 
-  // Review sessions state
-  const [reviewSessions, setReviewSessions] = useState([]);
-  const [activeReviewSessionId, setActiveReviewSessionId] = useState(null);
+  // Config state
+  const [availableConfig, setAvailableConfig] = useState(null);
 
-  // Comment and thread state (derived from active session)
-  const [currentSelection, setCurrentSelection] = useState(null);
-  const [commentButtonPosition, setCommentButtonPosition] = useState(null);
-  const [showCommentModal, setShowCommentModal] = useState(false);
-  const [showCommitSidebar, setShowCommitSidebar] = useState(false);
-  const [activeCommentId, setActiveCommentId] = useState(null);
-
-  // Derive comments and contextSegments from active session
-  const activeSession = useMemo(() => 
-    reviewSessions.find(s => s.id === activeReviewSessionId),
-    [reviewSessions, activeReviewSessionId]
-  );
-  const comments = activeSession?.comments || [];
-  const contextSegments = activeSession?.context_segments || [];
-  const sessionThreads = activeSession?.threads || [];
-
-  // Thread continuation state
-  const [activeThreadContext, setActiveThreadContext] = useState(null);
-  // Structure: { threadId, model, comments: [], contextSegments: [] }
-
-  // Sidebar collapse states
+  // Sidebar state
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
 
   // Search modal state
   const [showSearchModal, setShowSearchModal] = useState(false);
 
-  // Command palette state
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  // Command palette state (moved to per-pane in PaneContext)
+  // const [showCommandPalette, setShowCommandPalette] = useState(false);
 
-  // Image gallery state
+  // Gallery states
   const [showImageGallery, setShowImageGallery] = useState(false);
-
-  // Conversation gallery states (Council and Notes)
   const [showCouncilGallery, setShowCouncilGallery] = useState(false);
   const [showNotesGallery, setShowNotesGallery] = useState(false);
+  const [showPodcastGallery, setShowPodcastGallery] = useState(false);
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
 
   // Title animation state
   const [animatingTitleId, setAnimatingTitleId] = useState(null);
@@ -95,16 +68,18 @@ function App() {
 
   // Podcast sessions for sidebar
   const [podcastSessions, setPodcastSessions] = useState([]);
-  const [showPodcastGallery, setShowPodcastGallery] = useState(false);
 
-  // Knowledge graph gallery state
-  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
+  // Knowledge graph state
   const [focusedEntityId, setFocusedEntityId] = useState(null);
   const [initialSearchQuery, setInitialSearchQuery] = useState(null);
   const [initialOpenReview, setInitialOpenReview] = useState(false);
+
+  // Podcast state
   const [showPodcastSetup, setShowPodcastSetup] = useState(false);
   const [currentPodcastId, setCurrentPodcastId] = useState(null);
   const [podcastSourceConvId, setPodcastSourceConvId] = useState(null);
+
+  // Visualiser source state
   const [visualiserSourceConvId, setVisualiserSourceConvId] = useState(null);
 
   // API key status for warnings
@@ -117,77 +92,6 @@ function App() {
     firecrawl: localStorage.getItem('wizengamot:dismissed:firecrawl-warning') === 'true',
   }));
 
-  const getModelShortName = useCallback((model) => {
-    return model?.split('/')[1] || model;
-  }, []);
-
-  const autoContextSegments = useMemo(() => {
-    if (!comments || comments.length === 0) {
-      return [];
-    }
-
-    const seenKeys = new Set();
-    const segments = [];
-
-    comments.forEach((comment) => {
-      if (!comment?.source_content) {
-        return;
-      }
-
-      // Determine source type - check for note_id as fallback detection
-      const sourceType = comment.source_type || (comment.note_id ? 'synthesizer' : 'council');
-
-      // Build unique key based on source type
-      const key = sourceType === 'council'
-        ? `council-${comment.message_index}-${comment.stage}-${comment.model}`
-        : `synth-${comment.note_id}`;
-
-      // Check if already manually added or seen
-      const manualExists = contextSegments.some((seg) => {
-        if (sourceType === 'council') {
-          return seg.messageIndex === comment.message_index &&
-                 seg.stage === comment.stage &&
-                 seg.model === comment.model;
-        }
-        return seg.noteId === comment.note_id;
-      });
-
-      if (manualExists || seenKeys.has(key)) {
-        return;
-      }
-
-      seenKeys.add(key);
-
-      if (sourceType === 'council') {
-        segments.push({
-          id: `auto-${key}`,
-          sourceType: 'council',
-          stage: comment.stage,
-          model: comment.model,
-          messageIndex: comment.message_index,
-          label: `Stage ${comment.stage} • ${getModelShortName(comment.model)}`,
-          content: comment.source_content,
-          autoGenerated: true,
-        });
-      } else {
-        // Synthesizer
-        segments.push({
-          id: `auto-${key}`,
-          sourceType: 'synthesizer',
-          noteId: comment.note_id,
-          noteTitle: comment.note_title,
-          sourceUrl: comment.source_url,
-          noteModel: comment.note_model,
-          label: comment.note_title || 'Note',
-          content: comment.source_content,
-          autoGenerated: true,
-        });
-      }
-    });
-
-    return segments;
-  }, [comments, contextSegments, getModelShortName]);
-
   // Load conversations, config, prompt labels, API key status, credits, and visualiser settings on mount
   useEffect(() => {
     loadConversations();
@@ -198,6 +102,12 @@ function App() {
     loadVisualiserSettings();
     loadPodcasts();
   }, []);
+
+  // Set CSS variable for sidebar width (used by CommandPalette positioning)
+  useEffect(() => {
+    const sidebarWidth = leftSidebarCollapsed ? '56px' : '280px';
+    document.documentElement.style.setProperty('--sidebar-width', sidebarWidth);
+  }, [leftSidebarCollapsed]);
 
   const loadApiKeyStatus = async () => {
     try {
@@ -229,9 +139,9 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.metaKey || e.ctrlKey) {
-        // Cmd+Shift+P handled in separate useEffect with proper dependencies
+        // Cmd+Shift+P handled in separate useEffect
         if ((e.key === 'P' || e.key === 'p') && e.shiftKey) {
-          return; // Let the dedicated handler handle this
+          return;
         }
         if (e.key === 'k') {
           e.preventDefault();
@@ -247,11 +157,9 @@ function App() {
           setShowSettingsModal(s => !s);
         } else if (e.key === 'u') {
           e.preventDefault();
-          // Navigate to Knowledge Graph
           setShowKnowledgeGraph(true);
           setShowSearchModal(false);
           setCurrentConversationId(null);
-          setCurrentConversation(null);
           setShowImageGallery(false);
           setShowCouncilGallery(false);
           setShowNotesGallery(false);
@@ -260,7 +168,6 @@ function App() {
           setCurrentPodcastId(null);
         } else if (e.key === 'o') {
           e.preventDefault();
-          // Navigate to Podcast Gallery
           setShowPodcastGallery(true);
           setShowSearchModal(false);
           setCurrentConversationId(null);
@@ -273,11 +180,9 @@ function App() {
           loadPodcasts();
         } else if (e.key === 'g') {
           e.preventDefault();
-          // Navigate to Image Gallery
           setShowImageGallery(true);
           setShowSearchModal(false);
           setCurrentConversationId(null);
-          setCurrentConversation(null);
           setCurrentPodcastId(null);
           setShowCouncilGallery(false);
           setShowNotesGallery(false);
@@ -291,20 +196,8 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Command palette shortcut (separate effect to track conversation state)
-  useEffect(() => {
-    const handleCommandPalette = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (currentConversation || currentConversationId) {
-          setShowCommandPalette(s => !s);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleCommandPalette);
-    return () => window.removeEventListener('keydown', handleCommandPalette);
-  }, [currentConversation, currentConversationId]);
+  // Command palette shortcut (moved to per-pane in PaneContent)
+  // Cmd+Shift+P is now handled at the pane level
 
   const loadConfig = async () => {
     try {
@@ -342,18 +235,6 @@ function App() {
     }
   };
 
-  // Load conversation details when selected
-  useEffect(() => {
-    if (currentConversationId) {
-      loadConversation(currentConversationId);
-      loadReviewSessions(currentConversationId);
-    } else {
-      setReviewSessions([]);
-      setActiveReviewSessionId(null);
-      setActiveCommentId(null);
-    }
-  }, [currentConversationId]);
-
   const loadConversations = async () => {
     try {
       const convs = await api.listConversations();
@@ -363,52 +244,6 @@ function App() {
     }
   };
 
-  const loadConversation = async (id) => {
-    try {
-      const conv = await api.getConversation(id);
-      // Don't process legacy threads here - they'll be migrated to sessions
-      // Thread messages will be added based on the active session
-      setCurrentConversation(conv);
-    } catch (error) {
-      console.error('Failed to load conversation:', error);
-    }
-  };
-
-  // Convert session threads to follow-up messages for display
-  const conversationWithThreads = useMemo(() => {
-    if (!currentConversation) return null;
-    if (!sessionThreads || sessionThreads.length === 0) return currentConversation;
-
-    const threadMessages = [];
-    sessionThreads.forEach(thread => {
-      thread.messages.forEach(msg => {
-        if (msg.role === 'user') {
-          threadMessages.push({
-            role: 'follow-up-user',
-            content: msg.content,
-            model: thread.model,
-            thread_id: thread.id,
-            comments: [],
-            context_segments: thread.context?.context_segments || [],
-          });
-        } else if (msg.role === 'assistant') {
-          threadMessages.push({
-            role: 'follow-up-assistant',
-            content: msg.content,
-            model: thread.model,
-            thread_id: thread.id,
-            loading: false,
-          });
-        }
-      });
-    });
-
-    return {
-      ...currentConversation,
-      messages: [...currentConversation.messages, ...threadMessages],
-    };
-  }, [currentConversation, sessionThreads]);
-
   const handleNewConversation = () => {
     setShowModeSelector(true);
   };
@@ -417,7 +252,6 @@ function App() {
   const cleanupEmptyConversation = async (convId) => {
     if (!convId) return;
     const conv = conversations.find(c => c.id === convId);
-    // Only cleanup synthesizer conversations with no messages
     if (conv?.mode === 'synthesizer' && conv.message_count === 0) {
       try {
         await api.deleteConversation(convId);
@@ -431,7 +265,6 @@ function App() {
   const handleGoHome = async () => {
     await cleanupEmptyConversation(currentConversationId);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -449,7 +282,6 @@ function App() {
     setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setCurrentPodcastId(null);
   };
 
@@ -461,7 +293,6 @@ function App() {
     setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setCurrentPodcastId(null);
   };
 
@@ -473,7 +304,6 @@ function App() {
     setShowKnowledgeGraph(false);
     setShowPodcastSetup(false);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setCurrentPodcastId(null);
   };
 
@@ -498,6 +328,12 @@ function App() {
   };
 
   const handleModeSelect = async (mode) => {
+    // If no mode provided (e.g., from pane "New" button), show mode selector
+    if (!mode) {
+      setShowModeSelector(true);
+      return;
+    }
+
     setShowModeSelector(false);
     setShowImageGallery(false);
     setShowKnowledgeGraph(false);
@@ -506,14 +342,11 @@ function App() {
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
 
-    // Cleanup empty conversation before creating new one
     await cleanupEmptyConversation(currentConversationId);
 
     if (mode === 'council') {
-      // Show council config modal for model selection
       setShowConfigModal(true);
     } else if (mode === 'synthesizer') {
-      // Create synthesizer conversation directly
       try {
         const newConv = await api.createConversation(null, null, 'synthesizer', null);
         setConversations([
@@ -525,7 +358,6 @@ function App() {
         console.error('Failed to create synthesizer conversation:', error);
       }
     } else if (mode === 'visualiser') {
-      // Create visualiser conversation directly
       try {
         const newConv = await api.createConversation(null, null, 'visualiser', null);
         setConversations([
@@ -537,7 +369,6 @@ function App() {
         console.error('Failed to create visualiser conversation:', error);
       }
     } else if (mode === 'podcast') {
-      // Show podcast gallery instead of creating a conversation
       setShowPodcastGallery(true);
       setCurrentConversationId(null);
       setCurrentPodcastId(null);
@@ -547,9 +378,7 @@ function App() {
 
   // Navigate to podcast mode with pre-selected source conversation
   const handleNavigateToPodcast = (sourceConversationId) => {
-    // Store the source conversation ID for pre-selection
     setPodcastSourceConvId(sourceConversationId);
-    // Show podcast setup interface directly (skip gallery)
     setShowPodcastSetup(true);
     setShowPodcastGallery(false);
     setCurrentConversationId(null);
@@ -561,7 +390,6 @@ function App() {
     setFocusedEntityId(entityId);
     setShowKnowledgeGraph(true);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -570,13 +398,12 @@ function App() {
     setCurrentPodcastId(null);
   };
 
-  // Navigate to Knowledge Graph with a search query (e.g., for tag search)
+  // Navigate to Knowledge Graph with a search query
   const handleNavigateToGraphSearch = (searchQuery) => {
     setInitialSearchQuery(searchQuery);
     setFocusedEntityId(null);
     setShowKnowledgeGraph(true);
     setCurrentConversationId(null);
-    setCurrentConversation(null);
     setShowImageGallery(false);
     setShowCouncilGallery(false);
     setShowNotesGallery(false);
@@ -588,7 +415,6 @@ function App() {
   // Navigate to visualiser mode with pre-selected source conversation
   const handleNavigateToVisualiser = async (sourceConversationId) => {
     try {
-      // Create a new visualiser conversation
       const newConv = await api.createConversation(null, null, 'visualiser', null);
       setConversations([
         { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title, mode: 'visualiser' },
@@ -602,7 +428,6 @@ function App() {
   };
 
   const handleConfigSubmit = async (config) => {
-    // Store the config and proceed to prompt selection
     setPendingCouncilConfig(config);
     setShowConfigModal(false);
     setShowPromptManager(true);
@@ -612,7 +437,7 @@ function App() {
     try {
       const newConv = await api.createConversation(pendingCouncilConfig, systemPrompt, 'council', null);
       setConversations([
-        { ...newConv, message_count: 0 },  // Spread full response to include prompt_title, etc.
+        { ...newConv, message_count: 0 },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
@@ -624,10 +449,8 @@ function App() {
   };
 
   const handleSelectConversation = async (idOrResult) => {
-    // Accept either an ID string or a result object with .id
     const id = typeof idOrResult === 'string' ? idOrResult : idOrResult?.id;
 
-    // Cleanup empty conversation before switching (but not if selecting the same one)
     if (currentConversationId && currentConversationId !== id) {
       await cleanupEmptyConversation(currentConversationId);
     }
@@ -641,8 +464,6 @@ function App() {
     setShowPodcastSetup(false);
     setCurrentPodcastId(null);
     setCurrentConversationId(id);
-    setActiveCommentId(null);
-    setActiveReviewSessionId(null);
 
     // Auto-mark as read if unread
     const conv = conversations.find(c => c.id === id);
@@ -664,1161 +485,11 @@ function App() {
       setConversations(conversations.filter(c => c.id !== id));
       if (currentConversationId === id) {
         setCurrentConversationId(null);
-        setCurrentConversation(null);
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
     }
   };
-
-  const handleSendMessage = async (content) => {
-    if (!currentConversationId) return;
-
-    setIsLoading(true);
-    try {
-      // Optimistically add user message to UI
-      const userMessage = { role: 'user', content };
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage],
-      }));
-
-      // Create a partial assistant message that will be updated progressively
-      const assistantMessage = {
-        role: 'assistant',
-        stage1: null,
-        stage2: null,
-        stage3: null,
-        metadata: null,
-        loading: {
-          stage1: false,
-          stage2: false,
-          stage3: false,
-        },
-      };
-
-      // Add the partial assistant message
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, assistantMessage],
-      }));
-
-      // Send message with streaming
-      await api.sendMessageStream(currentConversationId, content, (eventType, event) => {
-        switch (eventType) {
-          case 'stage1_start':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg?.loading) lastMsg.loading.stage1 = true;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage1_complete':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg) {
-                lastMsg.stage1 = event.data;
-                if (lastMsg.loading) lastMsg.loading.stage1 = false;
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage2_start':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg?.loading) lastMsg.loading.stage2 = true;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage2_complete':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg) {
-                lastMsg.stage2 = event.data;
-                lastMsg.metadata = event.metadata;
-                if (lastMsg.loading) lastMsg.loading.stage2 = false;
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage3_start':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg?.loading) lastMsg.loading.stage3 = true;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage3_complete':
-            setCurrentConversation((prev) => {
-              if (!prev?.messages?.length) return prev;
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg) {
-                lastMsg.stage3 = event.data;
-                if (lastMsg.loading) lastMsg.loading.stage3 = false;
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'title_complete':
-            // Update conversations list with the new title directly
-            setConversations(prev => prev.map(conv =>
-              conv.id === currentConversationId
-                ? { ...conv, title: event.data.title }
-                : conv
-            ));
-            // Trigger title animation
-            setAnimatingTitleId(currentConversationId);
-            break;
-
-          case 'cost_complete':
-            // Update conversation's total_cost in sidebar
-            setConversations(prev => prev.map(conv =>
-              conv.id === currentConversationId
-                ? { ...conv, total_cost: (conv.total_cost || 0) + event.data.cost }
-                : conv
-            ));
-            break;
-
-          case 'summary_complete':
-            // Update conversation's summary in sidebar for gallery preview
-            setConversations(prev => prev.map(conv =>
-              conv.id === currentConversationId
-                ? { ...conv, summary: event.data.summary }
-                : conv
-            ));
-            break;
-
-          case 'complete':
-            // Stream complete - title already updated via title_complete event
-            // Skip loadConversations to avoid race condition that overwrites title
-            setIsLoading(false);
-            break;
-
-          case 'error':
-            console.error('Stream error:', event.message);
-            setIsLoading(false);
-            break;
-
-          default:
-            console.log('Unknown event type:', eventType);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      // Remove optimistic messages on error
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: prev.messages.slice(0, -2),
-      }));
-      setIsLoading(false);
-    }
-  };
-
-  // Review session handlers
-  const loadReviewSessions = async (conversationId) => {
-    try {
-      const result = await api.listReviewSessions(conversationId);
-      setReviewSessions(result.sessions || []);
-      setActiveReviewSessionId(result.active_session_id || null);
-    } catch (error) {
-      console.error('Failed to load review sessions:', error);
-      setReviewSessions([]);
-      setActiveReviewSessionId(null);
-    }
-  };
-
-  const handleCreateReviewSession = async (name = null) => {
-    if (!currentConversationId) return;
-    try {
-      const session = await api.createReviewSession(currentConversationId, name);
-      setReviewSessions(prev => [...prev, session]);
-      setActiveReviewSessionId(session.id);
-    } catch (error) {
-      console.error('Failed to create review session:', error);
-    }
-  };
-
-  const handleSwitchReviewSession = async (sessionId) => {
-    if (!currentConversationId || sessionId === activeReviewSessionId) return;
-    try {
-      await api.activateReviewSession(currentConversationId, sessionId);
-      setActiveReviewSessionId(sessionId);
-      setActiveCommentId(null);
-    } catch (error) {
-      console.error('Failed to switch review session:', error);
-    }
-  };
-
-  const handleRenameReviewSession = async (sessionId, newName) => {
-    if (!currentConversationId) return;
-    try {
-      const updated = await api.updateReviewSession(currentConversationId, sessionId, newName);
-      setReviewSessions(prev => prev.map(s => s.id === sessionId ? updated : s));
-    } catch (error) {
-      console.error('Failed to rename review session:', error);
-    }
-  };
-
-  const handleDeleteReviewSession = async (sessionId) => {
-    if (!currentConversationId) return;
-    try {
-      await api.deleteReviewSession(currentConversationId, sessionId);
-      const remaining = reviewSessions.filter(s => s.id !== sessionId);
-      setReviewSessions(remaining);
-      if (activeReviewSessionId === sessionId) {
-        const sorted = [...remaining].sort((a, b) => 
-          (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at)
-        );
-        setActiveReviewSessionId(sorted[0]?.id || null);
-      }
-    } catch (error) {
-      console.error('Failed to delete review session:', error);
-    }
-  };
-
-  // Comment and thread handlers
-
-  const handleSelectionChange = useCallback((selection) => {
-    if (selection) {
-      setCurrentSelection(selection);
-      const rect = selection.range.getBoundingClientRect();
-      setCommentButtonPosition({
-        x: rect.right + 10,
-        y: rect.top,
-      });
-    } else {
-      setCurrentSelection(null);
-      setCommentButtonPosition(null);
-    }
-  }, []);
-
-  const handleCommentButtonClick = () => {
-    setShowCommentModal(true);
-    setCommentButtonPosition(null);
-    // Don't clear currentSelection here - the modal needs it
-  };
-
-  const handleSaveComment = async (commentText) => {
-    if (!currentSelection || !currentConversationId) return;
-
-    try {
-      // Create a session if none exists
-      let sessionId = activeReviewSessionId;
-      if (!sessionId) {
-        const session = await api.createReviewSession(currentConversationId);
-        setReviewSessions(prev => [...prev, session]);
-        setActiveReviewSessionId(session.id);
-        sessionId = session.id;
-      }
-
-      const isCouncil = currentSelection.sourceType === 'council' || !currentSelection.sourceType;
-
-      const commentData = {
-        selection: currentSelection.text,
-        content: commentText,
-        sourceType: currentSelection.sourceType || 'council',
-        sourceContent: currentSelection.sourceContent,
-      };
-
-      // Add source-type specific fields
-      if (isCouncil) {
-        commentData.messageIndex = currentSelection.messageIndex;
-        commentData.stage = currentSelection.stage;
-        commentData.model = currentSelection.model;
-      } else {
-        commentData.noteId = currentSelection.noteId;
-        commentData.noteTitle = currentSelection.noteTitle;
-        commentData.sourceUrl = currentSelection.sourceUrl;
-        commentData.noteModel = currentSelection.noteModel;
-      }
-
-      const newComment = await api.createSessionComment(currentConversationId, sessionId, commentData);
-
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === sessionId 
-          ? { ...s, comments: [...(s.comments || []), newComment], updated_at: new Date().toISOString() }
-          : s
-      ));
-
-      setShowCommentModal(false);
-      setCurrentSelection(null);
-      setCommentButtonPosition(null);
-      SelectionHandler.clearSelection();
-
-      // Auto-open sidebar when first comment is added
-      if (comments.length === 0) {
-        setShowCommitSidebar(true);
-      }
-    } catch (error) {
-      console.error('Failed to save comment:', error);
-    }
-  };
-
-  const handleEditComment = async (commentId, newContent) => {
-    if (!currentConversationId || !activeReviewSessionId) return;
-
-    try {
-      const updatedComment = await api.updateSessionComment(
-        currentConversationId, 
-        activeReviewSessionId, 
-        commentId, 
-        newContent
-      );
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === activeReviewSessionId 
-          ? { ...s, comments: s.comments.map(c => c.id === commentId ? updatedComment : c) }
-          : s
-      ));
-    } catch (error) {
-      console.error('Failed to edit comment:', error);
-    }
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    if (!currentConversationId || !activeReviewSessionId) return;
-
-    try {
-      await api.deleteSessionComment(currentConversationId, activeReviewSessionId, commentId);
-      
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === activeReviewSessionId 
-          ? { ...s, comments: s.comments.filter(c => c.id !== commentId) }
-          : s
-      ));
-
-      // Clear active comment if it was deleted
-      if (activeCommentId === commentId) {
-        setActiveCommentId(null);
-      }
-
-      // Also remove the highlight from DOM
-      SelectionHandler.removeHighlight(commentId);
-    } catch (error) {
-      console.error('Failed to delete comment:', error);
-    }
-  };
-
-  // Direct comment save handler (for keyboard-triggered comments in NoteViewer)
-  const handleSaveCommentDirect = async (selection, commentText) => {
-    if (!selection || !currentConversationId) return;
-
-    try {
-      // Create a session if none exists
-      let sessionId = activeReviewSessionId;
-      if (!sessionId) {
-        const session = await api.createReviewSession(currentConversationId);
-        setReviewSessions(prev => [...prev, session]);
-        setActiveReviewSessionId(session.id);
-        sessionId = session.id;
-      }
-
-      const commentData = {
-        selection: selection.text,
-        content: commentText,
-        sourceType: 'synthesizer',
-        sourceContent: selection.sourceContent,
-        noteId: selection.noteId,
-        noteTitle: selection.noteTitle,
-        sourceUrl: selection.sourceUrl,
-        noteModel: selection.noteModel,
-      };
-
-      const newComment = await api.createSessionComment(currentConversationId, sessionId, commentData);
-      
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === sessionId 
-          ? { ...s, comments: [...(s.comments || []), newComment], updated_at: new Date().toISOString() }
-          : s
-      ));
-
-      // Auto-open sidebar when first comment is added
-      if (comments.length === 0) {
-        setShowCommitSidebar(true);
-      }
-    } catch (error) {
-      console.error('Failed to save comment:', error);
-    }
-  };
-
-  const handleAddContextSegment = useCallback(async (segment) => {
-    if (!currentConversationId) return;
-
-    try {
-      // Create a session if none exists
-      let sessionId = activeReviewSessionId;
-      if (!sessionId) {
-        const session = await api.createReviewSession(currentConversationId);
-        setReviewSessions(prev => [...prev, session]);
-        setActiveReviewSessionId(session.id);
-        sessionId = session.id;
-      }
-
-      // Check if already exists
-      const existing = contextSegments.some(s => s.id === segment.id);
-      if (existing) return;
-
-      await api.addSessionContextSegment(currentConversationId, sessionId, segment);
-
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === sessionId 
-          ? { ...s, context_segments: [...(s.context_segments || []), segment], updated_at: new Date().toISOString() }
-          : s
-      ));
-
-      if (contextSegments.length === 0 && !showCommitSidebar) {
-        setShowCommitSidebar(true);
-      }
-    } catch (error) {
-      console.error('Failed to add context segment:', error);
-    }
-  }, [currentConversationId, activeReviewSessionId, contextSegments, showCommitSidebar]);
-
-  const handleRemoveContextSegment = useCallback(async (segmentId) => {
-    if (!currentConversationId || !activeReviewSessionId) return;
-
-    try {
-      await api.removeSessionContextSegment(currentConversationId, activeReviewSessionId, segmentId);
-
-      // Update the session in state
-      setReviewSessions(prev => prev.map(s => 
-        s.id === activeReviewSessionId 
-          ? { ...s, context_segments: (s.context_segments || []).filter(seg => seg.id !== segmentId) }
-          : s
-      ));
-    } catch (error) {
-      console.error('Failed to remove context segment:', error);
-    }
-  }, [currentConversationId, activeReviewSessionId]);
-
-  const handleToggleCommitSidebar = () => {
-    setShowCommitSidebar(!showCommitSidebar);
-  };
-
-  const handleSelectComment = (commentId) => {
-    // Find the comment to get its stage and model
-    const comment = comments.find(c => c.id === commentId);
-    if (!comment) return;
-    
-    // Set active comment - this will trigger the ResponseWithComments to show it
-    setActiveCommentId(commentId);
-    
-    // Dispatch custom event to switch tabs if needed
-    window.dispatchEvent(new CustomEvent('switchToComment', { 
-      detail: { stage: comment.stage, model: comment.model } 
-    }));
-    
-    // Small delay to allow tab switch, then scroll to highlight
-    setTimeout(() => {
-      const highlight = document.querySelector(`[data-comment-id="${commentId}"]`);
-      if (highlight) {
-        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        highlight.classList.add('pulse');
-        setTimeout(() => highlight.classList.remove('pulse'), 1000);
-      }
-    }, 100);
-  };
-
-  const handleSetActiveComment = useCallback((commentId) => {
-    setActiveCommentId(commentId);
-  }, []);
-
-  const handleCommitAndStartThread = async (model, question) => {
-    if (!currentConversationId || (comments.length === 0 && contextSegments.length === 0 && autoContextSegments.length === 0)) return;
-
-    setIsLoading(true);
-
-    try {
-      const commentIds = comments.map((c) => c.id);
-      const isSynthesizerMode = currentConversation?.mode === 'synthesizer';
-
-      // Build segment keys differently based on mode
-      const manualSegmentKeys = new Set(
-        contextSegments.map((segment) =>
-          segment.sourceType === 'synthesizer'
-            ? `synth-${segment.noteId}`
-            : `${segment.messageIndex}-${segment.stage}-${segment.model}`
-        )
-      );
-
-      const combinedSegments = [
-        ...contextSegments,
-        ...autoContextSegments.filter((segment) => {
-          const key = segment.sourceType === 'synthesizer'
-            ? `synth-${segment.noteId}`
-            : `${segment.messageIndex}-${segment.stage}-${segment.model}`;
-          return !manualSegmentKeys.has(key);
-        }),
-      ];
-
-      // Build payload with mode-specific fields, filtering out segments without content
-      const contextSegmentPayload = combinedSegments
-        .filter((segment) => segment.content) // Ensure content exists
-        .map((segment) => ({
-          id: segment.id,
-          label: segment.label,
-          content: segment.content,
-          source_type: segment.sourceType || 'council',
-          // Council-specific
-          stage: segment.stage || null,
-          model: segment.model || null,
-          message_index: segment.messageIndex || null,
-          // Synthesizer-specific
-          note_id: segment.noteId || null,
-          note_title: segment.noteTitle || null,
-        }));
-
-      const compiledContext = [
-        buildHighlightsText(comments),
-        buildContextStackText(combinedSegments),
-      ]
-        .filter(Boolean)
-        .join('\n\n')
-        .trim();
-
-      // Get identifiers based on mode
-      let messageIndex = null;
-      let noteIds = null;
-
-      if (isSynthesizerMode) {
-        // Collect unique note IDs
-        const noteIdSet = new Set();
-        comments.forEach((c) => c.note_id && noteIdSet.add(c.note_id));
-        combinedSegments.forEach((s) => s.noteId && noteIdSet.add(s.noteId));
-        noteIds = Array.from(noteIdSet);
-      } else {
-        messageIndex =
-          comments[0]?.message_index ??
-          contextSegments[0]?.messageIndex ??
-          autoContextSegments[0]?.messageIndex;
-
-        if (messageIndex === undefined) {
-          throw new Error('Unable to determine which response these context items belong to.');
-        }
-      }
-
-      // Create the follow-up user message with comments context
-      const followUpUserMessage = {
-        role: 'follow-up-user',
-        content: question,
-        comments: [...comments],
-        context_segments: contextSegmentPayload,
-        model: model,
-      };
-
-      // Optimistically add user message to UI
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, followUpUserMessage],
-      }));
-
-      // Add loading placeholder for assistant response
-      const followUpAssistantMessage = {
-        role: 'follow-up-assistant',
-        content: null,
-        model: model,
-        loading: true,
-      };
-
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, followUpAssistantMessage],
-      }));
-
-      // Debug: log the payload being sent
-      console.log('Creating thread with payload:', {
-        model,
-        commentIds,
-        question,
-        messageIndex,
-        noteIds,
-        contextSegments: contextSegmentPayload,
-        compiledContext: compiledContext?.substring(0, 200),
-      });
-
-      // Call the API to create the thread within the session
-      const thread = await api.createSessionThread(
-        currentConversationId,
-        activeReviewSessionId,
-        model,
-        commentIds,
-        question,
-        {
-          messageIndex,
-          noteIds,
-          contextSegments: contextSegmentPayload,
-          compiledContext: compiledContext || null,
-        }
-      );
-
-      // Update both messages with the thread_id and actual response
-      setCurrentConversation((prev) => {
-        const messages = [...prev.messages];
-        // Find and update the follow-up-user message (second to last)
-        const userMsgIdx = messages.length - 2;
-        if (messages[userMsgIdx]?.role === 'follow-up-user') {
-          messages[userMsgIdx].thread_id = thread.id;
-        }
-        // Update the assistant message (last)
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg.role === 'follow-up-assistant') {
-          lastMsg.content = thread.messages[1]?.content || 'No response received';
-          lastMsg.loading = false;
-          lastMsg.thread_id = thread.id;
-        }
-        return { ...prev, messages };
-      });
-
-      // Update the session with the new thread
-      setReviewSessions(prev => prev.map(s => 
-        s.id === activeReviewSessionId 
-          ? { ...s, threads: [...(s.threads || []), thread], updated_at: new Date().toISOString() }
-          : s
-      ));
-
-      setShowCommitSidebar(false);
-      setActiveCommentId(null);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to start thread:', error);
-      // Remove the optimistic messages on error
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: prev.messages.filter(m => m.role !== 'follow-up-user' && m.role !== 'follow-up-assistant'),
-      }));
-      setIsLoading(false);
-    }
-  };
-
-  // Create a visualisation from highlighted context
-  const handleVisualiseFromContext = async (style) => {
-    if (!currentConversationId || (comments.length === 0 && contextSegments.length === 0 && autoContextSegments.length === 0)) return;
-
-    setIsLoading(true);
-    try {
-      // Combine context segments
-      const combinedSegments = [...contextSegments, ...autoContextSegments];
-
-      // Call the new API endpoint
-      const result = await api.visualiseFromContext(
-        currentConversationId,
-        comments,
-        combinedSegments,
-        style
-      );
-
-      // Create conversation object for the new visualiser conversation
-      const newConv = {
-        id: result.conversation_id,
-        created_at: new Date().toISOString(),
-        message_count: 1,
-        title: result.conversation_title || 'Visualisation',
-        mode: 'visualiser',
-      };
-
-      // Add to conversations list
-      setConversations((prev) => [newConv, ...prev]);
-
-      // Clear context and close sidebar
-      setShowCommitSidebar(false);
-      setComments([]);
-      setContextSegments([]);
-      setActiveCommentId(null);
-
-      // Navigate to the new visualiser conversation
-      setCurrentConversationId(result.conversation_id);
-      setCurrentConversation(null); // Will be fetched by useEffect
-
-    } catch (error) {
-      console.error('Failed to create visualisation:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Continue an existing thread with a new message
-  const handleContinueThread = async (threadId, question) => {
-    if (!currentConversationId || !threadId || !question.trim()) return;
-
-    setIsLoading(true);
-    try {
-      // Find the thread's model from existing messages
-      const existingMessages = currentConversation?.messages || [];
-      const threadMessage = existingMessages.find(
-        (m) => m.thread_id === threadId && m.role === 'follow-up-assistant'
-      );
-      const model = threadMessage?.model || 'unknown';
-
-      // Optimistically add user message
-      const followUpUserMessage = {
-        role: 'follow-up-user',
-        content: question,
-        thread_id: threadId,
-        model: model,
-      };
-
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, followUpUserMessage],
-      }));
-
-      // Add loading placeholder for assistant response
-      const followUpAssistantMessage = {
-        role: 'follow-up-assistant',
-        content: null,
-        model: model,
-        thread_id: threadId,
-        loading: true,
-      };
-
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, followUpAssistantMessage],
-      }));
-
-      // Call the API to continue the thread
-      const updatedThread = await api.continueThread(
-        currentConversationId,
-        threadId,
-        question
-      );
-
-      // Update the assistant message with the actual response
-      setCurrentConversation((prev) => {
-        const messages = [...prev.messages];
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg.role === 'follow-up-assistant' && lastMsg.thread_id === threadId) {
-          // Get the last assistant message from the thread response
-          const assistantMessages = updatedThread.messages.filter((m) => m.role === 'assistant');
-          const lastAssistantMsg = assistantMessages[assistantMessages.length - 1];
-          lastMsg.content = lastAssistantMsg?.content || 'No response received';
-          lastMsg.loading = false;
-        }
-        return { ...prev, messages };
-      });
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to continue thread:', error);
-      // Remove the optimistic messages on error
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: prev.messages.filter(
-          (m) => !(m.thread_id === threadId && m.loading)
-        ),
-      }));
-      setIsLoading(false);
-    }
-  };
-
-  // Open thread context sidebar
-  const handleSelectThread = (threadId, context) => {
-    setActiveThreadContext({
-      threadId,
-      ...context,
-    });
-  };
-
-  // Get available models for thread creation
-  const getAvailableModels = () => {
-    if (currentConversation?.council_config) {
-      return currentConversation.council_config.council_models;
-    }
-    return availableConfig?.council_models || [];
-  };
-
-  const getDefaultChairman = () => {
-    if (currentConversation?.council_config) {
-      return currentConversation.council_config.chairman_model;
-    }
-    return availableConfig?.chairman_model;
-  };
-
-  const totalContextItems = comments.length + contextSegments.length + autoContextSegments.length;
-  const hasContextItems = totalContextItems > 0;
-
-  // Detect navigation transition state to prevent flash to home screen
-  const isNavigatingToConversation = currentConversationId &&
-    (!currentConversation || currentConversation.id !== currentConversationId);
-
-  // Command palette action dispatcher
-  const dispatchCommandPaletteAction = useCallback((action) => {
-    window.dispatchEvent(new CustomEvent('commandPalette:action', {
-      detail: { action }
-    }));
-  }, []);
-
-  // Compute command palette actions based on current mode
-  const commandPaletteActions = useMemo(() => {
-    const mode = currentConversation?.mode;
-    if (!mode) return [];
-
-    const sourceUrl = currentConversation?.synthesizer_config?.source_url;
-    const linkedVisualisations = currentConversation?.linked_visualisations || [];
-
-    if (mode === 'council') {
-      return [
-        {
-          id: 'copyResponse',
-          label: 'Copy Response',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copyResponse'),
-        },
-        {
-          id: 'addToContext',
-          label: 'Add to Context',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('addToContext'),
-        },
-        {
-          id: 'startFollowUp',
-          label: 'Start Follow-up',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          ),
-          onSelect: () => setShowCommitSidebar(true),
-        },
-        {
-          id: 'viewContextStack',
-          label: 'View Context Stack',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="9" rx="1" />
-              <rect x="14" y="3" width="7" height="9" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          ),
-          badge: totalContextItems > 0 ? `${totalContextItems}` : null,
-          onSelect: () => setShowCommitSidebar(true),
-        },
-        {
-          id: 'exportConversation',
-          label: 'Export Conversation',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7,10 12,15 17,10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('exportConversation'),
-        },
-      ];
-    }
-
-    if (mode === 'synthesizer') {
-      const actions = [
-        {
-          id: 'generatePodcast',
-          label: 'Generate Podcast',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          ),
-          onSelect: () => handleNavigateToPodcast(currentConversationId),
-        },
-        {
-          id: 'createDiagram',
-          label: 'Create Diagram',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-            </svg>
-          ),
-          onSelect: () => handleNavigateToVisualiser(currentConversationId),
-        },
-        {
-          id: 'browseRelated',
-          label: 'Browse Related',
-          shortcut: 'B',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('browseRelated'),
-        },
-        {
-          id: 'copyNote',
-          label: 'Copy Note',
-          shortcut: 'C',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copyNote'),
-        },
-        {
-          id: 'copyAllNotes',
-          label: 'Copy All Notes',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              <line x1="12" y1="12" x2="12" y2="18" />
-              <line x1="9" y1="15" x2="15" y2="15" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copyAllNotes'),
-        },
-        {
-          id: 'editSourceInfo',
-          label: 'Edit Source Info',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('editSourceInfo'),
-        },
-      ];
-
-      // Add Open Source URL if available
-      if (sourceUrl) {
-        actions.push({
-          id: 'openSourceUrl',
-          label: 'Open Source URL',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          ),
-          onSelect: () => window.open(sourceUrl, '_blank'),
-        });
-      }
-
-      // Add View Linked Diagrams if any
-      if (linkedVisualisations.length > 0) {
-        actions.push({
-          id: 'viewLinkedDiagrams',
-          label: 'View Linked Diagrams',
-          badge: `${linkedVisualisations.length}`,
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('viewLinkedDiagrams'),
-        });
-      }
-
-      return actions;
-    }
-
-    if (mode === 'discovery') {
-      // Discovery mode uses SynthesizerInterface but without podcast/visualiser navigation
-      return [
-        {
-          id: 'browseRelated',
-          label: 'Browse Related',
-          shortcut: 'B',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('browseRelated'),
-        },
-        {
-          id: 'copyNote',
-          label: 'Copy Note',
-          shortcut: 'C',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copyNote'),
-        },
-        {
-          id: 'copyAllNotes',
-          label: 'Copy All Notes',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              <line x1="12" y1="12" x2="12" y2="18" />
-              <line x1="9" y1="15" x2="15" y2="15" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copyAllNotes'),
-        },
-        {
-          id: 'editSourceInfo',
-          label: 'Edit Source Info',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('editSourceInfo'),
-        },
-      ];
-    }
-
-    if (mode === 'visualiser') {
-      const sourceInfo = currentConversation?.messages?.find(m => m.role === 'user');
-      return [
-        {
-          id: 'downloadDiagram',
-          label: 'Download Diagram',
-          shortcut: 'D',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7,10 12,15 17,10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('downloadDiagram'),
-        },
-        {
-          id: 'spellCheck',
-          label: 'Spell Check',
-          shortcut: 'S',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('spellCheck'),
-        },
-        {
-          id: 'newDiagram',
-          label: 'New Diagram',
-          shortcut: 'N',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('newDiagram'),
-        },
-        {
-          id: 'prevVersion',
-          label: 'Previous Version',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('prevVersion'),
-        },
-        {
-          id: 'nextVersion',
-          label: 'Next Version',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('nextVersion'),
-        },
-        {
-          id: 'enterFullscreen',
-          label: 'Enter Fullscreen',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('enterFullscreen'),
-        },
-        ...(sourceInfo?.source_id ? [{
-          id: 'viewSourceNotes',
-          label: 'View Source Notes',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14,2 14,8 20,8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-          ),
-          onSelect: () => handleSelectConversation(sourceInfo.source_id),
-        }] : []),
-        ...(sourceInfo?.source_url ? [{
-          id: 'openSourceUrl',
-          label: 'Open Source URL',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          ),
-          onSelect: () => window.open(sourceInfo.source_url, '_blank'),
-        }] : []),
-        {
-          id: 'copySourceContent',
-          label: 'Copy Source Content',
-          icon: (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          ),
-          onSelect: () => dispatchCommandPaletteAction('copySourceContent'),
-        },
-      ];
-    }
-
-    return [];
-  }, [currentConversation, currentConversationId, totalContextItems, dispatchCommandPaletteAction, handleNavigateToPodcast, handleNavigateToVisualiser, handleSelectConversation, setShowCommitSidebar]);
 
   // Handle expand from MiniPlayer - navigate to podcast replay
   const handleExpandPodcast = useCallback((session) => {
@@ -1834,9 +505,30 @@ function App() {
     }
   }, []);
 
+  // Handle settings open with tab
+  const handleOpenSettings = useCallback((tab, promptFilename) => {
+    setSettingsDefaultTab(tab || 'api');
+    setSettingsDefaultPrompt(promptFilename || null);
+    setShowSettingsModal(true);
+  }, []);
+
+  // Get current conversation for context-aware actions
+  const currentConversation = useMemo(() => {
+    return conversations.find(c => c.id === currentConversationId);
+  }, [conversations, currentConversationId]);
+
+  // Command palette actions moved to per-pane (PaneContent)
+
+  // Detect if we're showing a gallery or other non-conversation view
+  const isShowingGallery = showCouncilGallery || showNotesGallery || showPodcastGallery ||
+    showKnowledgeGraph || showImageGallery || showPodcastSetup || currentPodcastId;
+
   return (
+    <LayoutProvider initialConversationId={currentConversationId}>
+    <NoteKeyboardProvider>
     <PodcastPlayerProvider onExpand={handleExpandPodcast}>
-    <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''} ${showCommitSidebar ? 'right-open' : ''}`}>
+    <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''}`}>
+      <LayoutKeyboardHandler onOpenSearch={() => setShowSearchModal(true)} />
       <Sidebar
         conversations={conversations}
         currentConversationId={currentConversationId}
@@ -1849,7 +541,7 @@ function App() {
         credits={credits}
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-        isLoading={isLoading}
+        isLoading={false}
         animatingTitleId={animatingTitleId}
         onTitleAnimationComplete={() => setAnimatingTitleId(null)}
         promptLabels={promptLabels}
@@ -1891,9 +583,7 @@ function App() {
           />
         )}
       </div>
-      {isNavigatingToConversation ? (
-        <div className="loading-navigation" />
-      ) : showCouncilGallery ? (
+      {showCouncilGallery ? (
         <ConversationGallery
           mode="council"
           items={conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')}
@@ -2006,171 +696,25 @@ function App() {
             handleSelectConversation(id);
           }}
         />
-      ) : currentConversation?.mode === 'discovery' ? (
-        <SynthesizerInterface
-          conversation={currentConversation}
-          onConversationUpdate={(updatedConv, newTitle) => {
-            setCurrentConversation(updatedConv);
-            setConversations((prev) =>
-              prev.map((c) => (c.id === updatedConv.id ? { ...c, ...updatedConv, title: newTitle || updatedConv.title } : c))
-            );
-            if (newTitle) setAnimatingTitleId(updatedConv.id);
-          }}
-          comments={comments}
-          onSelectionChange={handleSelectionChange}
-          onSaveComment={handleSaveCommentDirect}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          activeCommentId={activeCommentId}
-          onSetActiveComment={handleSetActiveComment}
-          reviewSessionCount={reviewSessions.length}
-          onToggleReviewSidebar={handleToggleCommitSidebar}
-          onNavigateToGraphEntity={handleNavigateToGraphEntity}
-          onNavigateToGraphSearch={handleNavigateToGraphSearch}
-        />
-      ) : currentConversation?.mode === 'synthesizer' ? (
-        <SynthesizerInterface
-          conversation={currentConversation}
-          onConversationUpdate={(updatedConv, newTitle) => {
-            setCurrentConversation(updatedConv);
-            // Always update the conversations list with full metadata
-            setConversations((prev) => {
-              const exists = prev.some((c) => c.id === updatedConv.id);
-              const updatedMeta = {
-                id: updatedConv.id,
-                created_at: updatedConv.created_at,
-                title: newTitle || updatedConv.title || 'Untitled',
-                source_type: updatedConv.synthesizer_config?.source_type,
-                total_cost: updatedConv.total_cost,
-                is_deliberation: updatedConv.messages?.some(m => m.mode === 'deliberation') || false,
-                is_knowledge_graph: updatedConv.messages?.some(m => m.mode === 'knowledge_graph') || false,
-                message_count: updatedConv.messages?.length || 0,
-                mode: 'synthesizer',
-              };
-              if (exists) {
-                return prev.map((c) => c.id === updatedConv.id ? { ...c, ...updatedMeta } : c);
-              } else {
-                // Conversation not in list yet - add it at the top
-                return [updatedMeta, ...prev];
-              }
-            });
-            if (newTitle) {
-              setAnimatingTitleId(updatedConv.id);
-            }
-          }}
-          comments={comments}
-          onSelectionChange={handleSelectionChange}
-          onSaveComment={handleSaveCommentDirect}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          activeCommentId={activeCommentId}
-          onSetActiveComment={handleSetActiveComment}
-          onNavigateToPodcast={() => handleNavigateToPodcast(currentConversationId)}
-          onNavigateToVisualiser={() => handleNavigateToVisualiser(currentConversationId)}
-          linkedVisualisations={currentConversation?.linked_visualisations || []}
-          onSelectConversation={handleSelectConversation}
-          reviewSessionCount={reviewSessions.length}
-          onToggleReviewSidebar={handleToggleCommitSidebar}
-          onNavigateToGraphEntity={handleNavigateToGraphEntity}
-          onNavigateToGraphSearch={handleNavigateToGraphSearch}
-        />
-      ) : currentConversation?.mode === 'visualiser' ? (
-        <VisualiserInterface
-          conversation={currentConversation}
-          conversations={conversations}
-          preSelectedConversationId={visualiserSourceConvId}
-          onClearPreSelection={() => setVisualiserSourceConvId(null)}
-          onSelectConversation={handleSelectConversation}
-          onConversationUpdate={(updatedConv, newTitle) => {
-            setCurrentConversation(updatedConv);
-            if (newTitle) {
-              setConversations((prev) =>
-                prev.map((c) => (c.id === updatedConv.id ? { ...c, title: newTitle } : c))
-              );
-              setAnimatingTitleId(updatedConv.id);
-              // Skip loadConversations - title already persisted and optimistically updated
-            } else {
-              loadConversations();
-            }
-          }}
-        />
-      ) : currentConversation?.mode === 'podcast' ? (
-        <PodcastInterface
-          onOpenSettings={(tab) => {
-            setSettingsDefaultTab(tab || 'podcast');
-            setShowSettingsModal(true);
-          }}
-          onSelectConversation={handleSelectConversation}
-          conversations={conversations}
-          preSelectedConversationId={podcastSourceConvId}
-        />
-      ) : currentConversation?.mode === 'council' ? (
-        conversationWithThreads?.messages?.length === 0 ? (
-          <ChatInterface
-            conversation={conversationWithThreads}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            comments={comments}
-            contextSegments={contextSegments}
-            onSelectionChange={handleSelectionChange}
-            onEditComment={handleEditComment}
-            onDeleteComment={handleDeleteComment}
-            activeCommentId={activeCommentId}
-            onSetActiveComment={handleSetActiveComment}
-            onAddContextSegment={handleAddContextSegment}
-            onRemoveContextSegment={handleRemoveContextSegment}
-            onContinueThread={handleContinueThread}
-            onSelectThread={handleSelectThread}
-            onOpenSettings={(tab) => {
-              setSettingsDefaultTab(tab || 'council');
-              setSettingsDefaultPrompt(null);
-              setShowSettingsModal(true);
-            }}
-          />
-        ) : (
-          <CouncilDiscussionView
-            conversation={conversationWithThreads}
-            comments={comments}
-            contextSegments={contextSegments}
-            onSelectionChange={handleSelectionChange}
-            onEditComment={handleEditComment}
-            onDeleteComment={handleDeleteComment}
-            activeCommentId={activeCommentId}
-            onSetActiveComment={handleSetActiveComment}
-            onAddContextSegment={handleAddContextSegment}
-            onRemoveContextSegment={handleRemoveContextSegment}
-            onOpenSettings={(tab, promptFilename) => {
-              setSettingsDefaultTab(tab || 'api');
-              setSettingsDefaultPrompt(promptFilename || null);
-              setShowSettingsModal(true);
-            }}
-            onContinueThread={handleContinueThread}
-            onSelectThread={handleSelectThread}
-            isLoading={isLoading}
-            reviewSessionCount={reviewSessions.length}
-            onToggleReviewSidebar={handleToggleCommitSidebar}
-          />
-        )
       ) : (
-        <ChatInterface
-          conversation={conversationWithThreads}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          comments={comments}
-          contextSegments={contextSegments}
-          onSelectionChange={handleSelectionChange}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          activeCommentId={activeCommentId}
-          onSetActiveComment={handleSetActiveComment}
-          onAddContextSegment={handleAddContextSegment}
-          onRemoveContextSegment={handleRemoveContextSegment}
-          onContinueThread={handleContinueThread}
-          onSelectThread={handleSelectThread}
-          onOpenSettings={(tab) => {
-            setSettingsDefaultTab(tab || 'council');
-            setShowSettingsModal(true);
-          }}
+        <MainContentArea
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          onSelectConversation={handleSelectConversation}
+          onConversationsListUpdate={setConversations}
+          onAnimateTitleId={setAnimatingTitleId}
+          availableConfig={availableConfig}
+          onOpenSettings={handleOpenSettings}
+          onNavigateToPodcast={handleNavigateToPodcast}
+          onNavigateToVisualiser={handleNavigateToVisualiser}
+          onNavigateToGraphEntity={handleNavigateToGraphEntity}
+          onNavigateToGraphSearch={handleNavigateToGraphSearch}
+          visualiserSourceConvId={visualiserSourceConvId}
+          onClearVisualiserSource={() => setVisualiserSourceConvId(null)}
+          podcastSourceConvId={podcastSourceConvId}
+          onNewConversation={handleModeSelect}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
       )}
       {showModeSelector && (
@@ -2191,10 +735,10 @@ function App() {
         isOpen={showSettingsModal}
         onClose={() => {
           setShowSettingsModal(false);
-          setSettingsDefaultTab('api'); // Reset to default tab
-          setSettingsDefaultPrompt(null); // Reset prompt selection
-          loadConfig(); // Reload config to pick up any model changes
-          loadApiKeyStatus(); // Reload API key status in case user added keys
+          setSettingsDefaultTab('api');
+          setSettingsDefaultPrompt(null);
+          loadConfig();
+          loadApiKeyStatus();
         }}
         defaultTab={settingsDefaultTab}
         defaultPrompt={settingsDefaultPrompt}
@@ -2215,61 +759,6 @@ function App() {
           mode="council"
         />
       )}
-      <CommentModal
-        selection={currentSelection}
-        onSave={handleSaveComment}
-        onCancel={() => {
-          setShowCommentModal(false);
-          setCurrentSelection(null);
-          setCommentButtonPosition(null);
-          SelectionHandler.clearSelection();
-        }}
-      />
-      <CommentButton
-        position={currentSelection ? null : commentButtonPosition}
-        onComment={handleCommentButtonClick}
-      />
-      {showCommitSidebar && (
-        <CommitSidebar
-          comments={comments}
-          contextSegments={contextSegments}
-          autoContextSegments={autoContextSegments}
-          availableModels={getAvailableModels()}
-          defaultChairman={getDefaultChairman()}
-          onCommit={handleCommitAndStartThread}
-          onClose={() => setShowCommitSidebar(false)}
-          onSelectComment={handleSelectComment}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          activeCommentId={activeCommentId}
-          onRemoveContextSegment={handleRemoveContextSegment}
-          onVisualise={handleVisualiseFromContext}
-          reviewSessions={reviewSessions}
-          activeSessionId={activeReviewSessionId}
-          sessionThreads={sessionThreads}
-          onCreateSession={handleCreateReviewSession}
-          onSwitchSession={handleSwitchReviewSession}
-          onRenameSession={handleRenameReviewSession}
-          onDeleteSession={handleDeleteReviewSession}
-        />
-      )}
-      {activeThreadContext && (
-        <ThreadContextSidebar
-          context={activeThreadContext}
-          allComments={comments}
-          onClose={() => setActiveThreadContext(null)}
-          onCommentClick={handleSelectComment}
-        />
-      )}
-      {!showCommitSidebar && hasContextItems && (
-        <button
-          className={`commit-button-fab ${hasContextItems ? 'has-comments' : ''}`}
-          onClick={handleToggleCommitSidebar}
-          title="Open review context sidebar"
-        >
-          {`Review (${totalContextItems})`}
-        </button>
-      )}
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
@@ -2286,15 +775,12 @@ function App() {
           setShowSettingsModal(true);
         }}
       />
-      <CommandPalette
-        isOpen={showCommandPalette}
-        onClose={() => setShowCommandPalette(false)}
-        mode={currentConversation?.mode}
-        actions={commandPaletteActions}
-      />
+      {/* CommandPalette moved to per-pane (PaneContent) */}
       <MiniPlayer />
     </div>
     </PodcastPlayerProvider>
+    </NoteKeyboardProvider>
+    </LayoutProvider>
   );
 }
 

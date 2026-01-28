@@ -1818,6 +1818,265 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     return response_data
 
 
+@app.post("/api/conversations/{conversation_id}/synthesize/stream")
+async def synthesize_from_url_stream(conversation_id: str, request: SynthesizeRequest):
+    """
+    Process a URL or raw text with Server-Sent Events for progress updates.
+    Provides real-time feedback during long operations like PDF parsing.
+    """
+    # Validate input
+    if not request.url and not request.text:
+        raise HTTPException(status_code=400, detail="Either URL or text must be provided")
+    if request.url and request.text:
+        raise HTTPException(status_code=400, detail="Provide either URL or text, not both")
+
+    # Verify conversation exists and is synthesizer mode
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "synthesizer":
+        raise HTTPException(status_code=400, detail="Conversation is not in synthesizer mode")
+
+    async def event_generator():
+        try:
+            # Check if this is the first message (for title generation)
+            is_first_message = len(conversation.get("messages", [])) == 0
+
+            # Progress: Starting
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'starting', 'message': 'Initializing...'})}\n\n"
+
+            # Add user message
+            source_label = request.url if request.url else f"[Pasted text: {len(request.text)} chars]"
+            storage.add_synthesizer_user_message(conversation_id, source_label, request.comment)
+
+            # Get content either from URL or direct text input
+            if request.text:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'processing_text', 'message': 'Processing pasted text...'})}\n\n"
+                content_result = {
+                    "source_type": "text",
+                    "content": request.text,
+                    "title": "Pasted Text",
+                    "error": None
+                }
+            else:
+                # Detect URL type for appropriate progress messages
+                from .content import detect_url_type, is_pdf_url
+                url_type = detect_url_type(request.url)
+
+                # For PDFs, check Crawl4AI availability first
+                if url_type == 'pdf':
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'checking_crawler', 'message': 'Checking crawler availability...'})}\n\n"
+
+                    from .crawler import get_crawler
+                    crawler = get_crawler()
+
+                    try:
+                        is_healthy = await asyncio.wait_for(
+                            crawler.health_check(),
+                            timeout=5.0
+                        )
+                        if is_healthy:
+                            yield f"data: {json.dumps({'type': 'progress', 'stage': 'crawler_ready', 'message': 'Crawler ready'})}\n\n"
+                        else:
+                            # Check if fallback is available
+                            if not crawler._has_firecrawl():
+                                yield f"data: {json.dumps({'type': 'error', 'message': 'Crawl4AI is not responding. Please ensure the Docker container is running, or configure Firecrawl as fallback in Settings.'})}\n\n"
+                                return
+                            yield f"data: {json.dumps({'type': 'progress', 'stage': 'using_fallback', 'message': 'Using Firecrawl fallback...'})}\n\n"
+                    except asyncio.TimeoutError:
+                        if not crawler._has_firecrawl():
+                            yield f"data: {json.dumps({'type': 'error', 'message': 'Crawl4AI connection timed out. Please check if Docker is running, or configure Firecrawl as fallback.'})}\n\n"
+                            return
+                        yield f"data: {json.dumps({'type': 'progress', 'stage': 'using_fallback', 'message': 'Crawl4AI timeout, using Firecrawl fallback...'})}\n\n"
+
+                # Set progress message based on content type
+                if url_type == 'youtube':
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'fetching', 'message': 'Downloading and transcribing video...'})}\n\n"
+                elif url_type == 'podcast':
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'fetching', 'message': 'Extracting and transcribing podcast...'})}\n\n"
+                elif url_type == 'pdf':
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'fetching', 'message': 'Parsing PDF document (this may take 1-3 minutes for large files)...'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': 'fetching', 'message': 'Fetching article content...'})}\n\n"
+
+                # Fetch content from URL
+                content_result = await content.fetch_content(request.url)
+
+            if content_result.get("error"):
+                yield f"data: {json.dumps({'type': 'error', 'message': content_result['error']})}\n\n"
+                return
+
+            content_length = len(content_result.get("content", ""))
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'fetched', 'message': f'Content fetched: {content_length:,} characters'})}\n\n"
+
+            # Get system prompt
+            system_prompt = conversation.get("system_prompt")
+            if not system_prompt:
+                system_prompt = await synthesizer.get_synthesizer_prompt_content()
+
+            # Generate zettels
+            model = request.model or settings.get_synthesizer_model()
+
+            # Set generation progress message
+            if request.use_deliberation:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'generating', 'message': 'Stage 1: Models generating notes...'})}\n\n"
+            elif request.use_knowledge_graph:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'generating', 'message': 'Analyzing content and querying knowledge graph...'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'generating', 'message': 'Generating Zettelkasten notes...'})}\n\n"
+
+            generation_ids = []
+
+            if request.use_knowledge_graph:
+                result = await synthesizer_kg.generate_zettels_knowledge_graph(
+                    content_result["content"],
+                    system_prompt,
+                    model=model,
+                    user_comment=request.comment
+                )
+                storage.add_synthesizer_kg_message(
+                    conversation_id,
+                    result["notes"],
+                    result.get("raw_response", ""),
+                    content_result["content"] or "",
+                    content_result["source_type"],
+                    request.url,
+                    result.get("model", model),
+                    result.get("context_notes", []),
+                    result.get("topics_extracted", {}),
+                    content_result.get("title")
+                )
+                gen_id = result.get("generation_id")
+                generation_ids = [gen_id] if gen_id else []
+
+            elif request.use_deliberation:
+                # Update progress for deliberation stages
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'deliberation_stage1', 'message': 'Stage 1: Council members generating notes...'})}\n\n"
+
+                result = await synthesizer.generate_zettels_deliberation(
+                    content_result["content"],
+                    system_prompt,
+                    council_models=request.council_models,
+                    chairman_model=request.chairman_model,
+                    user_comment=request.comment
+                )
+                storage.add_synthesizer_deliberation_message(
+                    conversation_id,
+                    result["notes"],
+                    result.get("deliberation", {}),
+                    result.get("stage3_raw", ""),
+                    content_result["content"] or "",
+                    content_result["source_type"],
+                    request.url,
+                    result.get("models", []),
+                    result.get("chairman_model", ""),
+                    content_result.get("title")
+                )
+                generation_ids = result.get("generation_ids", [])
+
+            elif request.use_council:
+                result = await synthesizer.generate_zettels_council(
+                    content_result["content"],
+                    system_prompt,
+                    user_comment=request.comment
+                )
+                storage.add_synthesizer_message(
+                    conversation_id,
+                    result["notes"],
+                    result.get("raw_response", ""),
+                    content_result["content"] or "",
+                    content_result["source_type"],
+                    request.url,
+                    result.get("model"),
+                    content_result.get("title")
+                )
+                generation_ids = result.get("generation_ids", [])
+
+            else:
+                result = await synthesizer.generate_zettels_single(
+                    content_result["content"],
+                    system_prompt,
+                    model=model,
+                    user_comment=request.comment
+                )
+                storage.add_synthesizer_message(
+                    conversation_id,
+                    result["notes"],
+                    result.get("raw_response", ""),
+                    content_result["content"] or "",
+                    content_result["source_type"],
+                    request.url,
+                    result.get("model"),
+                    content_result.get("title")
+                )
+                gen_id = result.get("generation_id")
+                generation_ids = [gen_id] if gen_id else []
+
+            notes_count = len(result.get("notes", []))
+            yield f"data: {json.dumps({'type': 'progress', 'stage': 'notes_generated', 'message': f'Generated {notes_count} notes'})}\n\n"
+
+            # Track costs
+            if generation_ids:
+                try:
+                    await asyncio.sleep(1.5)
+                    cost_tasks = [openrouter.get_generation_cost(gid) for gid in generation_ids]
+                    costs = await asyncio.gather(*cost_tasks)
+                    total_cost = sum(c for c in costs if c is not None)
+                    if total_cost > 0:
+                        storage.update_conversation_cost(conversation_id, total_cost)
+                except Exception as e:
+                    print(f"Error tracking synthesizer cost: {e}")
+
+            # Generate summary
+            if result.get("notes"):
+                await _generate_synthesizer_summary(conversation_id, result["notes"])
+                asyncio.create_task(_extract_entities_for_notes(conversation_id))
+
+            # Generate title if first message
+            generated_title = None
+            if is_first_message and result.get("notes"):
+                yield f"data: {json.dumps({'type': 'progress', 'stage': 'generating_title', 'message': 'Generating title...'})}\n\n"
+                generated_title = await generate_synthesizer_title(result["notes"])
+                storage.update_conversation_title(conversation_id, generated_title)
+
+            # Build response data
+            response_data = {
+                "notes": result["notes"],
+                "source_type": content_result["source_type"],
+                "source_title": content_result.get("title"),
+                "model": result.get("model"),
+                "conversation_title": generated_title
+            }
+
+            if request.use_deliberation:
+                response_data["deliberation"] = result.get("deliberation")
+                response_data["stage3_raw"] = result.get("stage3_raw")
+                response_data["models"] = result.get("models")
+                response_data["chairman_model"] = result.get("chairman_model")
+                response_data["mode"] = "deliberation"
+            elif request.use_knowledge_graph:
+                response_data["context_notes"] = result.get("context_notes", [])
+                response_data["topics_extracted"] = result.get("topics_extracted", {})
+                response_data["mode"] = "knowledge_graph"
+
+            # Send complete event with data
+            yield f"data: {json.dumps({'type': 'complete', 'data': response_data})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
 @app.put("/api/conversations/{conversation_id}/synthesizer-source", response_model=Conversation)
 async def update_synthesizer_source(
     conversation_id: str,

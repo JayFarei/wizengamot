@@ -1360,6 +1360,93 @@ export const api = {
   },
 
   /**
+   * Process URL/text with streaming progress updates.
+   * Provides real-time feedback during long operations like PDF parsing.
+   * @param {string} conversationId - The conversation ID
+   * @param {Object} params - Synthesis parameters
+   * @param {string} params.url - URL to process (null if using text)
+   * @param {string} params.text - Direct text input (null if using URL)
+   * @param {string} params.comment - Optional user comment/guidance
+   * @param {string} params.model - Optional model override
+   * @param {boolean} params.useCouncil - Whether to use multiple models
+   * @param {boolean} params.useDeliberation - Whether to use full 3-stage council deliberation
+   * @param {Array<string>} params.councilModels - Optional models for deliberation mode
+   * @param {string} params.chairmanModel - Optional chairman for deliberation mode
+   * @param {boolean} params.useKnowledgeGraph - Whether to use knowledge graph aware generation
+   * @param {function} onProgress - Callback for progress events: ({stage, message}) => void
+   * @returns {Promise<object>} Final result
+   */
+  async synthesizeStream(conversationId, params, onProgress) {
+    const body = {
+      url: params.url || null,
+      text: params.text || null,
+      comment: params.comment || null,
+      model: params.model || null,
+      use_council: params.useCouncil || false,
+      use_deliberation: params.useDeliberation || false,
+      use_knowledge_graph: params.useKnowledgeGraph || false,
+    };
+
+    if (params.useDeliberation && params.councilModels) {
+      body.council_models = params.councilModels;
+    }
+    if (params.useDeliberation && params.chairmanModel) {
+      body.chairman_model = params.chairmanModel;
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/synthesize/stream`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to start synthesis');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResult = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'progress' && onProgress) {
+              onProgress({ stage: data.stage, message: data.message });
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'complete') {
+              finalResult = data.data;
+            }
+          } catch (parseError) {
+            // Skip malformed JSON lines
+            console.warn('Failed to parse SSE data:', parseError);
+          }
+        }
+      }
+    }
+
+    if (!finalResult) {
+      throw new Error('Stream ended without result');
+    }
+    return finalResult;
+  },
+
+  /**
    * Get synthesizer settings.
    */
   async getSynthesizerSettings() {

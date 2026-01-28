@@ -1,5 +1,5 @@
 .command-palette-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -8,8 +8,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 15vh;
-  z-index: 1100;
+  padding-top: 15%;
+  z-index: 100;
 }
 
 .command-palette {

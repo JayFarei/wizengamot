@@ -131,6 +131,9 @@
   --tag-pink: #ea76cb;
   --tag-sapphire: #209fb5;
 
+  /* Accent colors */
+  --accent-orange: #ff9800;
+
   /* Card header colors (semi-transparent overlays) */
   --card-header-council: rgba(30, 102, 245, 0.15);
   --card-header-synthesizer: rgba(64, 160, 43, 0.15);
@@ -262,6 +265,9 @@
   --tag-lavender: #b7bdf8;
   --tag-pink: #f5bde6;
   --tag-sapphire: #7dc4e4;
+
+  /* Accent colors */
+  --accent-orange: #ffb74d;
 
   /* Card header colors (semi-transparent overlays) */
   --card-header-council: rgba(138, 173, 244, 0.2);

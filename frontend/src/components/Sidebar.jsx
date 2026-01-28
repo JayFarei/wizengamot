@@ -3,6 +3,7 @@ import * as LucideIcons from 'lucide-react';
 import './Sidebar.css';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
 import { api } from '../api';
+import { useLayout } from '../contexts/LayoutContext';
 import PodcastProgressModal from './PodcastProgressModal';
 
 // Helper to get Lucide icon component from name
@@ -411,6 +412,9 @@ export default function Sidebar({
   // All conversations for list mode
   const allConversations = filterAndSortConversations(conversations);
 
+  // Get layout context for pane-aware navigation
+  const { isSplit, focusedPaneId, setPaneConversation } = useLayout();
+
   // Keyboard navigation for Shift+J/K
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -453,7 +457,13 @@ export default function Sidebar({
         }
 
         if (newIndex !== currentIndex && visibleList[newIndex]) {
-          onSelectConversation(visibleList[newIndex].id);
+          const newConvId = visibleList[newIndex].id;
+          // If split mode, update focused pane; otherwise use global handler
+          if (isSplit && setPaneConversation && focusedPaneId) {
+            setPaneConversation(focusedPaneId, newConvId);
+          } else {
+            onSelectConversation(newConvId);
+          }
         }
       }
     };
@@ -468,7 +478,10 @@ export default function Sidebar({
     councilConversations,
     visualiserConversations,
     currentConversationId,
-    onSelectConversation
+    onSelectConversation,
+    isSplit,
+    focusedPaneId,
+    setPaneConversation
   ]);
 
   // Toggle type filter
