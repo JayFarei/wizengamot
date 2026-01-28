@@ -4,6 +4,7 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  height: 100%;
   background: var(--bg-secondary);
   position: relative;
 }
@@ -36,6 +37,8 @@
 .note-panes-stack {
   display: flex;
   flex: 1;
+  height: 100%;
+  min-width: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
@@ -303,6 +306,7 @@
 /* Related Notes Sidebar */
 .related-notes-sidebar {
   width: 350px;
+  height: 100%;
   flex-shrink: 0;
   background: var(--bg-primary);
   border-left: 1px solid var(--border-color);
